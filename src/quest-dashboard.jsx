@@ -394,6 +394,7 @@ const DEFAULT_STATE = {
       name: "Gym",
       emoji: "💪",
       xpPerDay: 15,
+      hour: null,
       history: {},
     },
     {
@@ -401,6 +402,7 @@ const DEFAULT_STATE = {
       name: "French Anki",
       emoji: "🇫🇷",
       xpPerDay: 10,
+      hour: null,
       history: {},
     },
     {
@@ -408,6 +410,7 @@ const DEFAULT_STATE = {
       name: "Reading 20–30 min",
       emoji: "📚",
       xpPerDay: 10,
+      hour: null,
       history: {},
     },
   ],
@@ -559,7 +562,7 @@ body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
 .qd-clock-date{fill:#9faac0;font-size:11px;font-family:'Inter',sans-serif}
 .qd-clock-list{margin-top:12px;text-align:left;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto}
 .qd-clock-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:10px 11px;background:rgba(12,24,43,.72);border:1px solid rgba(126,145,178,.13);cursor:pointer}
-.qd-clock-item.done{opacity:.48;text-decoration:line-through}.qd-clock-item-name{flex:1}.qd-clock-item-time,.qd-clock-item-xp{color:var(--dim);font-size:11px}
+.qd-clock-item.done{opacity:.48;text-decoration:line-through}.qd-clock-item-name{flex:1}.qd-clock-routine{color:var(--gold);font-size:9px;font-style:italic}.qd-clock-item-time,.qd-clock-item-xp{color:var(--dim);font-size:11px}
 
 .qd-voyage{padding-bottom:16px}
 .qd-voyage-stage{font-family:'Cinzel',serif;font-size:12px;color:var(--purple-2);border:1px solid rgba(139,92,246,.35);background:rgba(77,49,139,.18);padding:6px 9px;border-radius:999px}
@@ -582,7 +585,7 @@ body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
 .qd-empty{color:var(--dim);font-family:'Cormorant Garamond',serif;font-style:italic;padding:14px 0}
 
 .qd-anchors{padding:12px 16px 16px;display:flex;flex-direction:column;gap:8px}.qd-anchor{background:rgba(11,24,43,.70);border:1px solid var(--line-soft);padding:10px 11px;position:relative}.qd-anchor-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}.qd-anchor-head>span:first-child{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-size:18px;background:rgba(6,15,29,.55)}.qd-anchor-title{flex:1;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.05em}.qd-anchor-actions{display:flex;gap:4px}.qd-anchor-actions button,.qd-quest-actions button{background:none;border:1px solid rgba(126,145,178,.22);color:var(--dim);padding:4px 6px;cursor:pointer;font-size:10px}.qd-anchor-actions button:hover,.qd-quest-actions button:hover{border-color:var(--gold);color:var(--text)}.qd-anchor-week{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}.qd-dot{width:25px;height:25px;border-radius:50%;border:1px solid rgba(126,145,178,.28);background:rgba(7,15,29,.75);color:#7f8aa2;font-size:9px;cursor:pointer}.qd-dot.on{background:#7556d5;color:#fff;border-color:#b29cff;box-shadow:0 0 10px rgba(139,92,246,.45)}
-.qd-anchor-edit,.qd-add-task{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0}.qd-anchor-edit input,.qd-add-task input,.qd-add-task select,.qd-add-row input,.qd-threshold-row input,.qd-reset-card select{background:#0a1729;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px}.qd-anchor-edit input:nth-child(2),.qd-add-task input[type=text]{flex:1;min-width:130px}.qd-anchor-edit button,.qd-add-task button,.qd-add-row button{background:linear-gradient(180deg,#ad8b52,#826735);border:1px solid #d7b877;color:#0b1322;padding:7px 11px;border-radius:4px;cursor:pointer;font-weight:700}.qd-cancel{background:transparent!important;color:var(--dim)!important;border-color:var(--line)!important}.qd-add-btn{margin:10px 16px 16px;background:transparent;border:1px dashed rgba(203,166,106,.34);color:#b9c2d4;padding:8px 11px;cursor:pointer;width:calc(100% - 32px)}.qd-add-btn:hover{border-color:var(--gold);color:#fff}
+.qd-anchor-edit,.qd-add-task{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0}.qd-anchor-edit input,.qd-anchor-edit select,.qd-add-task input,.qd-add-task select,.qd-add-row input,.qd-threshold-row input,.qd-reset-card select{background:#0a1729;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px}.qd-anchor-edit input:nth-child(2),.qd-add-task input[type=text]{flex:1;min-width:130px}.qd-anchor-edit select{min-width:118px}.qd-anchor-edit button,.qd-add-task button,.qd-add-row button{background:linear-gradient(180deg,#ad8b52,#826735);border:1px solid #d7b877;color:#0b1322;padding:7px 11px;border-radius:4px;cursor:pointer;font-weight:700}.qd-cancel{background:transparent!important;color:var(--dim)!important;border-color:var(--line)!important}.qd-add-btn{margin:10px 16px 16px;background:transparent;border:1px dashed rgba(203,166,106,.34);color:#b9c2d4;padding:8px 11px;cursor:pointer;width:calc(100% - 32px)}.qd-add-btn:hover{border-color:var(--gold);color:#fff}
 
 .qd-side-stack{display:flex;flex-direction:column;gap:18px;min-width:0}.qd-xp-card{padding:16px 18px}.qd-xp-top{display:flex;justify-content:space-between;gap:12px;align-items:center}.qd-xp-number{font-family:'Cinzel',serif;color:var(--gold-bright);font-size:20px}.qd-xp-bar{height:9px;background:rgba(82,99,128,.22);border:1px solid rgba(126,145,178,.24);margin-top:12px;overflow:hidden}.qd-xp-fill{height:100%;background:linear-gradient(90deg,#7556d5,#ad79ff);box-shadow:0 0 15px rgba(139,92,246,.55)}.qd-xp-caption{display:flex;justify-content:space-between;color:var(--dim);font-size:10px;margin-top:6px;gap:10px;flex-wrap:wrap}.qd-reset-mini{font-size:10px;color:#919db3;margin-top:10px}.qd-reset-mini strong{color:var(--gold-bright)}
 .qd-machines{display:flex;flex-direction:column;gap:10px;padding:12px 16px 16px}.qd-machine{background:rgba(10,23,41,.72);border:1px solid var(--line-soft);padding:12px;min-width:0}.qd-machine-head{display:flex;gap:9px;align-items:center}.qd-machine-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-size:18px}.qd-machine-title{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em}.qd-machine-sub,.qd-machine-nums{font-size:10px;color:var(--dim);margin-top:2px}.qd-bar{height:6px;background:rgba(82,99,128,.20);border:1px solid rgba(126,145,178,.18);overflow:hidden;margin-top:10px}.qd-bar-fill{height:100%;background:linear-gradient(90deg,#6e7fb9,#a06cff)!important}.qd-reel{margin:10px 0;background:rgba(71,44,128,.16);border:1px solid rgba(139,92,246,.25);padding:10px;text-align:center;font-family:'Cormorant Garamond',serif;color:#e5daf7}.qd-reel.spinning{animation:qdshake .09s infinite}.qd-spin-btn{width:100%;background:linear-gradient(180deg,#7e5bd8,#5b3eaa);border:1px solid #a88cf1;color:#fff;padding:8px;cursor:pointer}.qd-spin-btn:disabled{opacity:.35;cursor:not-allowed}.qd-reward-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.qd-chip{font-size:9px;border:1px solid var(--line-soft);background:#0a1729;padding:4px 6px;display:flex;gap:5px;align-items:center;max-width:100%}.qd-chip button{background:none;border:none;color:var(--dim);cursor:pointer}.qd-add-row{display:flex;gap:5px;margin-top:8px;min-width:0}.qd-add-row input{min-width:0;flex:1}.qd-threshold-row{display:flex;gap:5px;align-items:center;font-size:9px;color:var(--dim);margin-top:8px;flex-wrap:wrap}.qd-threshold-row input{width:48px;padding:4px}.qd-reset-box{font-size:9px;color:var(--dim);margin-top:8px}.qd-reset-time{color:var(--gold-bright)}
@@ -685,7 +688,7 @@ body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
   .qd-task{gap:6px}
   .qd-task-name{min-width:105px}
   .qd-add-task{flex-direction:column}
-  .qd-add-task input,.qd-add-task select,.qd-add-task button{width:100%!important;min-width:0!important}
+  .qd-add-task input,.qd-add-task select,.qd-add-task button,.qd-anchor-edit select{width:100%!important;min-width:0!important}
   .qd-add-btn{margin:10px 12px 12px;width:calc(100% - 24px)}
   .qd-reset-card{padding:12px;align-items:stretch}
   .qd-reset-card select{width:100%}
@@ -784,6 +787,26 @@ function ClockDial({
     (t) => t.hour !== null && t.hour !== undefined
   );
 
+  // If several items share the same hour, fan them around that hour
+  // instead of drawing every marker on top of the first one.
+  const positionedTimed = timed.map((item) => {
+    const sameHour = timed.filter(
+      (other) => Number(other.hour) === Number(item.hour)
+    );
+    const index = sameHour.findIndex(
+      (other) => other.clockKey === item.clockKey
+    );
+    const count = sameHour.length;
+    const angularStep = count > 1 ? Math.min(0.28, 0.72 / count) : 0;
+    const hourOffset = (index - (count - 1) / 2) * angularStep;
+    const radiusOffset = count > 3 && index % 2 ? -15 : 0;
+
+    return {
+      ...item,
+      markerPos: pos(Number(item.hour) + hourOffset, taskR + radiusOffset),
+    };
+  });
+
   const current = now || new Date();
   const exactHour = current.getHours() + current.getMinutes() / 60;
   const hand = pos(exactHour, 104);
@@ -829,12 +852,31 @@ function ClockDial({
           return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" className="qd-clock-ticklabel">{roman[i]}</text>;
         })}
 
-        {timed.map((t) => {
-          const p = pos(t.hour, taskR);
+        {positionedTimed.map((item) => {
+          const p = item.markerPos;
+          const isAnchor = item.sourceType === "anchor";
           return (
-            <g key={t.id} onClick={() => onToggle(t.domainId, t.id)} style={{ cursor: "pointer" }}>
-              <circle cx={p.x} cy={p.y} r={10} fill={t.done ? "#7ec5a0" : "#8b5cf6"} className="qd-clock-dot" />
-              <text x={p.x} y={p.y - 16} textAnchor="middle" fill="#eee7f5" fontSize="10">{t.domainEmoji}</text>
+            <g
+              key={item.clockKey}
+              onClick={() => onToggle(item)}
+              style={{ cursor: "pointer" }}
+            >
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={isAnchor ? 9 : 10}
+                fill={item.done ? "#7ec5a0" : isAnchor ? "#cba66a" : "#8b5cf6"}
+                className="qd-clock-dot"
+              />
+              <text
+                x={p.x}
+                y={p.y - 16}
+                textAnchor="middle"
+                fill="#eee7f5"
+                fontSize="10"
+              >
+                {item.domainEmoji}
+              </text>
             </g>
           );
         })}
@@ -851,14 +893,27 @@ function ClockDial({
 
       <div className="qd-clock-list">
         {tasks.length === 0 && (
-          <div className="qd-dim">Nothing scheduled for this date — add a date and time to a quest task.</div>
+          <div className="qd-dim">Nothing scheduled for this date — add a time to a quest task or daily anchor.</div>
         )}
-        {tasks.map((t) => (
-          <div key={t.id} className={"qd-clock-item" + (t.done ? " done" : "")} onClick={() => onToggle(t.domainId, t.id)}>
-            <span>{t.domainEmoji}</span>
-            <span className="qd-clock-item-name">{t.name}</span>
-            <span className="qd-clock-item-time">{t.hour !== null && t.hour !== undefined ? String(t.hour).padStart(2, "0") + ":00" : "—"}</span>
-            <span className="qd-clock-item-xp">{t.xp} XP</span>
+        {tasks.map((item) => (
+          <div
+            key={item.clockKey}
+            className={"qd-clock-item" + (item.done ? " done" : "")}
+            onClick={() => onToggle(item)}
+          >
+            <span>{item.domainEmoji}</span>
+            <span className="qd-clock-item-name">
+              {item.name}
+              {item.sourceType === "anchor" && (
+                <span className="qd-clock-routine"> · routine</span>
+              )}
+            </span>
+            <span className="qd-clock-item-time">
+              {item.hour !== null && item.hour !== undefined
+                ? String(item.hour).padStart(2, "0") + ":00"
+                : "—"}
+            </span>
+            <span className="qd-clock-item-xp">{item.xp} XP</span>
           </div>
         ))}
       </div>
@@ -882,11 +937,17 @@ function AnchorCard({
   const [emoji, setEmoji] = useState(anchor.emoji);
   const [name, setName] = useState(anchor.name);
   const [xp, setXp] = useState(anchor.xpPerDay);
+  const [hour, setHour] = useState(
+    anchor.hour === null || anchor.hour === undefined ? "" : String(anchor.hour)
+  );
 
   useEffect(() => {
     setEmoji(anchor.emoji);
     setName(anchor.name);
     setXp(anchor.xpPerDay);
+    setHour(
+      anchor.hour === null || anchor.hour === undefined ? "" : String(anchor.hour)
+    );
   }, [anchor]);
 
   const save = () => {
@@ -896,6 +957,10 @@ function AnchorCard({
       emoji: emoji || "⭐",
       name: name.trim(),
       xpPerDay: Math.max(1, Number(xp) || 1),
+      hour:
+        hour === "" || hour === null || hour === undefined
+          ? null
+          : Number(hour),
     });
 
     setEditing(false);
@@ -914,6 +979,9 @@ function AnchorCard({
 
             <span className="qd-dim">
               · {anchor.xpPerDay} XP
+              {anchor.hour !== null && anchor.hour !== undefined
+                ? ` · ${String(anchor.hour).padStart(2, "0")}:00`
+                : ""}
             </span>
 
             <div className="qd-anchor-actions">
@@ -957,10 +1025,20 @@ function AnchorCard({
             onChange={(e) => setXp(e.target.value)}
           />
 
-          <button
-            type="button"
-            onClick={save}
+          <select
+            value={hour}
+            onChange={(e) => setHour(e.target.value)}
+            title="Routine time"
           >
+            <option value="">No clock time</option>
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>
+                {String(h).padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+
+          <button type="button" onClick={save}>
             Save
           </button>
 
@@ -1002,6 +1080,7 @@ function AnchorAddForm({ onAdd, onCancel }) {
   const [emoji, setEmoji] = useState("⭐");
   const [name, setName] = useState("");
   const [xp, setXp] = useState(10);
+  const [hour, setHour] = useState("");
 
   const submit = () => {
     if (!name.trim()) return;
@@ -1010,11 +1089,16 @@ function AnchorAddForm({ onAdd, onCancel }) {
       emoji: emoji || "⭐",
       name: name.trim(),
       xpPerDay: Math.max(1, Number(xp) || 1),
+      hour:
+        hour === "" || hour === null || hour === undefined
+          ? null
+          : Number(hour),
     });
 
     setEmoji("⭐");
     setName("");
     setXp(10);
+    setHour("");
   };
 
   return (
@@ -1042,10 +1126,20 @@ function AnchorAddForm({ onAdd, onCancel }) {
         onChange={(e) => setXp(e.target.value)}
       />
 
-      <button
-        type="button"
-        onClick={submit}
+      <select
+        value={hour}
+        onChange={(e) => setHour(e.target.value)}
+        title="Routine time"
       >
+        <option value="">No clock time</option>
+        {Array.from({ length: 24 }, (_, h) => (
+          <option key={h} value={h}>
+            {String(h).padStart(2, "0")}:00
+          </option>
+        ))}
+      </select>
+
+      <button type="button" onClick={submit}>
         Add
       </button>
 
@@ -2111,6 +2205,7 @@ export default function QuestDashboard() {
     name,
     emoji,
     xpPerDay,
+    hour,
   }) => {
     updateState((next) => {
       next.anchors.push({
@@ -2130,6 +2225,11 @@ export default function QuestDashboard() {
             1,
             Number(xpPerDay) || 1
           ),
+
+        hour:
+          hour === "" || hour === null || hour === undefined
+            ? null
+            : Number(hour),
 
         history: {},
       });
@@ -2156,6 +2256,12 @@ export default function QuestDashboard() {
           1,
           Number(changes.xpPerDay) || 1
         );
+      anchor.hour =
+        changes.hour === "" ||
+        changes.hour === null ||
+        changes.hour === undefined
+          ? null
+          : Number(changes.hour);
     });
 
     playSFX("add");
@@ -2509,6 +2615,34 @@ export default function QuestDashboard() {
         task.day === viewDateStr
     );
 
+  const viewAnchorClockItems = state.anchors
+    .filter(
+      (anchor) =>
+        anchor.hour !== null &&
+        anchor.hour !== undefined
+    )
+    .map((anchor) => ({
+      id: anchor.id,
+      clockKey: `anchor-${anchor.id}-${viewDateStr}`,
+      sourceType: "anchor",
+      anchorId: anchor.id,
+      name: anchor.name,
+      hour: Number(anchor.hour),
+      xp: Number(anchor.xpPerDay) || 0,
+      done: !!anchor.history?.[viewDateStr],
+      domainEmoji: anchor.emoji,
+      domainName: "Daily Anchor",
+    }));
+
+  const clockItems = [
+    ...viewTasks.map((task) => ({
+      ...task,
+      sourceType: "task",
+      clockKey: `task-${task.domainId}-${task.id}`,
+    })),
+    ...viewAnchorClockItems,
+  ].sort((a, b) => Number(a.hour ?? 99) - Number(b.hour ?? 99));
+
   // ====================================================
   // RENDER
   // ====================================================
@@ -2607,11 +2741,17 @@ export default function QuestDashboard() {
           <div className="qd-dashboard-grid">
             <section className="qd-panel" aria-label="Daily clock">
               <ClockDial
-                tasks={viewTasks}
+                tasks={clockItems}
                 dateLabel={viewDateLabel}
                 onPrev={() => setViewOffset(viewOffset - 1)}
                 onNext={() => setViewOffset(viewOffset + 1)}
-                onToggle={toggleTask}
+                onToggle={(item) => {
+                  if (item.sourceType === "anchor") {
+                    toggleAnchor(item.anchorId, viewDateStr);
+                  } else {
+                    toggleTask(item.domainId, item.id);
+                  }
+                }}
                 now={clockNow}
               />
             </section>
