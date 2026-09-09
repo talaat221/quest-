@@ -709,18 +709,18 @@ body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
 .qd-task-edit-btn{background:transparent;border:1px solid rgba(126,145,178,.24);color:var(--dim);padding:4px 7px;font-size:10px;cursor:pointer}
 .qd-task-edit-btn:hover{border-color:var(--gold);color:var(--text)}
 .qd-task-unscheduled{font-size:9px;color:#a391c6;border:1px solid rgba(139,92,246,.22);padding:2px 5px;border-radius:999px}
-.qd-task-edit-row{display:grid;grid-template-columns:minmax(150px,1.5fr) 72px minmax(230px,1.2fr) 92px auto;gap:7px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
-.qd-task-edit-row input,.qd-task-edit-row select{min-width:0;width:100%;background:#0a1729;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px}
-.qd-task-date-edit{display:flex;gap:5px;align-items:center;min-width:0}.qd-task-date-edit input{flex:1}.qd-task-edit-actions{display:flex;gap:5px}
-.qd-task-edit-actions button,.qd-today-btn,.qd-clear-date-btn{background:transparent;border:1px solid var(--line);color:var(--text);padding:7px 9px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.qd-task-edit-row{display:grid;grid-template-columns:minmax(0,1fr) 78px;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line-soft);width:100%;min-width:0}
+.qd-task-edit-row>input[type=text]{grid-column:1/2}.qd-task-edit-row>input[type=number]{grid-column:2/3}.qd-task-edit-row input,.qd-task-edit-row select{min-width:0;width:100%;background:#0a1729;border:1px solid var(--line);color:var(--text);padding:8px 9px;border-radius:4px}
+.qd-task-date-edit{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;min-width:0}.qd-task-date-edit input{min-width:0}.qd-task-edit-row>select{grid-column:1/2}.qd-task-edit-actions{grid-column:2/3;display:flex;gap:6px;justify-content:flex-end;min-width:max-content}
+.qd-task-edit-actions button,.qd-today-btn,.qd-clear-date-btn{background:transparent;border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:4px;cursor:pointer;white-space:nowrap}
 .qd-today-btn{border-color:rgba(139,92,246,.46);color:#d9c8ff}.qd-clear-date-btn{color:var(--dim)}
 .qd-task-edit-actions button:first-child{background:linear-gradient(180deg,#ad8b52,#826735);border-color:#d7b877;color:#0b1322;font-weight:700}
 .qd-xp-progress-block{margin-top:14px}.qd-weekly-xp-block{padding-top:14px;border-top:1px solid var(--line-soft)}
 .qd-xp-row-label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;color:var(--dim)}
 .qd-xp-row-label span{font-family:'Cinzel',serif;color:#e5d6bb;letter-spacing:.05em}.qd-xp-row-label strong{color:var(--purple-2);font-weight:600}
 .qd-weekly-xp-bar .qd-xp-fill{background:linear-gradient(90deg,#657fc4,#a96fff)!important}
-@media(max-width:900px){.qd-task-edit-row{grid-template-columns:1fr 72px}.qd-task-date-edit{grid-column:1/-1}.qd-task-edit-row select{grid-column:1/2}.qd-task-edit-actions{grid-column:2/3;justify-content:flex-end}}
-@media(max-width:520px){.qd-task-edit-row{display:flex;flex-direction:column;align-items:stretch}.qd-task-date-edit{display:grid;grid-template-columns:1fr auto auto}.qd-task-edit-actions{justify-content:flex-end}.qd-task-edit-btn{padding:5px 7px}.qd-xp-caption{font-size:9px}}
+@media(max-width:900px){.qd-task-edit-row{grid-template-columns:minmax(0,1fr) 74px}.qd-task-edit-actions{grid-column:1/-1;justify-content:flex-end}.qd-task-edit-row>select{grid-column:1/-1}}
+@media(max-width:520px){.qd-task-edit-row{display:flex;flex-direction:column;align-items:stretch}.qd-task-date-edit{display:grid;grid-template-columns:1fr auto auto}.qd-task-edit-actions{width:100%;justify-content:stretch}.qd-task-edit-actions button{flex:1}.qd-task-edit-btn{padding:5px 7px}.qd-xp-caption{font-size:9px}}
 `;
 
 
@@ -1349,7 +1349,7 @@ function QuestCard({
               </select>
 
               <div className="qd-task-edit-actions">
-                <button type="button" onClick={saveTaskEdit}>Save</button>
+                <button type="button" onClick={saveTaskEdit}>Save changes</button>
                 <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
               </div>
             </div>
