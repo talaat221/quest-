@@ -445,6 +445,10 @@ const DEFAULT_STATE = {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap');
 
+html,body,#root{margin:0!important;padding:0!important;width:100%!important;max-width:none!important;min-width:0!important;}
+body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
+#root{text-align:initial!important;}
+
 .qd-root{
   --bg:#07111f;
   --panel:rgba(7,18,33,.82);
@@ -599,45 +603,103 @@ const CSS = `
   .qd-quest-grid{grid-template-columns:1fr}
 }
 @media (max-width: 900px){
-  .qd-shell{grid-template-columns:1fr}
+  .qd-root{width:100%;min-width:0}
+  .qd-shell{grid-template-columns:1fr;width:100%;max-width:none}
   .qd-sidebar{position:relative;height:auto;padding:14px 14px 10px;gap:12px}
-  .qd-brand{padding-bottom:10px}
-  .qd-nav{flex-direction:row;overflow:auto;padding-bottom:2px}
-  .qd-nav a{font-size:14px;white-space:nowrap;padding:8px 10px}
+  .qd-brand{padding-bottom:10px;padding-right:86px}
+  .qd-nav{flex-direction:row;overflow-x:auto;overflow-y:hidden;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .qd-nav a{font-size:14px;white-space:nowrap;padding:8px 10px;flex:0 0 auto}
   .qd-sidebar-quote{display:none}
-  .qd-logout{position:absolute;right:14px;top:14px;width:auto}
-  .qd-main{padding:20px 14px 50px}
+  .qd-logout{position:absolute;right:14px;top:14px;width:auto;margin:0}
+  .qd-main{padding:18px 14px 50px;width:100%;min-width:0}
   .qd-topbar{padding-top:4px}
   .qd-topmeta{display:none}
-  .qd-lower-grid{grid-template-columns:1fr}
+  .qd-dashboard-grid,.qd-lower-grid{grid-template-columns:1fr}
   .qd-side-stack{grid-column:auto;display:flex}
   .qd-root::before{position:absolute;background-position:center top}
 }
 @media (max-width: 640px){
-  .qd-main{padding-left:10px;padding-right:10px}
-  .qd-greeting{font-size:27px}
-  .qd-brand-title{font-size:16px}
-  .qd-laurel{width:40px;height:40px}
-  .qd-panel-head{padding:15px 15px 0}
-  .qd-voyage-list{padding:12px 15px}
-  .qd-voyage-row{grid-template-columns:24px 1fr 70px 34px;font-size:10px}
-  .qd-voyage-num{width:21px;height:21px}
-  .qd-anchor-week{justify-content:flex-start}
-  .qd-clock{padding:10px 8px 14px}
-  .qd-clock-nav{gap:10px;font-size:13px}
-  .qd-clock-nav button{width:34px;height:34px}
-  .qd-clock-svg{width:min(100%,340px)}
-  .qd-clock-list{max-height:none}
-  .qd-today-task{grid-template-columns:24px 1fr auto}
+  .qd-root{background-position:center top}
+  .qd-sidebar{padding:11px 12px 8px;gap:8px}
+  .qd-brand{padding:0 78px 8px 0;border-bottom:0}
+  .qd-brand-sub{display:none}
+  .qd-brand-title{font-size:17px;letter-spacing:.06em}
+  .qd-laurel{width:36px;height:36px;font-size:18px;flex:0 0 auto}
+  .qd-nav{display:none}
+  .qd-logout{top:12px;right:12px;padding:7px 9px;font-size:11px}
+  .qd-main{padding:12px 10px 44px}
+  .qd-topbar{display:block;margin-bottom:12px}
+  .qd-greeting-kicker{font-size:10px;letter-spacing:.12em}
+  .qd-greeting{font-size:24px;margin-top:3px}
+  .qd-greeting-sub{font-size:15px;margin-top:3px}
+  .qd-dashboard-grid,.qd-lower-grid,.qd-quest-grid{display:block}
+  .qd-dashboard-grid>.qd-panel,.qd-lower-grid>.qd-panel,.qd-lower-grid>.qd-side-stack,.qd-quest-grid>.qd-quest{margin-bottom:12px}
+  .qd-side-stack{display:block}
+  .qd-side-stack>.qd-panel{margin-bottom:12px}
+  .qd-panel{width:100%;max-width:100%;min-width:0;overflow:hidden}
+  .qd-panel-head{padding:14px 14px 0;gap:8px;flex-wrap:wrap}
   .qd-panel-title{font-size:16px}
+  .qd-panel-sub{font-size:14px}
+  .qd-clock{padding:10px 6px 14px}
+  .qd-clock-nav{display:grid;grid-template-columns:34px minmax(0,1fr) 34px;gap:8px;width:100%;margin:4px 0 4px;font-size:12px}
+  .qd-clock-nav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;min-width:0}
+  .qd-clock-nav button{width:34px;height:34px}
+  .qd-clock-svg{width:286px!important;max-width:calc(100vw - 44px)!important;height:auto!important}
+  .qd-clock-list{max-height:none;margin-top:8px}
+  .qd-clock-item{font-size:11px;padding:9px 8px;gap:6px}
+  .qd-clock-item-time,.qd-clock-item-xp{font-size:10px}
+  .qd-voyage-list{padding:12px 13px 14px;gap:8px}
+  .qd-voyage-row{grid-template-columns:24px minmax(0,1fr) 38px;gap:8px;font-size:11px}
+  .qd-voyage-bar{display:none}
+  .qd-voyage-name{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+  .qd-voyage-pct{font-size:10px}
+  .qd-voyage-num{width:22px;height:22px}
+  .qd-voyage-note{margin:0 13px;padding:10px 11px;font-size:14px}
+  .qd-voyage-stage{font-size:10px;padding:5px 7px}
+  .qd-today-list{padding:10px 14px 14px}
+  .qd-today-task{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}
+  .qd-today-check{width:22px;height:22px}
+  .qd-today-name{font-size:16px}
+  .qd-anchors{padding:10px 12px 12px}
+  .qd-anchor{padding:10px}
+  .qd-anchor-head{flex-wrap:wrap;align-items:center}
+  .qd-anchor-title{min-width:120px}
+  .qd-anchor-actions{width:100%;justify-content:flex-end}
+  .qd-anchor-actions button{padding:5px 8px}
+  .qd-anchor-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;justify-content:stretch}
+  .qd-dot{width:100%;max-width:34px;aspect-ratio:1/1;height:auto;justify-self:center}
+  .qd-xp-card{padding:14px}
+  .qd-xp-caption{font-size:9px}
+  .qd-machines{padding:10px 12px 12px}
+  .qd-machine{padding:11px}
+  .qd-add-row{flex-direction:column}
+  .qd-add-row button{width:100%}
+  .qd-chip{overflow-wrap:anywhere}
+  .qd-section{margin-top:16px}
+  .qd-section-heading{display:block}
+  .qd-section h2{font-size:18px}
+  .qd-quest{padding:14px}
+  .qd-quest-head{gap:8px}
+  .qd-quest-titlewrap{min-width:0;flex:1 1 150px}
+  .qd-quest-actions{width:100%;justify-content:flex-end}
+  .qd-task{gap:6px}
+  .qd-task-name{min-width:105px}
+  .qd-add-task{flex-direction:column}
+  .qd-add-task input,.qd-add-task select,.qd-add-task button{width:100%!important;min-width:0!important}
+  .qd-add-btn{margin:10px 12px 12px;width:calc(100% - 24px)}
+  .qd-reset-card{padding:12px;align-items:stretch}
+  .qd-reset-card select{width:100%}
+  .qd-footer{font-size:9px;letter-spacing:.10em}
 }
-@media (max-width: 430px){
-  .qd-nav{gap:5px}
-  .qd-nav a{font-size:13px;padding:7px 9px}
-  .qd-clock-svg{width:min(100%,310px)}
+@media (max-width: 390px){
+  .qd-main{padding-left:8px;padding-right:8px}
+  .qd-clock-svg{width:270px!important;max-width:calc(100vw - 36px)!important}
+  .qd-greeting{font-size:22px}
+  .qd-panel-title{font-size:15px}
+  .qd-voyage-row{grid-template-columns:22px minmax(0,1fr) 34px}
   .qd-clock-time{font-size:28px}
-  .qd-voyage-stage{font-size:10px}
 }
+
 `;
 
 
