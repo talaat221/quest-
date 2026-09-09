@@ -703,6 +703,24 @@ body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
   .qd-clock-time{font-size:28px}
 }
 
+
+
+/* TASK EDITING + WEEKLY XP */
+.qd-task-edit-btn{background:transparent;border:1px solid rgba(126,145,178,.24);color:var(--dim);padding:4px 7px;font-size:10px;cursor:pointer}
+.qd-task-edit-btn:hover{border-color:var(--gold);color:var(--text)}
+.qd-task-unscheduled{font-size:9px;color:#a391c6;border:1px solid rgba(139,92,246,.22);padding:2px 5px;border-radius:999px}
+.qd-task-edit-row{display:grid;grid-template-columns:minmax(150px,1.5fr) 72px minmax(230px,1.2fr) 92px auto;gap:7px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.qd-task-edit-row input,.qd-task-edit-row select{min-width:0;width:100%;background:#0a1729;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px}
+.qd-task-date-edit{display:flex;gap:5px;align-items:center;min-width:0}.qd-task-date-edit input{flex:1}.qd-task-edit-actions{display:flex;gap:5px}
+.qd-task-edit-actions button,.qd-today-btn,.qd-clear-date-btn{background:transparent;border:1px solid var(--line);color:var(--text);padding:7px 9px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.qd-today-btn{border-color:rgba(139,92,246,.46);color:#d9c8ff}.qd-clear-date-btn{color:var(--dim)}
+.qd-task-edit-actions button:first-child{background:linear-gradient(180deg,#ad8b52,#826735);border-color:#d7b877;color:#0b1322;font-weight:700}
+.qd-xp-progress-block{margin-top:14px}.qd-weekly-xp-block{padding-top:14px;border-top:1px solid var(--line-soft)}
+.qd-xp-row-label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;color:var(--dim)}
+.qd-xp-row-label span{font-family:'Cinzel',serif;color:#e5d6bb;letter-spacing:.05em}.qd-xp-row-label strong{color:var(--purple-2);font-weight:600}
+.qd-weekly-xp-bar .qd-xp-fill{background:linear-gradient(90deg,#657fc4,#a96fff)!important}
+@media(max-width:900px){.qd-task-edit-row{grid-template-columns:1fr 72px}.qd-task-date-edit{grid-column:1/-1}.qd-task-edit-row select{grid-column:1/2}.qd-task-edit-actions{grid-column:2/3;justify-content:flex-end}}
+@media(max-width:520px){.qd-task-edit-row{display:flex;flex-direction:column;align-items:stretch}.qd-task-date-edit{display:grid;grid-template-columns:1fr auto auto}.qd-task-edit-actions{justify-content:flex-end}.qd-task-edit-btn{padding:5px 7px}.qd-xp-caption{font-size:9px}}
 `;
 
 
@@ -1161,8 +1179,10 @@ function AnchorAddForm({ onAdd, onCancel }) {
 function QuestCard({
   domain,
   today,
+  todayStr,
   onToggleTask,
   onAddTask,
+  onUpdateTask,
   onDeleteTask,
   onTargetChange,
   onDeleteDomain,
@@ -1174,18 +1194,18 @@ function QuestCard({
   const [day, setDay] = useState("");
   const [hour, setHour] = useState("");
 
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editXp, setEditXp] = useState(20);
+  const [editDay, setEditDay] = useState("");
+  const [editHour, setEditHour] = useState("");
+
   const status = questStatus(domain, today);
 
   const submitTask = () => {
     if (!name.trim()) return;
 
-    onAddTask({
-      name: name.trim(),
-      xp,
-      day,
-      hour,
-    });
-
+    onAddTask({ name: name.trim(), xp, day, hour });
     setName("");
     setXp(20);
     setDay("");
@@ -1193,35 +1213,51 @@ function QuestCard({
     setShowAdd(false);
   };
 
+  const startTaskEdit = (task) => {
+    playSFX("click");
+    setEditingTaskId(task.id);
+    setEditName(task.name || "");
+    setEditXp(Number(task.xp) || 10);
+    setEditDay(task.day || "");
+    setEditHour(task.hour === null || task.hour === undefined ? "" : String(task.hour));
+  };
+
+  const cancelTaskEdit = () => {
+    setEditingTaskId(null);
+    setEditName("");
+    setEditXp(20);
+    setEditDay("");
+    setEditHour("");
+  };
+
+  const saveTaskEdit = () => {
+    if (!editingTaskId || !editName.trim()) return;
+
+    onUpdateTask(editingTaskId, {
+      name: editName.trim(),
+      xp: Math.max(1, Number(editXp) || 1),
+      day: editDay || null,
+      hour: editHour === "" || editHour === null || editHour === undefined ? null : Number(editHour),
+    });
+
+    cancelTaskEdit();
+  };
+
   return (
-    <div
-      className="qd-quest"
-      style={{ "--accent": domain.color }}
-    >
+    <div className="qd-quest" style={{ "--accent": domain.color }}>
       <div className="qd-quest-head">
-        <span className="qd-quest-emoji">
-          {domain.emoji}
-        </span>
+        <span className="qd-quest-emoji">{domain.emoji}</span>
 
         <div className="qd-quest-titlewrap">
-          <div className="qd-quest-title">
-            {domain.name}
-          </div>
-
-          <div className="qd-quest-narrative">
-            {status.text}
-          </div>
+          <div className="qd-quest-title">{domain.name}</div>
+          <div className="qd-quest-narrative">{status.text}</div>
         </div>
 
         <div className="qd-quest-actions">
           <button
             type="button"
             onClick={() => {
-              if (
-                window.confirm(
-                  `Delete the entire "${domain.name}" quest?`
-                )
-              ) {
+              if (window.confirm(`Delete the entire "${domain.name}" quest?`)) {
                 onDeleteDomain(domain.id);
               }
             }}
@@ -1235,11 +1271,8 @@ function QuestCard({
             type="number"
             min="1"
             value={domain.monthlyTarget}
-            onChange={(e) =>
-              onTargetChange(e.target.value)
-            }
+            onChange={(e) => onTargetChange(e.target.value)}
           />
-
           <span>this month</span>
         </div>
       </div>
@@ -1247,10 +1280,7 @@ function QuestCard({
       <div className="qd-bar">
         <div
           className="qd-bar-fill"
-          style={{
-            width: `${status.pct * 100}%`,
-            background: domain.color,
-          }}
+          style={{ width: `${status.pct * 100}%`, background: domain.color }}
         />
       </div>
 
@@ -1259,67 +1289,119 @@ function QuestCard({
       </div>
 
       <div className="qd-tasklist">
-        {domain.tasks.map((t) => (
-          <div
-            key={t.id}
-            className={
-              "qd-task" + (t.done ? " done" : "")
-            }
-          >
-            <input
-              type="checkbox"
-              checked={!!t.done}
-              onChange={() => onToggleTask(t.id)}
-            />
+        {domain.tasks.map((t) =>
+          editingTaskId === t.id ? (
+            <div key={t.id} className="qd-task-edit-row">
+              <input
+                type="text"
+                value={editName}
+                placeholder="Task name"
+                onChange={(e) => setEditName(e.target.value)}
+              />
 
-            <span className="qd-task-name">
-              {t.name}
-            </span>
+              <input
+                type="number"
+                min="1"
+                value={editXp}
+                aria-label="Task XP"
+                onChange={(e) => setEditXp(e.target.value)}
+              />
 
-            {t.day && (
-              <span className="qd-task-day">
-                {t.day}
+              <div className="qd-task-date-edit">
+                <input
+                  type="date"
+                  value={editDay}
+                  onChange={(e) => setEditDay(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="qd-today-btn"
+                  onClick={() => setEditDay(todayStr)}
+                >
+                  Today
+                </button>
+                {editDay && (
+                  <button
+                    type="button"
+                    className="qd-clear-date-btn"
+                    onClick={() => {
+                      setEditDay("");
+                      setEditHour("");
+                    }}
+                  >
+                    No date
+                  </button>
+                )}
+              </div>
 
-                {t.hour !== null &&
-                t.hour !== undefined
-                  ? " · " +
-                    String(t.hour).padStart(2, "0") +
-                    ":00"
-                  : ""}
-              </span>
-            )}
+              <select
+                value={editHour}
+                onChange={(e) => setEditHour(e.target.value)}
+                disabled={!editDay}
+                title={!editDay ? "Choose a date first" : "Task time"}
+              >
+                <option value="">No time</option>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
 
-            <span className="qd-task-xp">
-              {t.xp} XP
-            </span>
+              <div className="qd-task-edit-actions">
+                <button type="button" onClick={saveTaskEdit}>Save</button>
+                <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div key={t.id} className={"qd-task" + (t.done ? " done" : "")}>
+              <input
+                type="checkbox"
+                checked={!!t.done}
+                onChange={() => onToggleTask(t.id)}
+              />
 
-            <button
-              type="button"
-              className="qd-task-del"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+              <span className="qd-task-name">{t.name}</span>
 
-                if (
-                  window.confirm(
-                    `Delete "${t.name}"?`
-                  )
-                ) {
-                  onDeleteTask(t.id);
-                }
-              }}
-              title="Delete task"
-            >
-              ×
-            </button>
-          </div>
-        ))}
+              {t.day ? (
+                <span className="qd-task-day">
+                  {t.day}
+                  {t.hour !== null && t.hour !== undefined
+                    ? " · " + String(t.hour).padStart(2, "0") + ":00"
+                    : ""}
+                </span>
+              ) : (
+                <span className="qd-task-unscheduled">Unscheduled</span>
+              )}
 
-        {domain.tasks.length === 0 && (
-          <div className="qd-dim">
-            No tasks yet.
-          </div>
+              <span className="qd-task-xp">{t.xp} XP</span>
+
+              <button
+                type="button"
+                className="qd-task-edit-btn"
+                onClick={() => startTaskEdit(t)}
+                title="Edit task"
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                className="qd-task-del"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (window.confirm(`Delete "${t.name}"?`)) onDeleteTask(t.id);
+                }}
+                title="Delete task"
+              >
+                ×
+              </button>
+            </div>
+          )
         )}
+
+        {domain.tasks.length === 0 && <div className="qd-dim">No tasks yet.</div>}
       </div>
 
       {showAdd ? (
@@ -1329,9 +1411,7 @@ function QuestCard({
             placeholder="Task name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitTask();
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
           />
 
           <input
@@ -1343,51 +1423,26 @@ function QuestCard({
             style={{ width: 60 }}
           />
 
-          <input
-            type="date"
-            value={day}
-            onChange={(e) => setDay(e.target.value)}
-          />
+          <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
 
-          <select
-            value={hour}
-            onChange={(e) => setHour(e.target.value)}
-          >
+          <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={!day}>
             <option value="">No time</option>
-
-            {Array.from(
-              { length: 24 },
-              (_, h) => (
-                <option key={h} value={h}>
-                  {String(h).padStart(2, "0")}:00
-                </option>
-              )
-            )}
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+            ))}
           </select>
 
-          <button
-            type="button"
-            onClick={submitTask}
-          >
-            Add
+          <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
+            Today
           </button>
-
-          <button
-            type="button"
-            className="qd-cancel"
-            onClick={() => setShowAdd(false)}
-          >
-            Cancel
-          </button>
+          <button type="button" onClick={submitTask}>Add</button>
+          <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
         </div>
       ) : (
         <button
           type="button"
           className="qd-add-btn"
-          onClick={() => {
-            playSFX("click");
-            setShowAdd(true);
-          }}
+          onClick={() => { playSFX("click"); setShowAdd(true); }}
         >
           + Add task
         </button>
@@ -1962,16 +2017,14 @@ export default function QuestDashboard() {
     );
 
   const dayTaskMax = (ds) =>
-    allTasks().reduce(
-      (sum, task) =>
-        sum +
-        (
-          task.day === ds
-            ? Number(task.xp) || 0
-            : 0
-        ),
-      0
-    );
+    allTasks().reduce((sum, task) => {
+      const completedOn = task.doneAt?.slice(0, 10);
+      const belongsToDay =
+        task.day === ds ||
+        (task.done && completedOn === ds);
+
+      return sum + (belongsToDay ? Number(task.xp) || 0 : 0);
+    }, 0);
 
   const dayXP = (ds) =>
     dayAnchorXP(ds) + dayTaskXP(ds);
@@ -1979,22 +2032,39 @@ export default function QuestDashboard() {
   const dayMax = (ds) =>
     dayAnchorMax() + dayTaskMax(ds);
 
-  const weekXP = () =>
-    wDates.reduce(
-      (sum, d) => sum + dayXP(d),
-      0
-    );
+  // Weekly XP formula:
+  // Earned = anchors completed this week + every task completed this week.
+  // Available = 7 days of anchor XP + every unfinished task + tasks completed this week.
+  // Assigned dates do not matter for the weekly task pool.
+  const weekAnchorXP = () =>
+    wDates.reduce((sum, d) => sum + dayAnchorXP(d), 0);
 
-  const weekMax = () =>
-    wDates.reduce(
-      (sum, d) => sum + dayMax(d),
-      0
-    );
+  const weekAnchorMax = () =>
+    dayAnchorMax() * 7;
+
+  const weekTaskXP = () =>
+    allTasks().reduce((sum, task) => {
+      const completedOn = task.doneAt?.slice(0, 10);
+      const completedThisWeek =
+        !!task.done && !!completedOn && wDates.includes(completedOn);
+
+      return sum + (completedThisWeek ? Number(task.xp) || 0 : 0);
+    }, 0);
+
+  const weekTaskMax = () =>
+    allTasks().reduce((sum, task) => {
+      const completedOn = task.doneAt?.slice(0, 10);
+      const completedThisWeek =
+        !!task.done && !!completedOn && wDates.includes(completedOn);
+      const activeThisWeek = !task.done || completedThisWeek;
+
+      return sum + (activeThisWeek ? Number(task.xp) || 0 : 0);
+    }, 0);
 
   const dToday = dayXP(todayStr);
   const dMaxToday = dayMax(todayStr);
-  const wXP = weekXP();
-  const wMax = weekMax();
+  const wXP = weekAnchorXP() + weekTaskXP();
+  const wMax = weekAnchorMax() + weekTaskMax();
 
   const nextDailyReset =
     getNextDailyReset(
@@ -2381,6 +2451,30 @@ export default function QuestDashboard() {
         done: false,
         doneAt: null,
       });
+    });
+
+    playSFX("add");
+  };
+
+  const updateTask = (
+    domainId,
+    taskId,
+    changes
+  ) => {
+    updateState((next) => {
+      const domain = next.domains.find((d) => d.id === domainId);
+      if (!domain) return;
+
+      const task = domain.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      task.name = changes.name;
+      task.xp = Math.max(1, Number(changes.xp) || 1);
+      task.day = changes.day || null;
+      task.hour =
+        changes.hour === "" || changes.hour === null || changes.hour === undefined
+          ? null
+          : Number(changes.hour);
     });
 
     playSFX("add");
@@ -2842,14 +2936,49 @@ export default function QuestDashboard() {
               <section className="qd-panel qd-xp-card">
                 <div className="qd-xp-top">
                   <div>
-                    <div className="qd-panel-title">CURRENT XP</div>
-                    <div className="qd-panel-sub">Today’s progress</div>
+                    <div className="qd-panel-title">XP PROGRESS</div>
+                    <div className="qd-panel-sub">Daily discipline. Weekly momentum.</div>
                   </div>
                   <div className="qd-xp-number">{dToday}</div>
                 </div>
-                <div className="qd-xp-bar"><div className="qd-xp-fill" style={{ width: `${Math.min(100, dMaxToday ? (dToday / dMaxToday) * 100 : 0)}%` }} /></div>
-                <div className="qd-xp-caption"><span>{dToday} / {todayThreshold || 0} XP to unlock</span><span>Weekly {wXP}/{weekThreshold || 0}</span></div>
-                <div className="qd-reset-mini">Daily reset in <strong>{dailyCountdown}</strong></div>
+
+                <div className="qd-xp-progress-block">
+                  <div className="qd-xp-row-label">
+                    <span>Today</span>
+                    <strong>{dToday} / {todayThreshold || 0} XP</strong>
+                  </div>
+                  <div className="qd-xp-bar">
+                    <div
+                      className="qd-xp-fill"
+                      style={{ width: `${Math.min(100, dMaxToday ? (dToday / dMaxToday) * 100 : 0)}%` }}
+                    />
+                  </div>
+                  <div className="qd-xp-caption">
+                    <span>Max available today: {dMaxToday} XP</span>
+                    <span>Unlock at {todayThreshold || 0} XP</span>
+                  </div>
+                </div>
+
+                <div className="qd-xp-progress-block qd-weekly-xp-block">
+                  <div className="qd-xp-row-label">
+                    <span>This week</span>
+                    <strong>{wXP} / {weekThreshold || 0} XP</strong>
+                  </div>
+                  <div className="qd-xp-bar qd-weekly-xp-bar">
+                    <div
+                      className="qd-xp-fill"
+                      style={{ width: `${Math.min(100, wMax ? (wXP / wMax) * 100 : 0)}%` }}
+                    />
+                  </div>
+                  <div className="qd-xp-caption">
+                    <span>Weekly pool: {wMax} XP</span>
+                    <span>Includes unscheduled tasks</span>
+                  </div>
+                </div>
+
+                <div className="qd-reset-mini">
+                  Daily reset in <strong>{dailyCountdown}</strong> · Weekly reset in <strong>{weeklyCountdown}</strong>
+                </div>
               </section>
 
               <section className="qd-panel qd-reward-stack" id="rewards">
@@ -2909,8 +3038,10 @@ export default function QuestDashboard() {
                   key={domain.id}
                   domain={domain}
                   today={today}
+                  todayStr={todayStr}
                   onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
                   onAddTask={(payload) => addTask(domain.id, payload)}
+                  onUpdateTask={(taskId, changes) => updateTask(domain.id, taskId, changes)}
                   onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
                   onTargetChange={(value) => updateTarget(domain.id, value)}
                   onDeleteDomain={deleteDomain}
