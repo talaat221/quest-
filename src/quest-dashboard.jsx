@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 
+// ======================================================
+// HELPERS
+// ======================================================
+
 const pad = (n) => String(n).padStart(2, "0");
 
 const toISODate = (d) =>
@@ -28,7 +32,6 @@ const startOfWeek = (d) => {
 
 const weekDates = (d) => {
   const mon = startOfWeek(d);
-
   return Array.from(
     { length: 7 },
     (_, i) => toISODate(addDays(mon, i))
@@ -44,9 +47,114 @@ const isSameMonth = (dateStr, ref) =>
 const clone = (x) =>
   JSON.parse(JSON.stringify(x));
 
+// ======================================================
+// SOUND EFFECTS
+// ======================================================
+
+let audioCtx = null;
+
+const getAudioContext = () => {
+  if (typeof window === "undefined") return null;
+
+  const AudioContext =
+    window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContext) return null;
+
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume().catch(() => {});
+  }
+
+  return audioCtx;
+};
+
+const playTone = (
+  frequency,
+  duration = 0.08,
+  type = "sine",
+  volume = 0.06,
+  delay = 0
+) => {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    const start = ctx.currentTime + delay;
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(
+      volume,
+      start + 0.01
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      start + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.02);
+  } catch (error) {
+    console.log("SFX unavailable:", error);
+  }
+};
+
+const playSFX = (type) => {
+  switch (type) {
+    case "click":
+      playTone(420, 0.05, "sine", 0.025);
+      break;
+
+    case "complete":
+      playTone(523.25, 0.08, "sine", 0.05);
+      playTone(659.25, 0.1, "sine", 0.05, 0.07);
+      break;
+
+    case "undo":
+      playTone(440, 0.08, "sine", 0.035);
+      playTone(330, 0.1, "sine", 0.035, 0.07);
+      break;
+
+    case "add":
+      playTone(523.25, 0.06, "triangle", 0.04);
+      playTone(783.99, 0.09, "triangle", 0.04, 0.06);
+      break;
+
+    case "delete":
+      playTone(330, 0.08, "sawtooth", 0.025);
+      playTone(220, 0.12, "sawtooth", 0.025, 0.07);
+      break;
+
+    case "spin":
+      playTone(300, 0.04, "square", 0.018);
+      break;
+
+    case "reward":
+      playTone(523.25, 0.1, "sine", 0.05);
+      playTone(659.25, 0.1, "sine", 0.05, 0.1);
+      playTone(783.99, 0.12, "sine", 0.05, 0.2);
+      playTone(1046.5, 0.2, "sine", 0.06, 0.3);
+      break;
+
+    default:
+      break;
+  }
+};
 
 // ======================================================
-// QUEST DATE / RESET HELPERS
+// RESET HELPERS
 // ======================================================
 
 const getQuestDate = (date, resetHour = 0) => {
@@ -73,26 +181,21 @@ const getNextDailyReset = (date, resetHour = 0) => {
 
 const getNextWeeklyReset = (date, resetHour = 0) => {
   const next = new Date(date);
-
   const day = next.getDay();
 
-  // Monday = 1
-  const daysUntilMonday = day === 0 ? 1 : 8 - day;
-
-  next.setDate(next.getDate() + daysUntilMonday);
-  next.setHours(resetHour, 0, 0, 0);
-
-  // If today is Monday and before reset time,
-  // reset happens today.
   if (day === 1) {
     const todayReset = new Date(date);
-
     todayReset.setHours(resetHour, 0, 0, 0);
 
     if (date < todayReset) {
       return todayReset;
     }
   }
+
+  const daysUntilMonday = day === 0 ? 1 : 8 - day;
+
+  next.setDate(next.getDate() + daysUntilMonday);
+  next.setHours(resetHour, 0, 0, 0);
 
   return next;
 };
@@ -103,15 +206,8 @@ const formatCountdown = (ms) => {
   const totalSeconds = Math.floor(ms / 1000);
 
   const days = Math.floor(totalSeconds / 86400);
-
-  const hours = Math.floor(
-    (totalSeconds % 86400) / 3600
-  );
-
-  const minutes = Math.floor(
-    (totalSeconds % 3600) / 60
-  );
-
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
   if (days > 0) {
@@ -120,7 +216,6 @@ const formatCountdown = (ms) => {
 
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 };
-
 
 // ======================================================
 // QUEST STAGES
@@ -145,30 +240,21 @@ function questStatus(domain, todayDate) {
     (t) =>
       t.done &&
       t.doneAt &&
-      isSameMonth(
-        t.doneAt.slice(0, 10),
-        todayDate
-      )
+      isSameMonth(t.doneAt.slice(0, 10), todayDate)
   ).length;
 
-  const target = domain.monthlyTarget || 1;
+  const target = Number(domain.monthlyTarget) || 1;
 
-  const totalAdded = domain.tasks.length;
+  let idx = 0;
 
-  let idx;
-
-  if (totalAdded === 0) {
-    idx = 0;
-  } else if (doneThisMonth >= target) {
+  if (doneThisMonth >= target) {
     idx = STAGES.length - 1;
-  } else {
+  } else if (domain.tasks.length > 0) {
     const pct = doneThisMonth / target;
 
     idx =
       1 +
-      Math.floor(
-        pct * (STAGES.length - 2)
-      );
+      Math.floor(pct * (STAGES.length - 2));
 
     if (idx >= STAGES.length - 1) {
       idx = STAGES.length - 2;
@@ -177,15 +263,11 @@ function questStatus(domain, todayDate) {
 
   return {
     text: STAGES[idx],
-    pct: Math.min(
-      1,
-      doneThisMonth / target
-    ),
+    pct: Math.min(1, doneThisMonth / target),
     doneThisMonth,
     target,
   };
 }
-
 
 // ======================================================
 // DEFAULT STATE
@@ -356,7 +438,6 @@ const DEFAULT_STATE = {
   },
 };
 
-
 // ======================================================
 // CSS
 // ======================================================
@@ -378,11 +459,7 @@ const CSS = `
   --green:#6FA86F;
 
   background:
-    radial-gradient(
-      1200px 600px at 50% -10%,
-      #14314a 0%,
-      var(--bg) 55%
-    );
+    radial-gradient(1200px 600px at 50% -10%,#14314a 0%,var(--bg) 55%);
 
   color:var(--text);
   font-family:'Inter',sans-serif;
@@ -413,10 +490,8 @@ const CSS = `
 }
 
 .qd-hero-sub{
-  font-family:'Inter',sans-serif;
   font-size:14px;
   color:var(--dim);
-  font-weight:400;
   display:block;
   margin-top:4px;
 }
@@ -588,11 +663,82 @@ const CSS = `
 }
 
 .qd-anchor-head{
-  font-size:15px;
-  margin-bottom:10px;
   display:flex;
   align-items:center;
   gap:8px;
+  margin-bottom:10px;
+}
+
+.qd-anchor-title{
+  flex:1;
+  font-size:15px;
+}
+
+.qd-anchor-actions{
+  display:flex;
+  gap:5px;
+}
+
+.qd-anchor-actions button,
+.qd-quest-actions button{
+  background:none;
+  border:1px solid var(--line);
+  color:var(--dim);
+  border-radius:6px;
+  padding:4px 7px;
+  cursor:pointer;
+  font-size:11px;
+}
+
+.qd-anchor-actions button:hover,
+.qd-quest-actions button:hover{
+  color:var(--text);
+  border-color:var(--gold);
+}
+
+.qd-anchor-edit{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:10px;
+}
+
+.qd-anchor-edit input{
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:6px;
+  padding:6px 8px;
+  font-size:12px;
+}
+
+.qd-anchor-edit input:first-child{
+  width:48px;
+}
+
+.qd-anchor-edit input:nth-child(2){
+  flex:1;
+  min-width:130px;
+}
+
+.qd-anchor-edit input:nth-child(3){
+  width:70px;
+}
+
+.qd-anchor-edit button{
+  background:var(--gold);
+  border:none;
+  color:#241905;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-size:12px;
+}
+
+.qd-anchor-edit .qd-cancel{
+  background:none;
+  color:var(--dim);
+  border:1px solid var(--line);
 }
 
 .qd-anchor-week{
@@ -655,6 +801,11 @@ const CSS = `
   color:var(--dim);
   font-size:15px;
   margin-top:2px;
+}
+
+.qd-quest-actions{
+  display:flex;
+  gap:5px;
 }
 
 .qd-quest-target{
@@ -738,7 +889,13 @@ const CSS = `
   border:none;
   color:var(--dim);
   cursor:pointer;
-  font-size:14px;
+  font-size:17px;
+  line-height:1;
+  padding:4px 7px;
+}
+
+.qd-task-del:hover{
+  color:var(--red);
 }
 
 .qd-add-btn{
@@ -750,6 +907,11 @@ const CSS = `
   padding:8px 12px;
   cursor:pointer;
   font-size:13px;
+}
+
+.qd-add-btn:hover{
+  color:var(--text);
+  border-color:var(--gold);
 }
 
 .qd-add-task{
@@ -852,9 +1014,9 @@ const CSS = `
 }
 
 @keyframes qdshake{
-  0%{transform:translateY(0);}
-  50%{transform:translateY(-2px);}
-  100%{transform:translateY(0);}
+  0%{transform:translateY(0)}
+  50%{transform:translateY(-2px)}
+  100%{transform:translateY(0)}
 }
 
 .qd-spin-btn{
@@ -982,16 +1144,8 @@ const CSS = `
   padding:45px 25px;
   border:1px solid rgba(201,162,75,.45);
   border-radius:28px;
-  background:
-    radial-gradient(
-      circle at center,
-      #19354b 0%,
-      #0e1d2c 55%,
-      #08131f 100%
-    );
-  box-shadow:
-    0 0 80px rgba(201,162,75,.18),
-    0 30px 100px rgba(0,0,0,.6);
+  background:radial-gradient(circle at center,#19354b 0%,#0e1d2c 55%,#08131f 100%);
+  box-shadow:0 0 80px rgba(201,162,75,.18),0 30px 100px rgba(0,0,0,.6);
   animation:qdCelebrationPop .45s cubic-bezier(.17,.89,.32,1.28);
 }
 
@@ -1047,39 +1201,19 @@ const CSS = `
 }
 
 @keyframes qdCelebrationPop{
-  from{
-    transform:scale(.75);
-    opacity:0
-  }
-
-  to{
-    transform:scale(1);
-    opacity:1
-  }
+  from{transform:scale(.75);opacity:0}
+  to{transform:scale(1);opacity:1}
 }
 
 @keyframes qdTrophyBounce{
-  from{
-    transform:translateY(0) rotate(-4deg)
-  }
-
-  to{
-    transform:translateY(-12px) rotate(4deg)
-  }
+  from{transform:translateY(0) rotate(-4deg)}
+  to{transform:translateY(-12px) rotate(4deg)}
 }
 
 @keyframes qdBigShake{
-  0%{
-    transform:translateX(-3px) rotate(-1deg)
-  }
-
-  50%{
-    transform:translateX(3px) rotate(1deg)
-  }
-
-  100%{
-    transform:translateX(-3px) rotate(-1deg)
-  }
+  0%{transform:translateX(-3px) rotate(-1deg)}
+  50%{transform:translateX(3px) rotate(1deg)}
+  100%{transform:translateX(-3px) rotate(-1deg)}
 }
 
 .qd-reset-box{
@@ -1099,17 +1233,10 @@ const CSS = `
 }
 
 @media(max-width:480px){
-  .qd-rings{
-    gap:20px;
-  }
-
-  .ring-wrap{
-    width:120px;
-    height:120px;
-  }
+  .qd-rings{gap:20px}
+  .ring-wrap{width:120px;height:120px}
 }
 `;
-
 
 // ======================================================
 // RING
@@ -1124,17 +1251,12 @@ function Ring({
   sublabel,
 }) {
   const r = (size - stroke) / 2;
-
   const c = 2 * Math.PI * r;
-
-  const offset =
-    c * (1 - Math.min(pct, 1));
+  const offset = c * (1 - Math.min(pct, 1));
 
   return (
     <div className="ring-wrap">
-
       <svg width={size} height={size}>
-
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -1157,23 +1279,15 @@ function Ring({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           className="ring-progress"
         />
-
       </svg>
 
       <div className="ring-center">
-        <div className="ring-value">
-          {label}
-        </div>
-
-        <div className="ring-sub">
-          {sublabel}
-        </div>
+        <div className="ring-value">{label}</div>
+        <div className="ring-sub">{sublabel}</div>
       </div>
-
     </div>
   );
 }
-
 
 // ======================================================
 // CLOCK
@@ -1187,60 +1301,32 @@ function ClockDial({
   onToggle,
 }) {
   const size = 260;
-
   const cx = size / 2;
   const cy = size / 2;
-
   const R = size / 2 - 34;
 
   const pos = (hour) => {
     const angle =
-      (hour / 24) * 2 * Math.PI -
-      Math.PI / 2;
+      (hour / 24) * 2 * Math.PI - Math.PI / 2;
 
     return {
-      x:
-        cx +
-        R * Math.cos(angle),
-
-      y:
-        cy +
-        R * Math.sin(angle),
+      x: cx + R * Math.cos(angle),
+      y: cy + R * Math.sin(angle),
     };
   };
 
-  const ticks = [
-    0,
-    3,
-    6,
-    9,
-    12,
-    15,
-    18,
-    21,
-  ];
+  const ticks = [0, 3, 6, 9, 12, 15, 18, 21];
 
   const timed = tasks.filter(
-    (t) =>
-      t.hour !== null &&
-      t.hour !== undefined
+    (t) => t.hour !== null && t.hour !== undefined
   );
 
   return (
     <div className="qd-clock">
-
       <div className="qd-clock-nav">
-
-        <button onClick={onPrev}>
-          ‹
-        </button>
-
+        <button type="button" onClick={onPrev}>‹</button>
         <span>{dateLabel}</span>
-
-        <button onClick={onNext}>
-          ›
-        </button>
-
+        <button type="button" onClick={onNext}>›</button>
       </div>
 
       <svg
@@ -1248,7 +1334,6 @@ function ClockDial({
         height={size}
         className="qd-clock-svg"
       >
-
         <circle
           cx={cx}
           cy={cy}
@@ -1283,31 +1368,19 @@ function ClockDial({
               cx={p.x}
               cy={p.y}
               r={7}
-              fill={
-                t.done
-                  ? "#6FA86F"
-                  : t.domainColor
-              }
+              fill={t.done ? "#6FA86F" : t.domainColor}
               className="qd-clock-dot"
-              onClick={() =>
-                onToggle(
-                  t.domainId,
-                  t.id
-                )
-              }
+              onClick={() => onToggle(t.domainId, t.id)}
             />
           );
         })}
-
       </svg>
 
       <div className="qd-clock-list">
-
         {tasks.length === 0 && (
           <div className="qd-dim">
-            Nothing scheduled — add a task
-            in a quest below and pick this
-            date.
+            Nothing scheduled — add a task in a quest below and
+            pick this date.
           </div>
         )}
 
@@ -1315,17 +1388,10 @@ function ClockDial({
           <div
             key={t.id}
             className={
-              "qd-clock-item" +
-              (t.done ? " done" : "")
+              "qd-clock-item" + (t.done ? " done" : "")
             }
-            onClick={() =>
-              onToggle(
-                t.domainId,
-                t.id
-              )
-            }
+            onClick={() => onToggle(t.domainId, t.id)}
           >
-
             <span>{t.domainEmoji}</span>
 
             <span className="qd-clock-item-name">
@@ -1333,28 +1399,214 @@ function ClockDial({
             </span>
 
             <span className="qd-clock-item-time">
-              {t.hour !== null &&
-              t.hour !== undefined
-                ? String(t.hour).padStart(
-                    2,
-                    "0"
-                  ) + ":00"
+              {t.hour !== null && t.hour !== undefined
+                ? String(t.hour).padStart(2, "0") + ":00"
                 : "—"}
             </span>
 
             <span className="qd-clock-item-xp">
               {t.xp} XP
             </span>
-
           </div>
         ))}
-
       </div>
-
     </div>
   );
 }
 
+// ======================================================
+// ANCHOR CARD
+// ======================================================
+
+function AnchorCard({
+  anchor,
+  weekDates,
+  onToggle,
+  onUpdate,
+  onDelete,
+}) {
+  const [editing, setEditing] = useState(false);
+
+  const [emoji, setEmoji] = useState(anchor.emoji);
+  const [name, setName] = useState(anchor.name);
+  const [xp, setXp] = useState(anchor.xpPerDay);
+
+  useEffect(() => {
+    setEmoji(anchor.emoji);
+    setName(anchor.name);
+    setXp(anchor.xpPerDay);
+  }, [anchor]);
+
+  const save = () => {
+    if (!name.trim()) return;
+
+    onUpdate(anchor.id, {
+      emoji: emoji || "⭐",
+      name: name.trim(),
+      xpPerDay: Math.max(1, Number(xp) || 1),
+    });
+
+    setEditing(false);
+  };
+
+  return (
+    <div className="qd-anchor">
+      {!editing ? (
+        <>
+          <div className="qd-anchor-head">
+            <span>{anchor.emoji}</span>
+
+            <span className="qd-anchor-title">
+              {anchor.name}
+            </span>
+
+            <span className="qd-dim">
+              · {anchor.xpPerDay} XP
+            </span>
+
+            <div className="qd-anchor-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  playSFX("click");
+                  setEditing(true);
+                }}
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDelete(anchor.id)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="qd-anchor-edit">
+          <input
+            value={emoji}
+            maxLength={4}
+            onChange={(e) => setEmoji(e.target.value)}
+          />
+
+          <input
+            value={name}
+            placeholder="Anchor name"
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <input
+            type="number"
+            min="1"
+            value={xp}
+            onChange={(e) => setXp(e.target.value)}
+          />
+
+          <button
+            type="button"
+            onClick={save}
+          >
+            Save
+          </button>
+
+          <button
+            type="button"
+            className="qd-cancel"
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      <div className="qd-anchor-week">
+        {weekDates.map((date, i) => (
+          <button
+            key={date}
+            type="button"
+            className={
+              "qd-dot" +
+              (anchor.history?.[date] ? " on" : "")
+            }
+            onClick={() => onToggle(anchor.id, date)}
+            title={date}
+          >
+            {["M", "T", "W", "T", "F", "S", "S"][i]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ======================================================
+// ANCHOR ADD FORM
+// ======================================================
+
+function AnchorAddForm({ onAdd, onCancel }) {
+  const [emoji, setEmoji] = useState("⭐");
+  const [name, setName] = useState("");
+  const [xp, setXp] = useState(10);
+
+  const submit = () => {
+    if (!name.trim()) return;
+
+    onAdd({
+      emoji: emoji || "⭐",
+      name: name.trim(),
+      xpPerDay: Math.max(1, Number(xp) || 1),
+    });
+
+    setEmoji("⭐");
+    setName("");
+    setXp(10);
+  };
+
+  return (
+    <div className="qd-anchor-edit">
+      <input
+        value={emoji}
+        maxLength={4}
+        onChange={(e) => setEmoji(e.target.value)}
+        placeholder="⭐"
+      />
+
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Anchor name"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+        }}
+      />
+
+      <input
+        type="number"
+        min="1"
+        value={xp}
+        onChange={(e) => setXp(e.target.value)}
+      />
+
+      <button
+        type="button"
+        onClick={submit}
+      >
+        Add
+      </button>
+
+      <button
+        type="button"
+        className="qd-cancel"
+        onClick={onCancel}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
 
 // ======================================================
 // QUEST CARD
@@ -1367,41 +1619,45 @@ function QuestCard({
   onAddTask,
   onDeleteTask,
   onTargetChange,
+  onDeleteDomain,
 }) {
-  const [showAdd, setShowAdd] =
-    useState(false);
+  const [showAdd, setShowAdd] = useState(false);
 
-  const [name, setName] =
-    useState("");
+  const [name, setName] = useState("");
+  const [xp, setXp] = useState(20);
+  const [day, setDay] = useState("");
+  const [hour, setHour] = useState("");
 
-  const [xp, setXp] =
-    useState(20);
+  const status = questStatus(domain, today);
 
-  const [day, setDay] =
-    useState("");
+  const submitTask = () => {
+    if (!name.trim()) return;
 
-  const [hour, setHour] =
-    useState("");
+    onAddTask({
+      name: name.trim(),
+      xp,
+      day,
+      hour,
+    });
 
-  const status =
-    questStatus(domain, today);
+    setName("");
+    setXp(20);
+    setDay("");
+    setHour("");
+    setShowAdd(false);
+  };
 
   return (
     <div
       className="qd-quest"
-      style={{
-        "--accent": domain.color,
-      }}
+      style={{ "--accent": domain.color }}
     >
-
       <div className="qd-quest-head">
-
         <span className="qd-quest-emoji">
           {domain.emoji}
         </span>
 
         <div className="qd-quest-titlewrap">
-
           <div className="qd-quest-title">
             {domain.name}
           </div>
@@ -1409,65 +1665,65 @@ function QuestCard({
           <div className="qd-quest-narrative">
             {status.text}
           </div>
+        </div>
 
+        <div className="qd-quest-actions">
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Delete the entire "${domain.name}" quest?`
+                )
+              ) {
+                onDeleteDomain(domain.id);
+              }
+            }}
+          >
+            Delete quest
+          </button>
         </div>
 
         <div className="qd-quest-target">
-
           <input
             type="number"
             min="1"
             value={domain.monthlyTarget}
             onChange={(e) =>
-              onTargetChange(
-                e.target.value
-              )
+              onTargetChange(e.target.value)
             }
           />
 
           <span>this month</span>
-
         </div>
-
       </div>
 
       <div className="qd-bar">
-
         <div
           className="qd-bar-fill"
           style={{
-            width:
-              status.pct * 100 + "%",
-            background:
-              domain.color,
+            width: `${status.pct * 100}%`,
+            background: domain.color,
           }}
         />
-
       </div>
 
       <div className="qd-quest-count">
-        {status.doneThisMonth} /{" "}
-        {status.target} quests done this month
+        {status.doneThisMonth} / {status.target} quests done this month
       </div>
 
       <div className="qd-tasklist">
-
         {domain.tasks.map((t) => (
-
           <div
             key={t.id}
             className={
-              "qd-task" +
-              (t.done ? " done" : "")
+              "qd-task" + (t.done ? " done" : "")
             }
           >
-
             <input
               type="checkbox"
-              checked={t.done}
-              onChange={() =>
-                onToggleTask(t.id)
-              }
+              checked={!!t.done}
+              onChange={() => onToggleTask(t.id)}
             />
 
             <span className="qd-task-name">
@@ -1481,12 +1737,7 @@ function QuestCard({
                 {t.hour !== null &&
                 t.hour !== undefined
                   ? " · " +
-                    String(
-                      t.hour
-                    ).padStart(
-                      2,
-                      "0"
-                    ) +
+                    String(t.hour).padStart(2, "0") +
                     ":00"
                   : ""}
               </span>
@@ -1497,135 +1748,107 @@ function QuestCard({
             </span>
 
             <button
+              type="button"
               className="qd-task-del"
-              onClick={() =>
-                onDeleteTask(t.id)
-              }
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (
+                  window.confirm(
+                    `Delete "${t.name}"?`
+                  )
+                ) {
+                  onDeleteTask(t.id);
+                }
+              }}
+              title="Delete task"
             >
               ×
             </button>
-
           </div>
-
         ))}
 
+        {domain.tasks.length === 0 && (
+          <div className="qd-dim">
+            No tasks yet.
+          </div>
+        )}
       </div>
 
       {showAdd ? (
-
         <div className="qd-add-task">
-
           <input
             type="text"
             placeholder="Task name"
             value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitTask();
+            }}
           />
 
           <input
             type="number"
             placeholder="XP"
             value={xp}
-            onChange={(e) =>
-              setXp(e.target.value)
-            }
-            style={{
-              width: 60,
-            }}
+            min="1"
+            onChange={(e) => setXp(e.target.value)}
+            style={{ width: 60 }}
           />
 
           <input
             type="date"
             value={day}
-            onChange={(e) =>
-              setDay(e.target.value)
-            }
+            onChange={(e) => setDay(e.target.value)}
           />
 
           <select
             value={hour}
-            onChange={(e) =>
-              setHour(e.target.value)
-            }
+            onChange={(e) => setHour(e.target.value)}
           >
-
-            <option value="">
-              No time
-            </option>
+            <option value="">No time</option>
 
             {Array.from(
               { length: 24 },
               (_, h) => (
-                <option
-                  key={h}
-                  value={h}
-                >
-                  {String(h).padStart(
-                    2,
-                    "0"
-                  )}
-                  :00
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
                 </option>
               )
             )}
-
           </select>
 
           <button
-            onClick={() => {
-
-              if (!name.trim()) {
-                return;
-              }
-
-              onAddTask({
-                name: name.trim(),
-                xp,
-                day,
-                hour,
-              });
-
-              setName("");
-              setXp(20);
-              setDay("");
-              setHour("");
-              setShowAdd(false);
-
-            }}
+            type="button"
+            onClick={submitTask}
           >
             Add
           </button>
 
           <button
+            type="button"
             className="qd-cancel"
-            onClick={() =>
-              setShowAdd(false)
-            }
+            onClick={() => setShowAdd(false)}
           >
             Cancel
           </button>
-
         </div>
-
       ) : (
-
         <button
+          type="button"
           className="qd-add-btn"
-          onClick={() =>
-            setShowAdd(true)
-          }
+          onClick={() => {
+            playSFX("click");
+            setShowAdd(true);
+          }}
         >
           + Add task
         </button>
-
       )}
-
     </div>
   );
 }
-
 
 // ======================================================
 // CELEBRATION MODAL
@@ -1636,207 +1859,86 @@ function CelebrationModal({
   items,
   onComplete,
 }) {
-  const [display, setDisplay] =
-    useState("");
-
-  const [finished, setFinished] =
-    useState(false);
+  const [display, setDisplay] = useState("");
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-
     if (!items.length) {
       onComplete(null);
       return;
     }
 
-    // Celebration sound
-    try {
-
-      const AudioContext =
-        window.AudioContext ||
-        window.webkitAudioContext;
-
-      if (AudioContext) {
-
-        const ctx =
-          new AudioContext();
-
-        const now =
-          ctx.currentTime;
-
-        const notes = [
-          523.25,
-          659.25,
-          783.99,
-          1046.5,
-        ];
-
-        notes.forEach(
-          (frequency, i) => {
-
-            const oscillator =
-              ctx.createOscillator();
-
-            const gain =
-              ctx.createGain();
-
-            oscillator.frequency.value =
-              frequency;
-
-            oscillator.type = "sine";
-
-            gain.gain.setValueAtTime(
-              0,
-              now + i * 0.12
-            );
-
-            gain.gain.linearRampToValueAtTime(
-              0.18,
-              now +
-                i * 0.12 +
-                0.02
-            );
-
-            gain.gain.exponentialRampToValueAtTime(
-              0.001,
-              now +
-                i * 0.12 +
-                0.35
-            );
-
-            oscillator.connect(gain);
-            gain.connect(ctx.destination);
-
-            oscillator.start(
-              now + i * 0.12
-            );
-
-            oscillator.stop(
-              now +
-                i * 0.12 +
-                0.4
-            );
-          }
-        );
-
-        setTimeout(
-          () => ctx.close(),
-          1800
-        );
-      }
-
-    } catch (err) {
-
-      console.log(
-        "Celebration sound unavailable:",
-        err
-      );
-
-    }
+    playSFX("reward");
 
     let count = 0;
 
-    const interval =
-      setInterval(() => {
+    const interval = setInterval(() => {
+      const random =
+        items[
+          Math.floor(Math.random() * items.length)
+        ];
 
-        const random =
+      setDisplay(random);
+
+      count++;
+
+      if (count >= 22) {
+        clearInterval(interval);
+
+        const finalReward =
           items[
-            Math.floor(
-              Math.random() *
-                items.length
-            )
+            Math.floor(Math.random() * items.length)
           ];
 
-        setDisplay(random);
+        setDisplay(finalReward);
+        setFinished(true);
 
-        count++;
+        playSFX("reward");
 
-        if (count >= 22) {
+        setTimeout(() => {
+          onComplete(finalReward);
+        }, 1200);
+      }
+    }, 90);
 
-          clearInterval(interval);
-
-          const finalReward =
-            items[
-              Math.floor(
-                Math.random() *
-                  items.length
-              )
-            ];
-
-          setDisplay(finalReward);
-
-          setFinished(true);
-
-          setTimeout(() => {
-
-            onComplete(
-              finalReward
-            );
-
-          }, 1200);
-        }
-
-      }, 90);
-
-    return () =>
-      clearInterval(interval);
-
+    return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="qd-celebration-backdrop">
-
       <div className="qd-celebration">
-
         <div className="qd-celebration-icon">
-          {kind === "daily"
-            ? "🪙"
-            : "🏺"}
+          {kind === "daily" ? "🪙" : "🏺"}
         </div>
 
         <div className="qd-celebration-title">
-
           {kind === "daily"
             ? "Daily Treasure!"
             : "Weekly Treasure!"}
-
         </div>
 
         <div className="qd-celebration-subtitle">
-
           You reached your {kind} XP goal.
-
         </div>
 
         <div
           className={
             "qd-big-reel" +
-            (!finished
-              ? " spinning"
-              : "")
+            (!finished ? " spinning" : "")
           }
         >
-
           {display || "Spinning…"}
-
         </div>
 
         {finished && (
-
           <div className="qd-celebration-result">
-
             Reward claimed automatically ✓
-
           </div>
-
         )}
-
       </div>
-
     </div>
   );
 }
-
 
 // ======================================================
 // REWARD MACHINE
@@ -1857,30 +1959,17 @@ function RewardMachine({
   periodLabel,
   resetCountdown,
 }) {
-  const [spinning, setSpinning] =
-    useState(false);
-
-  const [display, setDisplay] =
-    useState(
-      claimedValue || ""
-    );
-
-  const [newItem, setNewItem] =
-    useState("");
+  const [spinning, setSpinning] = useState(false);
+  const [display, setDisplay] = useState(claimedValue || "");
+  const [newItem, setNewItem] = useState("");
 
   useEffect(() => {
-
-    setDisplay(
-      claimedValue || ""
-    );
-
+    setDisplay(claimedValue || "");
   }, [claimedValue]);
 
-  const threshold =
-    Math.round(
-      xpMax *
-        (thresholdPct / 100)
-    );
+  const threshold = Math.round(
+    xpMax * (thresholdPct / 100)
+  );
 
   const unlocked =
     xpMax > 0 &&
@@ -1893,63 +1982,59 @@ function RewardMachine({
     items.length > 0 &&
     !spinning;
 
-  function spin() {
-
-    if (!canSpin) {
-      return;
-    }
+  const spin = () => {
+    if (!canSpin) return;
 
     setSpinning(true);
+    playSFX("spin");
 
     let count = 0;
 
-    const iv =
-      setInterval(() => {
+    const iv = setInterval(() => {
+      setDisplay(
+        items[
+          Math.floor(Math.random() * items.length)
+        ]
+      );
 
-        setDisplay(
+      playSFX("spin");
+
+      count++;
+
+      if (count > 16) {
+        clearInterval(iv);
+
+        const final =
           items[
-            Math.floor(
-              Math.random() *
-                items.length
-            )
-          ]
-        );
+            Math.floor(Math.random() * items.length)
+          ];
 
-        count++;
+        setDisplay(final);
+        setSpinning(false);
 
-        if (count > 16) {
+        playSFX("reward");
 
-          clearInterval(iv);
+        onClaim(final);
+      }
+    }, 90);
+  };
 
-          const final =
-            items[
-              Math.floor(
-                Math.random() *
-                  items.length
-              )
-            ];
+  const addItem = () => {
+    if (!newItem.trim()) return;
 
-          setDisplay(final);
-
-          setSpinning(false);
-
-          onClaim(final);
-        }
-
-      }, 90);
-  }
+    onAddItem(newItem.trim());
+    setNewItem("");
+    playSFX("add");
+  };
 
   return (
     <div className="qd-machine">
-
       <div className="qd-machine-head">
-
         <span className="qd-machine-icon">
           {icon}
         </span>
 
         <div>
-
           <div className="qd-machine-title">
             {title}
           </div>
@@ -1957,142 +2042,102 @@ function RewardMachine({
           <div className="qd-machine-sub">
             {periodLabel}
           </div>
-
         </div>
-
       </div>
 
       <div className="qd-bar">
-
         <div
           className="qd-bar-fill"
           style={{
             width:
               Math.min(
                 100,
-                xpMax
-                  ? (xpNow / xpMax) *
-                      100
-                  : 0
+                xpMax ? (xpNow / xpMax) * 100 : 0
               ) + "%",
           }}
         />
-
       </div>
 
       <div className="qd-machine-nums">
-
         {xpNow} / {threshold} XP to unlock
-
         <span className="qd-dim">
           {" "}
           (max possible: {xpMax})
         </span>
-
       </div>
 
       <div
         className={
           "qd-reel" +
-          (spinning
-            ? " spinning"
-            : "")
+          (spinning ? " spinning" : "")
         }
       >
-        {display ||
-          "— add rewards below —"}
+        {display || "— add rewards below —"}
       </div>
 
       <button
+        type="button"
         className="qd-spin-btn"
         disabled={!canSpin}
         onClick={spin}
       >
-
         {claimedValue
           ? "Claimed ✓"
           : unlocked
           ? "Claim reward"
           : "Locked"}
-
       </button>
 
       {claimedValue && (
-
         <div className="qd-reset-box">
-
           Resets in{" "}
-
           <span className="qd-reset-time">
             {resetCountdown}
           </span>
-
         </div>
-
       )}
 
       <div className="qd-reward-list">
-
         {items.map((it, i) => (
-
           <span
             key={i}
             className="qd-chip"
           >
-
             {it}
 
             <button
-              onClick={() =>
-                onRemoveItem(i)
-              }
+              type="button"
+              onClick={() => {
+                onRemoveItem(i);
+                playSFX("delete");
+              }}
             >
               ×
             </button>
-
           </span>
-
         ))}
-
       </div>
 
       <div className="qd-add-row">
-
         <input
           value={newItem}
-          onChange={(e) =>
-            setNewItem(
-              e.target.value
-            )
-          }
+          onChange={(e) => setNewItem(e.target.value)}
           placeholder="Add a reward…"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") addItem();
+          }}
         />
 
         <button
-          onClick={() => {
-
-            if (!newItem.trim()) {
-              return;
-            }
-
-            onAddItem(
-              newItem.trim()
-            );
-
-            setNewItem("");
-
-          }}
+          type="button"
+          onClick={addItem}
         >
           Add
         </button>
-
       </div>
 
       <div className="qd-threshold-row">
-
-        <label>
-          Unlock at
-        </label>
+        <label>Unlock at</label>
 
         <input
           type="number"
@@ -2100,231 +2145,124 @@ function RewardMachine({
           max="100"
           value={thresholdPct}
           onChange={(e) =>
-            onThresholdChange(
-              e.target.value
-            )
+            onThresholdChange(e.target.value)
           }
         />
 
-        <span>
-          % of max possible
-        </span>
-
+        <span>% of max possible</span>
       </div>
-
     </div>
   );
 }
-
 
 // ======================================================
 // MAIN DASHBOARD
 // ======================================================
 
 export default function QuestDashboard() {
+  const [state, setState] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [session, setSession] = useState(null);
 
-  // ====================================================
-  // ALL STATE
-  // ====================================================
+  const [viewOffset, setViewOffset] = useState(0);
 
-  const [state, setState] =
-    useState(null);
+  const [showAddDomain, setShowAddDomain] = useState(false);
+  const [newDomainName, setNewDomainName] = useState("");
+  const [newDomainEmoji, setNewDomainEmoji] = useState("⭐");
+  const [newDomainTarget, setNewDomainTarget] = useState(5);
 
-  const [loaded, setLoaded] =
-    useState(false);
+  const [showAddAnchor, setShowAddAnchor] = useState(false);
 
-  const [session, setSession] =
-    useState(null);
+  const [clockNow, setClockNow] = useState(new Date());
 
-  const [viewOffset, setViewOffset] =
-    useState(0);
+  const [celebrationQueue, setCelebrationQueue] = useState([]);
+  const [celebration, setCelebration] = useState(null);
 
-  const [showAddDomain, setShowAddDomain] =
-    useState(false);
-
-  const [newDomainName, setNewDomainName] =
-    useState("");
-
-  const [newDomainEmoji, setNewDomainEmoji] =
-    useState("⭐");
-
-  const [newDomainTarget, setNewDomainTarget] =
-    useState(5);
-
-  const [clockNow, setClockNow] =
-    useState(new Date());
-
-  const [celebrationQueue, setCelebrationQueue] =
-    useState([]);
-
-  const [celebration, setCelebration] =
-    useState(null);
-
-
-  // ====================================================
-  // REFS
-  // ====================================================
-
-  const previousDailyUnlocked =
-    useRef(false);
-
-  const previousWeeklyUnlocked =
-    useRef(false);
-
-  const rewardDetectionReady =
-    useRef(false);
-
+  const rewardDetectionReady = useRef(false);
 
   // ====================================================
   // CLOCK
   // ====================================================
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setClockNow(new Date());
+    }, 1000);
 
-    const timer =
-      setInterval(() => {
-
-        setClockNow(
-          new Date()
-        );
-
-      }, 1000);
-
-    return () =>
-      clearInterval(timer);
-
+    return () => clearInterval(timer);
   }, []);
 
-
   // ====================================================
-  // LOAD SESSION
+  // LOAD SESSION + DATA
   // ====================================================
 
   useEffect(() => {
-
     let mounted = true;
 
     async function loadSession() {
-
       const {
-        data: {
-          session,
-        },
-      } =
-        await supabase.auth.getSession();
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
-      setSession(session);
+      setSession(currentSession);
 
-      if (session) {
-
-        await loadUserData(
-          session.user.id
-        );
-
+      if (currentSession) {
+        await loadUserData(currentSession.user.id);
       } else {
-
         setLoaded(true);
-
       }
     }
 
     loadSession();
 
     const {
-      data: {
-        subscription,
-      },
-    } =
-      supabase.auth.onAuthStateChange(
-        async (
-          _event,
-          newSession
-        ) => {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        if (!mounted) return;
 
-          setSession(
-            newSession
-          );
+        setSession(newSession);
 
-          if (newSession) {
-
-            await loadUserData(
-              newSession.user.id
-            );
-
-          } else {
-
-            setState(null);
-            setLoaded(true);
-
-          }
+        if (newSession) {
+          await loadUserData(newSession.user.id);
+        } else {
+          setState(null);
+          setLoaded(true);
         }
-      );
+      }
+    );
 
     return () => {
-
       mounted = false;
-
       subscription.unsubscribe();
-
     };
-
   }, []);
 
-
-  // ====================================================
-  // LOAD USER DATA
-  // ====================================================
-
   async function loadUserData(userId) {
-
     try {
-
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from("quest_data")
-          .select("data")
-          .eq(
-            "user_id",
-            userId
-          )
-          .maybeSingle();
+      const { data, error } = await supabase
+        .from("quest_data")
+        .select("data")
+        .eq("user_id", userId)
+        .maybeSingle();
 
       if (error) {
-
         console.error(
           "Failed to load user data:",
           error
         );
 
-        setState(
-          clone(DEFAULT_STATE)
-        );
-
+        setState(clone(DEFAULT_STATE));
       } else if (data) {
-
-        setState(
-          data.data
-        );
-
+        setState(data.data);
       } else {
+        const initialState = clone(DEFAULT_STATE);
 
-        const initialState =
-          clone(DEFAULT_STATE);
+        setState(initialState);
 
-        setState(
-          initialState
-        );
-
-        const {
-          error: insertError,
-        } =
+        const { error: insertError } =
           await supabase
             .from("quest_data")
             .insert({
@@ -2333,35 +2271,25 @@ export default function QuestDashboard() {
             });
 
         if (insertError) {
-
           console.error(
             "Failed to create user data:",
             insertError
           );
-
         }
       }
-
     } catch (error) {
-
       console.error(error);
-
-      setState(
-        clone(DEFAULT_STATE)
-      );
-
+      setState(clone(DEFAULT_STATE));
     }
 
     setLoaded(true);
   }
 
-
   // ====================================================
-  // AUTO-SAVE TO SUPABASE
+  // AUTO SAVE
   // ====================================================
 
   useEffect(() => {
-
     if (
       !loaded ||
       !state ||
@@ -2370,102 +2298,63 @@ export default function QuestDashboard() {
       return;
     }
 
-    const timeout =
-      setTimeout(async () => {
+    const timeout = setTimeout(async () => {
+      const { error } = await supabase
+        .from("quest_data")
+        .upsert(
+          {
+            user_id: session.user.id,
+            data: state,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "user_id",
+          }
+        );
 
-        const {
-          error,
-        } =
-          await supabase
-            .from("quest_data")
-            .upsert(
-              {
-                user_id:
-                  session.user.id,
+      if (error) {
+        console.error(
+          "Failed to save data:",
+          error
+        );
+      }
+    }, 500);
 
-                data: state,
-
-                updated_at:
-                  new Date().toISOString(),
-              },
-              {
-                onConflict:
-                  "user_id",
-              }
-            );
-
-        if (error) {
-
-          console.error(
-            "Failed to save data:",
-            error
-          );
-
-        }
-
-      }, 500);
-
-    return () =>
-      clearTimeout(timeout);
-
-  }, [
-    state,
-    loaded,
-    session,
-  ]);
-
+    return () => clearTimeout(timeout);
+  }, [state, loaded, session]);
 
   // ====================================================
   // CALCULATIONS
-  //
-  // These are NOT hooks.
-  // They are safe to calculate before returns.
   // ====================================================
 
   const today = clockNow;
 
-  const resetHour =
-    Number(
-      state?.settings?.dayResetHour ??
-        0
-    );
+  const resetHour = Number(
+    state?.settings?.dayResetHour ?? 0
+  );
 
-  const todayStr =
-    getQuestDate(
-      today,
-      resetHour
-    );
-
-  const questDateObject =
-    new Date(today);
-
-  if (
-    today.getHours() <
+  const todayStr = getQuestDate(
+    today,
     resetHour
-  ) {
+  );
+
+  const questDateObject = new Date(today);
+
+  if (today.getHours() < resetHour) {
     questDateObject.setDate(
       questDateObject.getDate() - 1
     );
   }
 
-  const wDates =
-    weekDates(
-      questDateObject
-    );
+  const wDates = weekDates(questDateObject);
+  const weekKeyStr = wDates[0];
 
-  const weekKeyStr =
-    wDates[0];
+  const viewDate = addDays(
+    today,
+    viewOffset
+  );
 
-  const viewDate =
-    addDays(
-      today,
-      viewOffset
-    );
-
-  const viewDateStr =
-    toISODate(
-      viewDate
-    );
+  const viewDateStr = toISODate(viewDate);
 
   const viewDateLabel =
     viewDate.toLocaleDateString(
@@ -2476,30 +2365,18 @@ export default function QuestDashboard() {
         day: "numeric",
       }
     ) +
-    (
-      viewOffset === 0
-        ? " · Today"
-        : ""
-    );
-
-
-  // ====================================================
-  // TASK / XP HELPERS
-  // ====================================================
+    (viewOffset === 0 ? " · Today" : "");
 
   const allTasks = () =>
     state
-      ? state.domains.flatMap(
-          (d) =>
-            d.tasks.map(
-              (t) => ({
-                ...t,
-                domainId: d.id,
-                domainEmoji: d.emoji,
-                domainColor: d.color,
-                domainName: d.name,
-              })
-            )
+      ? state.domains.flatMap((d) =>
+          d.tasks.map((t) => ({
+            ...t,
+            domainId: d.id,
+            domainEmoji: d.emoji,
+            domainColor: d.color,
+            domainName: d.name,
+          }))
         )
       : [];
 
@@ -2509,7 +2386,7 @@ export default function QuestDashboard() {
           (sum, anchor) =>
             sum +
             (anchor.history?.[ds]
-              ? anchor.xpPerDay
+              ? Number(anchor.xpPerDay) || 0
               : 0),
           0
         )
@@ -2519,7 +2396,7 @@ export default function QuestDashboard() {
     state
       ? state.anchors.reduce(
           (sum, anchor) =>
-            sum + anchor.xpPerDay,
+            sum + (Number(anchor.xpPerDay) || 0),
           0
         )
       : 0;
@@ -2531,10 +2408,7 @@ export default function QuestDashboard() {
         (
           task.done &&
           task.doneAt &&
-          task.doneAt.slice(
-            0,
-            10
-          ) === ds
+          task.doneAt.slice(0, 10) === ds
             ? Number(task.xp) || 0
             : 0
         ),
@@ -2546,11 +2420,7 @@ export default function QuestDashboard() {
       (sum, task) =>
         sum +
         (
-          task.day === ds &&
-          !task.done
-            ? Number(task.xp) || 0
-            : task.day === ds &&
-              task.done
+          task.day === ds
             ? Number(task.xp) || 0
             : 0
         ),
@@ -2558,40 +2428,27 @@ export default function QuestDashboard() {
     );
 
   const dayXP = (ds) =>
-    dayAnchorXP(ds) +
-    dayTaskXP(ds);
+    dayAnchorXP(ds) + dayTaskXP(ds);
 
   const dayMax = (ds) =>
-    dayAnchorMax() +
-    dayTaskMax(ds);
+    dayAnchorMax() + dayTaskMax(ds);
 
   const weekXP = () =>
     wDates.reduce(
-      (sum, d) =>
-        sum + dayXP(d),
+      (sum, d) => sum + dayXP(d),
       0
     );
 
   const weekMax = () =>
     wDates.reduce(
-      (sum, d) =>
-        sum + dayMax(d),
+      (sum, d) => sum + dayMax(d),
       0
     );
 
-
-  const dToday =
-    dayXP(todayStr);
-
-  const dMaxToday =
-    dayMax(todayStr);
-
-  const wXP =
-    weekXP();
-
-  const wMax =
-    weekMax();
-
+  const dToday = dayXP(todayStr);
+  const dMaxToday = dayMax(todayStr);
+  const wXP = weekXP();
+  const wMax = weekMax();
 
   const nextDailyReset =
     getNextDailyReset(
@@ -2617,15 +2474,11 @@ export default function QuestDashboard() {
         today.getTime()
     );
 
-
   // ====================================================
-  // REWARD THRESHOLD DETECTION
-  //
-  // THIS WAS MISSING / BROKEN IN YOUR ORIGINAL CODE.
+  // REWARD DETECTION
   // ====================================================
 
   useEffect(() => {
-
     if (
       !loaded ||
       !state ||
@@ -2637,122 +2490,67 @@ export default function QuestDashboard() {
     const dailyThreshold =
       Math.round(
         dMaxToday *
-          (
-            Number(
-              state.settings
-                ?.dayThresholdPct ??
-                70
-            ) / 100
-          )
+        (
+          Number(
+            state.settings?.dayThresholdPct ?? 70
+          ) / 100
+        )
       );
 
     const weeklyThreshold =
       Math.round(
         wMax *
-          (
-            Number(
-              state.settings
-                ?.weekThresholdPct ??
-                70
-            ) / 100
-          )
+        (
+          Number(
+            state.settings?.weekThresholdPct ?? 70
+          ) / 100
+        )
       );
-
 
     const dailyUnlocked =
       dMaxToday > 0 &&
       dailyThreshold > 0 &&
       dToday >= dailyThreshold;
 
-
     const weeklyUnlocked =
       wMax > 0 &&
       weeklyThreshold > 0 &&
       wXP >= weeklyThreshold;
 
-
     const dailyClaimed =
-      !!state.claimed?.daily?.[
-        todayStr
-      ];
+      !!state.claimed?.daily?.[todayStr];
 
     const weeklyClaimed =
-      !!state.claimed?.weekly?.[
-        weekKeyStr
-      ];
+      !!state.claimed?.weekly?.[weekKeyStr];
 
-
-    if (
-      !rewardDetectionReady.current
-    ) {
-
-      previousDailyUnlocked.current =
-        dailyUnlocked;
-
-      previousWeeklyUnlocked.current =
-        weeklyUnlocked;
-
-      rewardDetectionReady.current =
-        true;
-
-      // If the user already loaded with
-      // enough XP, don't instantly surprise
-      // them with an old reward.
+    if (!rewardDetectionReady.current) {
+      rewardDetectionReady.current = true;
       return;
     }
 
-
-    const queueHasDaily =
-      celebrationQueue.includes(
-        "daily"
-      );
-
-    const queueHasWeekly =
-      celebrationQueue.includes(
-        "weekly"
-      );
-
-
-    // Daily reward
     if (
       dailyUnlocked &&
       !dailyClaimed &&
-      !queueHasDaily &&
+      !celebrationQueue.includes("daily") &&
       celebration !== "daily"
     ) {
-
-      setCelebrationQueue(
-        (queue) => [
-          ...queue,
-          "daily",
-        ]
-      );
+      setCelebrationQueue((queue) => [
+        ...queue,
+        "daily",
+      ]);
     }
 
-
-    // Weekly reward
     if (
       weeklyUnlocked &&
       !weeklyClaimed &&
-      !queueHasWeekly &&
+      !celebrationQueue.includes("weekly") &&
       celebration !== "weekly"
     ) {
-
-      setCelebrationQueue(
-        (queue) => [
-          ...queue,
-          "weekly",
-        ]
-      );
+      setCelebrationQueue((queue) => [
+        ...queue,
+        "weekly",
+      ]);
     }
-
-
-    previousDailyUnlocked.current =
-      dailyUnlocked;
-
-    previousWeeklyUnlocked.current =
-      weeklyUnlocked;
-
   }, [
     loaded,
     state,
@@ -2767,44 +2565,27 @@ export default function QuestDashboard() {
     celebrationQueue,
   ]);
 
-
   // ====================================================
-  // START NEXT CELEBRATION
-  //
-  // IMPORTANT:
-  // This hook is BEFORE the returns.
-  // That's what fixes your React error.
+  // START CELEBRATION
   // ====================================================
 
   useEffect(() => {
-
     if (
       !loaded ||
       !state ||
-      !session?.user?.id
-    ) {
-      return;
-    }
-
-    if (
+      !session?.user?.id ||
       celebration ||
       celebrationQueue.length === 0
     ) {
       return;
     }
 
-    const next =
-      celebrationQueue[0];
+    const next = celebrationQueue[0];
 
-    setCelebration(
-      next
+    setCelebration(next);
+    setCelebrationQueue((queue) =>
+      queue.slice(1)
     );
-
-    setCelebrationQueue(
-      (queue) =>
-        queue.slice(1)
-    );
-
   }, [
     loaded,
     state,
@@ -2813,99 +2594,145 @@ export default function QuestDashboard() {
     celebrationQueue,
   ]);
 
-
   // ====================================================
-  // NOW RETURNS ARE SAFE
-  //
-  // THERE ARE NO HOOKS BELOW THIS POINT.
+  // SAFE RETURNS
   // ====================================================
 
   if (!session) {
-
     return (
       <Login
         onLogin={(newSession) =>
-          setSession(
-            newSession
-          )
+          setSession(newSession)
         }
       />
     );
   }
 
-
   if (!state) {
-
     return (
       <div className="qd-loading">
-
-        <style>
-          {CSS}
-        </style>
-
+        <style>{CSS}</style>
         Charting the voyage…
-
       </div>
     );
   }
-
 
   // ====================================================
   // STATE MUTATION
   // ====================================================
 
   function updateState(mutator) {
-
-    setState(
-      (previous) => {
-
-        const next =
-          clone(previous);
-
-        mutator(next);
-
-        return next;
-
-      }
-    );
+    setState((previous) => {
+      const next = clone(previous);
+      mutator(next);
+      return next;
+    });
   }
-
 
   // ====================================================
   // ANCHORS
   // ====================================================
 
-  const toggleAnchor = (
-    id,
-    ds
-  ) =>
+  const toggleAnchor = (id, ds) => {
     updateState((next) => {
+      const anchor = next.anchors.find(
+        (x) => x.id === id
+      );
 
-      const anchor =
-        next.anchors.find(
-          (x) => x.id === id
-        );
+      if (!anchor) return;
 
       if (!anchor.history) {
         anchor.history = {};
       }
 
-      if (
-        anchor.history[ds]
-      ) {
-
-        delete anchor.history[
-          ds
-        ];
-
+      if (anchor.history[ds]) {
+        delete anchor.history[ds];
       } else {
-
-        anchor.history[ds] =
-          true;
+        anchor.history[ds] = true;
       }
-
     });
 
+    playSFX("click");
+  };
+
+  const addAnchor = ({
+    name,
+    emoji,
+    xpPerDay,
+  }) => {
+    updateState((next) => {
+      next.anchors.push({
+        id:
+          "anchor-" +
+          Date.now() +
+          "-" +
+          Math.random()
+            .toString(36)
+            .slice(2, 7),
+
+        name,
+        emoji: emoji || "⭐",
+
+        xpPerDay:
+          Math.max(
+            1,
+            Number(xpPerDay) || 1
+          ),
+
+        history: {},
+      });
+    });
+
+    playSFX("add");
+  };
+
+  const updateAnchor = (
+    id,
+    changes
+  ) => {
+    updateState((next) => {
+      const anchor = next.anchors.find(
+        (x) => x.id === id
+      );
+
+      if (!anchor) return;
+
+      anchor.name = changes.name;
+      anchor.emoji = changes.emoji || "⭐";
+      anchor.xpPerDay =
+        Math.max(
+          1,
+          Number(changes.xpPerDay) || 1
+        );
+    });
+
+    playSFX("add");
+  };
+
+  const deleteAnchor = (id) => {
+    const anchor = state.anchors.find(
+      (x) => x.id === id
+    );
+
+    if (!anchor) return;
+
+    if (
+      !window.confirm(
+        `Delete the "${anchor.name}" daily anchor?`
+      )
+    ) {
+      return;
+    }
+
+    updateState((next) => {
+      next.anchors =
+        next.anchors.filter(
+          (x) => x.id !== id
+        );
+    });
+
+    playSFX("delete");
+  };
 
   // ====================================================
   // TASKS
@@ -2914,39 +2741,44 @@ export default function QuestDashboard() {
   const toggleTask = (
     domainId,
     taskId
-  ) =>
+  ) => {
+    const domain = state.domains.find(
+      (d) => d.id === domainId
+    );
+
+    const task = domain?.tasks.find(
+      (x) => x.id === taskId
+    );
+
+    if (!task) return;
+
+    const newDone = !task.done;
+
     updateState((next) => {
+      const d = next.domains.find(
+        (x) => x.id === domainId
+      );
 
-      const domain =
-        next.domains.find(
-          (d) =>
-            d.id === domainId
-        );
+      if (!d) return;
 
-      if (!domain) {
-        return;
-      }
+      const t = d.tasks.find(
+        (x) => x.id === taskId
+      );
 
-      const task =
-        domain.tasks.find(
-          (x) =>
-            x.id === taskId
-        );
+      if (!t) return;
 
-      if (!task) {
-        return;
-      }
-
-      task.done =
-        !task.done;
-
-      task.doneAt =
-        task.done
-          ? new Date().toISOString()
-          : null;
-
+      t.done = newDone;
+      t.doneAt = newDone
+        ? new Date().toISOString()
+        : null;
     });
 
+    playSFX(
+      newDone
+        ? "complete"
+        : "undo"
+    );
+  };
 
   const addTask = (
     domainId,
@@ -2956,26 +2788,22 @@ export default function QuestDashboard() {
       day,
       hour,
     }
-  ) =>
+  ) => {
     updateState((next) => {
+      const domain = next.domains.find(
+        (d) => d.id === domainId
+      );
 
-      const domain =
-        next.domains.find(
-          (d) =>
-            d.id === domainId
-        );
-
-      if (!domain) {
-        return;
-      }
+      if (!domain) return;
 
       domain.tasks.push({
         id:
-          "t" +
+          "task-" +
           Date.now() +
+          "-" +
           Math.random()
             .toString(36)
-            .slice(2, 6),
+            .slice(2, 7),
 
         name,
 
@@ -2993,110 +2821,128 @@ export default function QuestDashboard() {
             : Number(hour),
 
         done: false,
-
         doneAt: null,
       });
-
     });
 
+    playSFX("add");
+  };
 
   const deleteTask = (
     domainId,
     taskId
-  ) =>
+  ) => {
+    const domain = state.domains.find(
+      (d) => d.id === domainId
+    );
+
+    if (!domain) return;
+
+    const task = domain.tasks.find(
+      (t) => t.id === taskId
+    );
+
+    if (!task) return;
+
     updateState((next) => {
+      const d = next.domains.find(
+        (x) => x.id === domainId
+      );
 
-      const domain =
-        next.domains.find(
-          (d) =>
-            d.id === domainId
+      if (!d) return;
+
+      d.tasks =
+        d.tasks.filter(
+          (t) => t.id !== taskId
         );
-
-      if (!domain) {
-        return;
-      }
-
-      domain.tasks =
-        domain.tasks.filter(
-          (t) =>
-            t.id !== taskId
-        );
-
     });
 
+    playSFX("delete");
+  };
+
+  // ====================================================
+  // QUEST TARGET
+  // ====================================================
 
   const updateTarget = (
     domainId,
     value
-  ) =>
+  ) => {
     updateState((next) => {
+      const domain = next.domains.find(
+        (d) => d.id === domainId
+      );
 
-      const domain =
-        next.domains.find(
-          (d) =>
-            d.id === domainId
-        );
-
-      if (!domain) {
-        return;
-      }
+      if (!domain) return;
 
       domain.monthlyTarget =
         Math.max(
           1,
           Number(value) || 1
         );
-
     });
-
+  };
 
   // ====================================================
-  // DOMAINS
+  // DOMAINS / QUESTS
   // ====================================================
 
   const addDomain = () => {
-
-    if (
-      !newDomainName.trim()
-    ) {
-      return;
-    }
+    if (!newDomainName.trim()) return;
 
     updateState((next) => {
-
       next.domains.push({
-
         id:
-          "dom" +
-          Date.now(),
+          "domain-" +
+          Date.now() +
+          "-" +
+          Math.random()
+            .toString(36)
+            .slice(2, 7),
 
         name:
           newDomainName.trim(),
 
         emoji:
-          newDomainEmoji ||
-          "⭐",
+          newDomainEmoji || "⭐",
 
         color:
           "#4FA8A0",
 
         monthlyTarget:
-          Number(
-            newDomainTarget
-          ) || 5,
+          Math.max(
+            1,
+            Number(newDomainTarget) || 5
+          ),
 
         tasks: [],
-
       });
-
     });
 
     setNewDomainName("");
     setNewDomainEmoji("⭐");
     setNewDomainTarget(5);
     setShowAddDomain(false);
+
+    playSFX("add");
   };
 
+  const deleteDomain = (domainId) => {
+    const domain = state.domains.find(
+      (d) => d.id === domainId
+    );
+
+    if (!domain) return;
+
+    updateState((next) => {
+      next.domains =
+        next.domains.filter(
+          (d) => d.id !== domainId
+        );
+    });
+
+    playSFX("delete");
+  };
 
   // ====================================================
   // REWARDS
@@ -3105,66 +2951,46 @@ export default function QuestDashboard() {
   const addReward = (
     kind,
     text
-  ) =>
+  ) => {
     updateState((next) => {
-
-      if (
-        !next.rewards[kind]
-      ) {
-        next.rewards[kind] =
-          [];
+      if (!next.rewards[kind]) {
+        next.rewards[kind] = [];
       }
 
-      next.rewards[kind].push(
-        text
-      );
-
+      next.rewards[kind].push(text);
     });
-
+  };
 
   const removeReward = (
     kind,
     index
-  ) =>
+  ) => {
     updateState((next) => {
-
-      next.rewards[kind].splice(
-        index,
-        1
-      );
-
+      next.rewards[kind].splice(index, 1);
     });
-
+  };
 
   const claimReward = (
     kind,
     key,
     reward
-  ) =>
+  ) => {
     updateState((next) => {
-
-      if (
-        !next.claimed[kind]
-      ) {
-        next.claimed[kind] =
-          {};
+      if (!next.claimed[kind]) {
+        next.claimed[kind] = {};
       }
 
-      next.claimed[kind][key] =
-        reward;
-
+      next.claimed[kind][key] = reward;
     });
-
+  };
 
   const finishCelebration = (
     reward
   ) => {
-
     if (
       celebration === "daily" &&
       reward
     ) {
-
       claimReward(
         "daily",
         todayStr,
@@ -3172,12 +2998,10 @@ export default function QuestDashboard() {
       );
     }
 
-
     if (
       celebration === "weekly" &&
       reward
     ) {
-
       claimReward(
         "weekly",
         weekKeyStr,
@@ -3185,12 +3009,8 @@ export default function QuestDashboard() {
       );
     }
 
-
-    setCelebration(
-      null
-    );
+    setCelebration(null);
   };
-
 
   // ====================================================
   // SETTINGS
@@ -3199,9 +3019,8 @@ export default function QuestDashboard() {
   const setThresholdPct = (
     key,
     value
-  ) =>
+  ) => {
     updateState((next) => {
-
       next.settings[key] =
         Math.min(
           100,
@@ -3210,26 +3029,23 @@ export default function QuestDashboard() {
             Number(value) || 70
           )
         );
-
     });
-
+  };
 
   const setResetHour = (
     value
-  ) =>
+  ) => {
     updateState((next) => {
-
       next.settings.dayResetHour =
         Math.min(
           23,
           Math.max(
             0,
-            Number(value) || 0
+            Number(value)
           )
         );
-
     });
-
+  };
 
   // ====================================================
   // VIEW TASKS
@@ -3238,57 +3054,45 @@ export default function QuestDashboard() {
   const viewTasks =
     allTasks().filter(
       (task) =>
-        task.day ===
-        viewDateStr
+        task.day === viewDateStr
     );
-
 
   // ====================================================
   // RENDER
   // ====================================================
 
   return (
-
     <div className="qd-root">
 
       {celebration && (
-
         <CelebrationModal
           kind={celebration}
-
           items={
             celebration === "daily"
               ? state.rewards.daily
               : state.rewards.weekly
           }
-
-          onComplete={
-            finishCelebration
-          }
+          onComplete={finishCelebration}
         />
-
       )}
-
 
       {/* LOGOUT */}
 
       <button
+        type="button"
         onClick={async () => {
-
+          playSFX("click");
           await supabase.auth.signOut();
-
         }}
         style={{
           position: "fixed",
           top: 15,
           right: 15,
           background: "none",
-          border:
-            "1px solid #22384f",
+          border: "1px solid #22384f",
           color: "#8FA3B5",
           borderRadius: 8,
-          padding:
-            "6px 10px",
+          padding: "6px 10px",
           cursor: "pointer",
           zIndex: 1000,
         }}
@@ -3296,62 +3100,45 @@ export default function QuestDashboard() {
         Log out
       </button>
 
-
-      <style>
-        {CSS}
-      </style>
-
+      <style>{CSS}</style>
 
       {/* HERO */}
 
       <header className="qd-hero">
-
         <div className="qd-hero-title">
           Your Odyssey
         </div>
 
         <span className="qd-hero-sub">
-
           {today.toLocaleDateString(
             undefined,
             {
-              weekday:
-                "long",
-              month:
-                "long",
-              day:
-                "numeric",
+              weekday: "long",
+              month: "long",
+              day: "numeric",
             }
           )}
-
         </span>
 
-
         <div className="qd-rings">
-
           <Ring
             pct={
               dMaxToday
-                ? dToday /
-                  dMaxToday
+                ? dToday / dMaxToday
                 : 0
             }
             size={150}
             stroke={12}
             color="#C9A24B"
-            label={String(
-              dToday
-            )}
+            label={String(dToday)}
             sublabel={
               `/ ${Math.round(
                 dMaxToday *
-                  state.settings
-                    .dayThresholdPct /
-                  100
+                state.settings.dayThresholdPct /
+                100
               )} XP today`
             }
           />
-
 
           <Ring
             pct={
@@ -3362,107 +3149,71 @@ export default function QuestDashboard() {
             size={150}
             stroke={12}
             color="#4FA8A0"
-            label={String(
-              wXP
-            )}
+            label={String(wXP)}
             sublabel={
               `/ ${Math.round(
                 wMax *
-                  state.settings
-                    .weekThresholdPct /
-                  100
+                state.settings.weekThresholdPct /
+                100
               )} XP this week`
             }
           />
-
         </div>
-
 
         <div className="qd-hero-hint">
-
-          Tap anchors to check them
-          off. Tag a quest task with
-          a date to pin it to the
-          clock below.
-
+          Tap anchors to check them off.
+          Tag a quest task with a date to
+          pin it to the clock below.
         </div>
-
       </header>
-
 
       {/* DAY RESET */}
 
       <div
         style={{
-          background:
-            "var(--panel)",
-          border:
-            "1px solid var(--line)",
+          background: "var(--panel)",
+          border: "1px solid var(--line)",
           borderRadius: 12,
-          padding:
-            "12px 14px",
+          padding: "12px 14px",
           marginBottom: 16,
           display: "flex",
-          alignItems:
-            "center",
-          justifyContent:
-            "space-between",
+          alignItems: "center",
+          justifyContent: "space-between",
           gap: 12,
-          flexWrap:
-            "wrap",
+          flexWrap: "wrap",
         }}
       >
-
         <div>
-
-          <div
-            style={{
-              fontSize: 13,
-            }}
-          >
+          <div style={{ fontSize: 13 }}>
             🌙 Day Reset Time
           </div>
 
           <div className="qd-dim">
-
-            Your daily XP and
-            reward reset at this
-            time.
-
+            Your daily XP and reward reset at
+            this time.
           </div>
-
         </div>
-
 
         <select
           value={resetHour}
           onChange={(e) =>
-            setResetHour(
-              e.target.value
-            )
+            setResetHour(e.target.value)
           }
           style={{
-            background:
-              "var(--panel-2)",
-            border:
-              "1px solid var(--line)",
-            color:
-              "var(--text)",
+            background: "var(--panel-2)",
+            border: "1px solid var(--line)",
+            color: "var(--text)",
             borderRadius: 6,
-            padding:
-              "6px 10px",
+            padding: "6px 10px",
           }}
         >
-
           {Array.from(
             { length: 24 },
             (_, h) => (
-
               <option
                 key={h}
                 value={h}
               >
-
                 {h === 0
                   ? "12:00 AM"
                   : h < 12
@@ -3470,30 +3221,20 @@ export default function QuestDashboard() {
                   : h === 12
                   ? "12:00 PM"
                   : `${h - 12}:00 PM`}
-
               </option>
-
             )
           )}
-
         </select>
-
       </div>
-
 
       {/* DAILY CLOCK */}
 
       <section className="qd-section">
-
-        <h2>
-          Daily Clock
-        </h2>
+        <h2>Daily Clock</h2>
 
         <ClockDial
           tasks={viewTasks}
-          dateLabel={
-            viewDateLabel
-          }
+          dateLabel={viewDateLabel}
           onPrev={() =>
             setViewOffset(
               viewOffset - 1
@@ -3504,169 +3245,104 @@ export default function QuestDashboard() {
               viewOffset + 1
             )
           }
-          onToggle={
-            toggleTask
-          }
+          onToggle={toggleTask}
         />
-
       </section>
 
-
-      {/* ANCHORS */}
+      {/* DAILY ANCHORS */}
 
       <section className="qd-section">
-
-        <h2>
-          Daily Anchors
-        </h2>
+        <h2>Daily Anchors</h2>
 
         <div className="qd-anchors">
-
           {state.anchors.map(
             (anchor) => (
-
-              <div
+              <AnchorCard
                 key={anchor.id}
-                className="qd-anchor"
-              >
-
-                <div className="qd-anchor-head">
-
-                  <span>
-                    {anchor.emoji}
-                  </span>
-
-                  {anchor.name}
-
-                  <span className="qd-dim">
-                    · {anchor.xpPerDay} XP
-                  </span>
-
-                </div>
-
-
-                <div className="qd-anchor-week">
-
-                  {wDates.map(
-                    (date, i) => (
-
-                      <button
-                        key={date}
-                        className={
-                          "qd-dot" +
-                          (
-                            anchor
-                              .history?.[
-                                date
-                              ]
-                              ? " on"
-                              : ""
-                          )
-                        }
-                        onClick={() =>
-                          toggleAnchor(
-                            anchor.id,
-                            date
-                          )
-                        }
-                        title={date}
-                      >
-                        {
-                          [
-                            "M",
-                            "T",
-                            "W",
-                            "T",
-                            "F",
-                            "S",
-                            "S",
-                          ][i]
-                        }
-                      </button>
-
-                    )
-                  )}
-
-                </div>
-
-              </div>
-
+                anchor={anchor}
+                weekDates={wDates}
+                onToggle={toggleAnchor}
+                onUpdate={updateAnchor}
+                onDelete={deleteAnchor}
+              />
             )
           )}
-
         </div>
 
+        {showAddAnchor ? (
+          <AnchorAddForm
+            onAdd={addAnchor}
+            onCancel={() =>
+              setShowAddAnchor(false)
+            }
+          />
+        ) : (
+          <button
+            type="button"
+            className="qd-add-btn"
+            onClick={() => {
+              playSFX("click");
+              setShowAddAnchor(true);
+            }}
+          >
+            + New daily anchor
+          </button>
+        )}
       </section>
-
 
       {/* QUEST LOG */}
 
       <section className="qd-section">
-
-        <h2>
-          Quest Log
-        </h2>
-
+        <h2>Quest Log</h2>
 
         {state.domains.map(
           (domain) => (
-
             <QuestCard
               key={domain.id}
               domain={domain}
               today={today}
 
-              onToggleTask={(
-                taskId
-              ) =>
+              onToggleTask={(taskId) =>
                 toggleTask(
                   domain.id,
                   taskId
                 )
               }
 
-              onAddTask={(
-                payload
-              ) =>
+              onAddTask={(payload) =>
                 addTask(
                   domain.id,
                   payload
                 )
               }
 
-              onDeleteTask={(
-                taskId
-              ) =>
+              onDeleteTask={(taskId) =>
                 deleteTask(
                   domain.id,
                   taskId
                 )
               }
 
-              onTargetChange={(
-                value
-              ) =>
+              onTargetChange={(value) =>
                 updateTarget(
                   domain.id,
                   value
                 )
               }
-            />
 
+              onDeleteDomain={
+                deleteDomain
+              }
+            />
           )
         )}
 
-
         {showAddDomain ? (
-
           <div className="qd-add-task">
-
             <input
               type="text"
               placeholder="Quest name"
-              value={
-                newDomainName
-              }
+              value={newDomainName}
               onChange={(e) =>
                 setNewDomainName(
                   e.target.value
@@ -3674,125 +3350,87 @@ export default function QuestDashboard() {
               }
             />
 
-
             <input
               type="text"
               placeholder="Emoji"
-              value={
-                newDomainEmoji
-              }
+              value={newDomainEmoji}
               onChange={(e) =>
                 setNewDomainEmoji(
                   e.target.value
                 )
               }
-              style={{
-                width: 50,
-              }}
+              style={{ width: 50 }}
             />
-
 
             <input
               type="number"
+              min="1"
               placeholder="Monthly target"
-              value={
-                newDomainTarget
-              }
+              value={newDomainTarget}
               onChange={(e) =>
                 setNewDomainTarget(
                   e.target.value
                 )
               }
-              style={{
-                width: 70,
-              }}
+              style={{ width: 70 }}
             />
 
-
             <button
-              onClick={
-                addDomain
-              }
+              type="button"
+              onClick={addDomain}
             >
               Add
             </button>
 
-
             <button
+              type="button"
               className="qd-cancel"
               onClick={() =>
-                setShowAddDomain(
-                  false
-                )
+                setShowAddDomain(false)
               }
             >
               Cancel
             </button>
-
           </div>
-
         ) : (
-
           <button
+            type="button"
             className="qd-add-btn"
-            onClick={() =>
-              setShowAddDomain(
-                true
-              )
-            }
+            onClick={() => {
+              playSFX("click");
+              setShowAddDomain(true);
+            }}
           >
             + New quest
           </button>
-
         )}
-
       </section>
-
 
       {/* REWARDS */}
 
       <section className="qd-section">
-
-        <h2>
-          Rewards
-        </h2>
-
+        <h2>Rewards</h2>
 
         <div className="qd-machines">
-
-
-          {/* DAILY */}
 
           <RewardMachine
             title="Daily Treasure"
             icon="🪙"
-            items={
-              state.rewards.daily
-            }
+            items={state.rewards.daily}
             xpNow={dToday}
             xpMax={dMaxToday}
-
             thresholdPct={
-              state.settings
-                .dayThresholdPct
+              state.settings.dayThresholdPct
             }
-
-            onThresholdChange={(
-              value
-            ) =>
+            onThresholdChange={(value) =>
               setThresholdPct(
                 "dayThresholdPct",
                 value
               )
             }
-
             claimedValue={
-              state.claimed
-                .daily[
-                todayStr
-              ]
+              state.claimed.daily[todayStr]
             }
-
             onClaim={(reward) =>
               claimReward(
                 "daily",
@@ -3800,62 +3438,40 @@ export default function QuestDashboard() {
                 reward
               )
             }
-
             onAddItem={(text) =>
               addReward(
                 "daily",
                 text
               )
             }
-
             onRemoveItem={(index) =>
               removeReward(
                 "daily",
                 index
               )
             }
-
             periodLabel="Daily reward"
-
-            resetCountdown={
-              dailyCountdown
-            }
-
+            resetCountdown={dailyCountdown}
           />
-
-
-          {/* WEEKLY */}
 
           <RewardMachine
             title="Weekly Treasure"
             icon="🏺"
-            items={
-              state.rewards.weekly
-            }
+            items={state.rewards.weekly}
             xpNow={wXP}
             xpMax={wMax}
-
             thresholdPct={
-              state.settings
-                .weekThresholdPct
+              state.settings.weekThresholdPct
             }
-
-            onThresholdChange={(
-              value
-            ) =>
+            onThresholdChange={(value) =>
               setThresholdPct(
                 "weekThresholdPct",
                 value
               )
             }
-
             claimedValue={
-              state.claimed
-                .weekly[
-                weekKeyStr
-              ]
+              state.claimed.weekly[weekKeyStr]
             }
-
             onClaim={(reward) =>
               claimReward(
                 "weekly",
@@ -3863,43 +3479,31 @@ export default function QuestDashboard() {
                 reward
               )
             }
-
             onAddItem={(text) =>
               addReward(
                 "weekly",
                 text
               )
             }
-
             onRemoveItem={(index) =>
               removeReward(
                 "weekly",
                 index
               )
             }
-
             periodLabel="Resets Monday"
-
-            resetCountdown={
-              weeklyCountdown
-            }
-
+            resetCountdown={weeklyCountdown}
           />
 
         </div>
-
       </section>
-
 
       {/* FOOTER */}
 
       <div className="qd-footer qd-dim">
-
-        Your voyage, your rules —
-        edit anything above.
-
+        Your voyage, your rules — edit
+        anything above.
       </div>
-
     </div>
   );
 }
