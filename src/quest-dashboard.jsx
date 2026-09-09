@@ -443,799 +443,147 @@ const DEFAULT_STATE = {
 // ======================================================
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap');
 
 .qd-root{
-  --bg:#0B1826;
-  --panel:#12253A;
-  --panel-2:#0E1D2C;
-  --line:#22384f;
-  --gold:#C9A24B;
-  --gold-bright:#E7C878;
-  --teal:#4FA8A0;
-  --text:#EAE3D2;
-  --dim:#8FA3B5;
-  --red:#C1543B;
-  --green:#6FA86F;
-
-  background:
-    radial-gradient(1200px 600px at 50% -10%,#14314a 0%,var(--bg) 55%);
-
+  --bg:#07111f;
+  --panel:rgba(7,18,33,.88);
+  --panel-2:rgba(11,25,44,.82);
+  --line:rgba(202,170,110,.28);
+  --line-soft:rgba(126,145,178,.22);
+  --gold:#cba66a;
+  --gold-bright:#efd29a;
+  --purple:#8b5cf6;
+  --purple-2:#b99cff;
+  --blue:#7596d6;
+  --text:#f2eadc;
+  --dim:#a6b0c7;
+  --red:#d66f74;
+  --green:#7ec5a0;
+  min-height:100vh;
   color:var(--text);
   font-family:'Inter',sans-serif;
-  min-height:100vh;
-  padding:32px 20px 80px;
-  box-sizing:border-box;
-}
-
-.qd-root *{
-  box-sizing:border-box;
-}
-
-.qd-root h2{
-  font-family:'Cormorant Garamond',serif;
-}
-
-.qd-hero{
-  max-width:760px;
-  margin:0 auto 8px;
-  text-align:center;
-}
-
-.qd-hero-title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(28px,5vw,40px);
-  font-weight:600;
-  letter-spacing:.02em;
-}
-
-.qd-hero-sub{
-  font-size:14px;
-  color:var(--dim);
-  display:block;
-  margin-top:4px;
-}
-
-.qd-hero-hint{
-  font-size:12px;
-  color:var(--dim);
-  margin-top:14px;
-}
-
-.qd-rings{
-  display:flex;
-  gap:36px;
-  justify-content:center;
-  margin-top:20px;
-  flex-wrap:wrap;
-}
-
-.ring-wrap{
+  background:#06101d;
   position:relative;
-  width:150px;
-  height:150px;
+  overflow-x:hidden;
 }
-
-.ring-track{
-  stroke:#1c3549;
-}
-
-.ring-progress{
-  transition:stroke-dashoffset .6s ease;
-}
-
-.ring-center{
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-}
-
-.ring-value{
-  font-family:'Cormorant Garamond',serif;
-  font-size:30px;
-  font-weight:700;
-  color:var(--gold-bright);
-}
-
-.ring-sub{
-  font-size:11px;
-  color:var(--dim);
-  margin-top:2px;
-  text-align:center;
-  max-width:110px;
-}
-
-.qd-section{
-  max-width:760px;
-  margin:44px auto 0;
-}
-
-.qd-section h2{
-  font-size:22px;
-  font-weight:600;
-  margin:0 0 16px;
-  border-bottom:1px solid var(--line);
-  padding-bottom:8px;
-}
-
-.qd-dim{
-  color:var(--dim);
-  font-size:13px;
-}
-
-.qd-clock{
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:20px;
-  text-align:center;
-}
-
-.qd-clock-nav{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:16px;
-  margin-bottom:12px;
-  font-size:14px;
-}
-
-.qd-clock-nav button{
-  background:none;
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:8px;
-  width:28px;
-  height:28px;
-  cursor:pointer;
-}
-
-.qd-clock-svg{
-  margin:0 auto;
-  display:block;
-}
-
-.qd-clock-face{
-  stroke:var(--line);
-  stroke-width:1.5;
-}
-
-.qd-clock-ticklabel{
-  fill:var(--dim);
-  font-size:11px;
-  font-family:'Inter',sans-serif;
-}
-
-.qd-clock-dot{
-  cursor:pointer;
-  stroke:var(--bg);
-  stroke-width:2;
-}
-
-.qd-clock-list{
-  margin-top:16px;
-  text-align:left;
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.qd-clock-item{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:13px;
-  padding:6px 8px;
-  border-radius:8px;
-  background:var(--panel-2);
-  cursor:pointer;
-}
-
-.qd-clock-item.done{
-  opacity:.5;
-  text-decoration:line-through;
-}
-
-.qd-clock-item-name{
-  flex:1;
-}
-
-.qd-clock-item-time,
-.qd-clock-item-xp{
-  color:var(--dim);
-  font-size:12px;
-}
-
-.qd-anchors{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-}
-
-.qd-anchor{
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:14px 16px;
-}
-
-.qd-anchor-head{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:10px;
-}
-
-.qd-anchor-title{
-  flex:1;
-  font-size:15px;
-}
-
-.qd-anchor-actions{
-  display:flex;
-  gap:5px;
-}
-
-.qd-anchor-actions button,
-.qd-quest-actions button{
-  background:none;
-  border:1px solid var(--line);
-  color:var(--dim);
-  border-radius:6px;
-  padding:4px 7px;
-  cursor:pointer;
-  font-size:11px;
-}
-
-.qd-anchor-actions button:hover,
-.qd-quest-actions button:hover{
-  color:var(--text);
-  border-color:var(--gold);
-}
-
-.qd-anchor-edit{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  margin-bottom:10px;
-}
-
-.qd-anchor-edit input{
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:6px;
-  padding:6px 8px;
-  font-size:12px;
-}
-
-.qd-anchor-edit input:first-child{
-  width:48px;
-}
-
-.qd-anchor-edit input:nth-child(2){
-  flex:1;
-  min-width:130px;
-}
-
-.qd-anchor-edit input:nth-child(3){
-  width:70px;
-}
-
-.qd-anchor-edit button{
-  background:var(--gold);
-  border:none;
-  color:#241905;
-  border-radius:6px;
-  padding:6px 10px;
-  cursor:pointer;
-  font-size:12px;
-}
-
-.qd-anchor-edit .qd-cancel{
-  background:none;
-  color:var(--dim);
-  border:1px solid var(--line);
-}
-
-.qd-anchor-week{
-  display:flex;
-  gap:6px;
-}
-
-.qd-dot{
-  width:32px;
-  height:32px;
-  border-radius:50%;
-  border:1px solid var(--line);
-  background:var(--panel-2);
-  color:var(--dim);
-  font-size:11px;
-  cursor:pointer;
-}
-
-.qd-dot.on{
-  background:var(--teal);
-  color:#06231f;
-  border-color:var(--teal);
-  font-weight:700;
-}
-
-.qd-quest{
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-left:4px solid var(--accent,var(--gold));
-  border-radius:14px;
-  padding:18px 20px;
-  margin-bottom:16px;
-}
-
-.qd-quest-head{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-  flex-wrap:wrap;
-}
-
-.qd-quest-emoji{
-  font-size:26px;
-}
-
-.qd-quest-titlewrap{
-  flex:1;
-  min-width:160px;
-}
-
-.qd-quest-title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:19px;
-  font-weight:600;
-}
-
-.qd-quest-narrative{
-  font-family:'Cormorant Garamond',serif;
-  font-style:italic;
-  color:var(--dim);
-  font-size:15px;
-  margin-top:2px;
-}
-
-.qd-quest-actions{
-  display:flex;
-  gap:5px;
-}
-
-.qd-quest-target{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  font-size:11px;
-  color:var(--dim);
-}
-
-.qd-quest-target input{
-  width:46px;
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:6px;
-  text-align:center;
-  padding:3px;
-}
-
-.qd-bar{
-  height:7px;
-  border-radius:4px;
-  background:#1c3549;
-  overflow:hidden;
-  margin-top:12px;
-}
-
-.qd-bar-fill{
-  height:100%;
-  background:var(--gold);
-  transition:width .5s ease;
-}
-
-.qd-quest-count{
-  font-size:12px;
-  color:var(--dim);
-  margin-top:6px;
-}
-
-.qd-tasklist{
-  margin-top:14px;
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.qd-task{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:13.5px;
-  padding:6px 4px;
-  border-bottom:1px solid var(--line);
-  flex-wrap:wrap;
-}
-
-.qd-task.done .qd-task-name{
-  opacity:.5;
-  text-decoration:line-through;
-}
-
-.qd-task-name{
-  flex:1;
-  min-width:120px;
-}
-
-.qd-task-day{
-  color:var(--teal);
-  font-size:11px;
-}
-
-.qd-task-xp{
-  color:var(--gold-bright);
-  font-size:12px;
-  font-weight:600;
-}
-
-.qd-task-del{
-  background:none;
-  border:none;
-  color:var(--dim);
-  cursor:pointer;
-  font-size:17px;
-  line-height:1;
-  padding:4px 7px;
-}
-
-.qd-task-del:hover{
-  color:var(--red);
-}
-
-.qd-add-btn{
-  margin-top:10px;
-  background:none;
-  border:1px dashed var(--line);
-  color:var(--dim);
-  border-radius:8px;
-  padding:8px 12px;
-  cursor:pointer;
-  font-size:13px;
-}
-
-.qd-add-btn:hover{
-  color:var(--text);
-  border-color:var(--gold);
-}
-
-.qd-add-task{
-  margin-top:10px;
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-}
-
-.qd-add-task input,
-.qd-add-task select{
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:6px;
-  padding:6px 8px;
-  font-size:12px;
-}
-
-.qd-add-task input[type=text]{
-  flex:1;
-  min-width:140px;
-}
-
-.qd-add-task button{
-  background:var(--gold);
-  border:none;
-  color:#241905;
-  border-radius:6px;
-  padding:6px 12px;
-  font-size:12px;
-  cursor:pointer;
-  font-weight:600;
-}
-
-.qd-add-task .qd-cancel{
-  background:none;
-  color:var(--dim);
-  border:1px solid var(--line);
-}
-
-.qd-machines{
-  display:flex;
-  gap:20px;
-  flex-wrap:wrap;
-}
-
-.qd-machine{
-  flex:1;
-  min-width:260px;
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:18px 20px;
-}
-
-.qd-machine-head{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:12px;
-}
-
-.qd-machine-icon{
-  font-size:24px;
-}
-
-.qd-machine-title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:17px;
-  font-weight:600;
-}
-
-.qd-machine-sub{
-  font-size:11px;
-  color:var(--dim);
-}
-
-.qd-machine-nums{
-  font-size:11px;
-  color:var(--dim);
-  margin-top:4px;
-}
-
-.qd-reel{
-  margin:14px 0;
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:16px;
-  text-align:center;
-  font-family:'Cormorant Garamond',serif;
-  font-size:17px;
-  min-height:26px;
-}
-
-.qd-reel.spinning{
-  color:var(--gold-bright);
-  animation:qdshake .09s infinite;
-}
-
-@keyframes qdshake{
-  0%{transform:translateY(0)}
-  50%{transform:translateY(-2px)}
-  100%{transform:translateY(0)}
-}
-
-.qd-spin-btn{
-  width:100%;
-  background:var(--gold);
-  border:none;
-  color:#241905;
-  font-weight:700;
-  padding:10px;
-  border-radius:8px;
-  cursor:pointer;
-  font-size:14px;
-}
-
-.qd-spin-btn:disabled{
-  background:#26374a;
-  color:var(--dim);
-  cursor:not-allowed;
-}
-
-.qd-reward-list{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  margin-top:14px;
-}
-
-.qd-chip{
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  border-radius:20px;
-  padding:4px 10px;
-  font-size:11.5px;
-  display:flex;
-  align-items:center;
-  gap:6px;
-}
-
-.qd-chip button{
-  background:none;
-  border:none;
-  color:var(--dim);
-  cursor:pointer;
-}
-
-.qd-add-row{
-  display:flex;
-  gap:6px;
-  margin-top:10px;
-}
-
-.qd-add-row input{
-  flex:1;
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:6px;
-  padding:6px 8px;
-  font-size:12px;
-}
-
-.qd-add-row button{
-  background:var(--teal);
-  border:none;
-  color:#06231f;
-  border-radius:6px;
-  padding:6px 12px;
-  font-size:12px;
-  cursor:pointer;
-  font-weight:600;
-}
-
-.qd-threshold-row{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  margin-top:12px;
-  font-size:11px;
-  color:var(--dim);
-}
-
-.qd-threshold-row input{
-  width:48px;
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  color:var(--text);
-  border-radius:6px;
-  padding:3px;
-  text-align:center;
-}
-
-.qd-loading{
-  color:#EAE3D2;
-  background:#0B1826;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:'Cormorant Garamond',serif;
-  font-size:20px;
-}
-
-.qd-footer{
-  text-align:center;
-  margin-top:50px;
-}
-
-.qd-celebration-backdrop{
+.qd-root::before{
+  content:"";
   position:fixed;
   inset:0;
-  z-index:99999;
-  background:rgba(3,9,17,.90);
-  backdrop-filter:blur(14px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  animation:qdFadeIn .25s ease;
+  z-index:0;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(5,11,24,.10) 0%,rgba(5,11,24,.34) 23%,rgba(5,11,24,.90) 47%,#06101d 78%),
+    url('/odyssey-sea.jpg') center top/cover no-repeat;
 }
+.qd-root::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:
+    radial-gradient(800px 500px at 58% 8%,rgba(138,92,246,.13),transparent 68%),
+    radial-gradient(700px 600px at 90% 40%,rgba(69,102,172,.10),transparent 70%);
+  mix-blend-mode:screen;
+}
+.qd-root *{box-sizing:border-box}
+.qd-root button,.qd-root input,.qd-root select{font:inherit}
+.qd-shell{position:relative;z-index:1;min-height:100vh;display:grid;grid-template-columns:250px minmax(0,1fr)}
+.qd-sidebar{
+  position:sticky;top:0;height:100vh;padding:28px 20px 22px;
+  background:linear-gradient(180deg,rgba(5,14,26,.96),rgba(7,17,30,.94));
+  border-right:1px solid var(--line);backdrop-filter:blur(16px);display:flex;flex-direction:column;gap:24px;
+}
+.qd-brand{display:flex;gap:13px;align-items:center;padding:0 8px 18px;border-bottom:1px solid var(--line)}
+.qd-laurel{width:48px;height:48px;border:1px solid var(--gold);border-radius:50%;display:grid;place-items:center;color:var(--gold-bright);font-size:24px;box-shadow:inset 0 0 18px rgba(203,166,106,.10)}
+.qd-brand-title{font-family:'Cinzel',serif;letter-spacing:.08em;font-size:20px;color:var(--gold-bright)}
+.qd-brand-sub{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--dim);font-size:13px;margin-top:3px}
+.qd-nav{display:flex;flex-direction:column;gap:7px}
+.qd-nav a{color:#cfd6e5;text-decoration:none;padding:11px 12px;border-radius:8px;display:flex;align-items:center;gap:11px;border:1px solid transparent;font-family:'Cormorant Garamond',serif;font-size:18px;transition:.2s ease}
+.qd-nav a:hover,.qd-nav a.active{background:linear-gradient(90deg,rgba(98,68,177,.28),rgba(52,75,126,.12));border-color:rgba(139,92,246,.32);color:#fff;box-shadow:0 0 24px rgba(139,92,246,.08)}
+.qd-nav-icon{width:24px;text-align:center;color:var(--gold)}
+.qd-sidebar-quote{margin-top:auto;padding:18px 10px 6px;color:#9fa9bc;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;line-height:1.45;border-top:1px solid var(--line)}
+.qd-sidebar-quote span{display:block;color:var(--gold);margin-top:9px;font-style:normal;font-size:13px}
+.qd-logout{margin-top:8px;background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:9px 10px;cursor:pointer}
+.qd-logout:hover{color:var(--text);border-color:var(--gold)}
+.qd-main{min-width:0;padding:24px clamp(18px,3vw,42px) 70px}
+.qd-topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:18px}
+.qd-greeting-kicker{font-family:'Cinzel',serif;font-size:13px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.qd-greeting{font-family:'Cinzel',serif;font-size:clamp(26px,3vw,42px);line-height:1.08;letter-spacing:.04em;margin-top:5px;text-shadow:0 2px 16px rgba(0,0,0,.5)}
+.qd-greeting-sub{font-family:'Cormorant Garamond',serif;font-style:italic;color:#d4d6e2;font-size:18px;margin-top:6px}
+.qd-topmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.qd-meta-pill{background:rgba(9,19,35,.58);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:#d6dcea;font-size:12px}
+.qd-meta-pill strong{color:var(--gold-bright);font-family:'Cinzel',serif;font-weight:600}
+.qd-dashboard-grid{display:grid;grid-template-columns:minmax(390px,.95fr) minmax(440px,1.25fr);gap:18px;align-items:stretch}
+.qd-panel{background:linear-gradient(180deg,rgba(7,18,34,.86),rgba(6,15,29,.92));border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.015);position:relative;overflow:hidden}
+.qd-panel::before{content:"";position:absolute;inset:5px;border:1px solid rgba(203,166,106,.12);pointer-events:none}
+.qd-panel-title{font-family:'Cinzel',serif;letter-spacing:.08em;font-size:18px;color:#f0dfbf}
+.qd-panel-sub{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--dim);font-size:15px;margin-top:2px}
+.qd-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:18px 20px 0;position:relative;z-index:1}
 
-.qd-celebration{
-  width:min(650px,94vw);
-  text-align:center;
-  position:relative;
-  padding:45px 25px;
-  border:1px solid rgba(201,162,75,.45);
-  border-radius:28px;
-  background:radial-gradient(circle at center,#19354b 0%,#0e1d2c 55%,#08131f 100%);
-  box-shadow:0 0 80px rgba(201,162,75,.18),0 30px 100px rgba(0,0,0,.6);
-  animation:qdCelebrationPop .45s cubic-bezier(.17,.89,.32,1.28);
-}
+/* ASTROLABE CLOCK */
+.qd-clock{padding:14px 18px 18px;text-align:center;min-height:100%;background:radial-gradient(circle at 50% 46%,rgba(34,38,81,.52),rgba(6,15,29,.93) 67%)}
+.qd-clock-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 2px;color:#d8ddeb;font-size:12px}
+.qd-clock-nav button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:rgba(10,20,36,.75);color:var(--gold-bright);cursor:pointer}
+.qd-clock-svg{width:min(100%,430px);height:auto;display:block;margin:0 auto;filter:drop-shadow(0 14px 20px rgba(0,0,0,.28))}
+.qd-clock-outer{fill:rgba(7,15,32,.75);stroke:var(--gold);stroke-width:2}
+.qd-clock-ring{fill:none;stroke:rgba(203,166,106,.45);stroke-width:1}
+.qd-clock-ring-purple{fill:none;stroke:rgba(139,92,246,.65);stroke-width:1.4;filter:drop-shadow(0 0 5px rgba(139,92,246,.6))}
+.qd-clock-tick{stroke:rgba(203,166,106,.42);stroke-width:1}
+.qd-clock-tick.major{stroke:var(--gold);stroke-width:1.8}
+.qd-clock-ticklabel{fill:#d9c7a7;font-size:13px;font-family:'Cinzel',serif}
+.qd-clock-hour-small{fill:#74809a;font-size:8px;font-family:'Inter',sans-serif}
+.qd-clock-dot{cursor:pointer;stroke:#0a1323;stroke-width:3;filter:drop-shadow(0 0 6px currentColor)}
+.qd-clock-hand{stroke:var(--gold-bright);stroke-width:2.2;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(239,210,154,.45))}
+.qd-clock-center{fill:#d2a86c;stroke:#f1d6a3;stroke-width:1.2}
+.qd-clock-time{fill:#f6ead7;font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:600}
+.qd-clock-date{fill:#9faac0;font-size:11px;font-family:'Inter',sans-serif}
+.qd-clock-list{margin-top:8px;text-align:left;display:flex;flex-direction:column;gap:6px;max-height:155px;overflow:auto}
+.qd-clock-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:7px 9px;background:rgba(12,24,43,.72);border:1px solid rgba(126,145,178,.13);cursor:pointer}
+.qd-clock-item.done{opacity:.48;text-decoration:line-through}.qd-clock-item-name{flex:1}.qd-clock-item-time,.qd-clock-item-xp{color:var(--dim);font-size:11px}
 
-.qd-celebration-icon{
-  font-size:70px;
-  animation:qdTrophyBounce .8s infinite alternate ease-in-out;
-}
+/* VOYAGE */
+.qd-voyage{padding-bottom:16px}
+.qd-voyage-stage{font-family:'Cinzel',serif;font-size:12px;color:var(--purple-2);border:1px solid rgba(139,92,246,.35);background:rgba(77,49,139,.18);padding:6px 9px;border-radius:999px}
+.qd-voyage-list{padding:14px 20px 18px;display:flex;flex-direction:column;gap:9px}
+.qd-voyage-row{display:grid;grid-template-columns:28px minmax(120px,1fr) minmax(100px,1.2fr) 42px;gap:9px;align-items:center;font-size:12px;color:#c4cbda}
+.qd-voyage-num{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-family:'Cinzel',serif;color:var(--gold)}
+.qd-voyage-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qd-voyage-bar{height:5px;background:rgba(97,113,144,.18);border:1px solid rgba(126,145,178,.18);overflow:hidden}
+.qd-voyage-fill{height:100%;background:linear-gradient(90deg,#6e7fb9,#a06cff);box-shadow:0 0 9px rgba(139,92,246,.45)}
+.qd-voyage-pct{text-align:right;color:#8f9bb0;font-size:11px}
+.qd-voyage-note{margin:0 20px;padding:12px 14px;border:1px solid rgba(139,92,246,.26);background:linear-gradient(90deg,rgba(75,45,135,.22),rgba(34,51,93,.18));font-family:'Cormorant Garamond',serif;font-style:italic;color:#c7bfd9;text-align:center}
 
-.qd-celebration-title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(36px,8vw,64px);
-  font-weight:700;
-  color:var(--gold-bright);
-  margin-top:8px;
-}
+.qd-lower-grid{display:grid;grid-template-columns:1.1fr 1.1fr .9fr;gap:18px;margin-top:18px;align-items:start}
+.qd-today-panel,.qd-anchor-panel,.qd-xp-panel,.qd-reward-stack{min-width:0}
+.qd-today-list{padding:12px 18px 18px;display:flex;flex-direction:column;gap:2px}
+.qd-today-task{display:grid;grid-template-columns:28px 1fr auto;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.qd-today-check{width:23px;height:23px;border-radius:50%;border:2px solid #8e86d7;display:grid;place-items:center;color:white;font-size:12px;box-shadow:0 0 10px rgba(139,92,246,.12)}
+.qd-today-task.done .qd-today-check{background:#7658d5}.qd-today-task.done .qd-today-name{opacity:.48;text-decoration:line-through}
+.qd-today-name{font-family:'Cormorant Garamond',serif;font-size:17px}.qd-today-sub{font-size:10px;color:var(--dim);margin-top:2px}.qd-today-xp{font-size:11px;color:var(--purple-2)}
+.qd-empty{color:var(--dim);font-family:'Cormorant Garamond',serif;font-style:italic;padding:14px 0}
 
-.qd-celebration-subtitle{
-  color:var(--dim);
-  font-size:14px;
-  margin-top:4px;
-}
+/* ANCHORS */
+.qd-anchors{padding:12px 16px 16px;display:flex;flex-direction:column;gap:8px}.qd-anchor{background:rgba(11,24,43,.70);border:1px solid var(--line-soft);padding:10px 11px;position:relative}.qd-anchor-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}.qd-anchor-head>span:first-child{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-size:18px;background:rgba(6,15,29,.55)}.qd-anchor-title{flex:1;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.05em}.qd-anchor-actions{display:flex;gap:4px}.qd-anchor-actions button,.qd-quest-actions button{background:none;border:1px solid rgba(126,145,178,.22);color:var(--dim);padding:4px 6px;cursor:pointer;font-size:10px}.qd-anchor-actions button:hover,.qd-quest-actions button:hover{border-color:var(--gold);color:var(--text)}.qd-anchor-week{display:flex;gap:5px;justify-content:flex-end}.qd-dot{width:25px;height:25px;border-radius:50%;border:1px solid rgba(126,145,178,.28);background:rgba(7,15,29,.75);color:#7f8aa2;font-size:9px;cursor:pointer}.qd-dot.on{background:#7556d5;color:#fff;border-color:#b29cff;box-shadow:0 0 10px rgba(139,92,246,.45)}
+.qd-anchor-edit,.qd-add-task{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0}.qd-anchor-edit input,.qd-add-task input,.qd-add-task select,.qd-add-row input,.qd-threshold-row input,.qd-reset-card select{background:#0a1729;border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:4px}.qd-anchor-edit input:nth-child(2),.qd-add-task input[type=text]{flex:1;min-width:130px}.qd-anchor-edit button,.qd-add-task button,.qd-add-row button{background:linear-gradient(180deg,#ad8b52,#826735);border:1px solid #d7b877;color:#0b1322;padding:7px 11px;border-radius:4px;cursor:pointer;font-weight:700}.qd-cancel{background:transparent!important;color:var(--dim)!important;border-color:var(--line)!important}.qd-add-btn{margin:10px 16px 16px;background:transparent;border:1px dashed rgba(203,166,106,.34);color:#b9c2d4;padding:8px 11px;cursor:pointer;width:calc(100% - 32px)}.qd-add-btn:hover{border-color:var(--gold);color:#fff}
 
-.qd-big-reel{
-  margin:35px auto 25px;
-  min-height:120px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  border-radius:18px;
-  border:1px solid var(--gold);
-  background:rgba(5,15,25,.8);
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(25px,5vw,42px);
-  font-weight:700;
-  color:var(--gold-bright);
-  box-shadow:0 0 35px rgba(201,162,75,.15);
-}
+/* XP + REWARDS */
+.qd-side-stack{display:flex;flex-direction:column;gap:18px}.qd-xp-card{padding:16px 18px}.qd-xp-top{display:flex;justify-content:space-between;gap:12px;align-items:center}.qd-xp-number{font-family:'Cinzel',serif;color:var(--gold-bright);font-size:20px}.qd-xp-bar{height:9px;background:rgba(82,99,128,.22);border:1px solid rgba(126,145,178,.24);margin-top:12px;overflow:hidden}.qd-xp-fill{height:100%;background:linear-gradient(90deg,#7556d5,#ad79ff);box-shadow:0 0 15px rgba(139,92,246,.55)}.qd-xp-caption{display:flex;justify-content:space-between;color:var(--dim);font-size:10px;margin-top:6px}.qd-reset-mini{font-size:10px;color:#919db3;margin-top:10px}.qd-reset-mini strong{color:var(--gold-bright)}
+.qd-machines{display:flex;flex-direction:column;gap:10px;padding:12px 16px 16px}.qd-machine{background:rgba(10,23,41,.72);border:1px solid var(--line-soft);padding:12px}.qd-machine-head{display:flex;gap:9px;align-items:center}.qd-machine-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-size:18px}.qd-machine-title{font-family:'Cinzel',serif;font-size:12px;letter-spacing:.04em}.qd-machine-sub,.qd-machine-nums{font-size:10px;color:var(--dim);margin-top:2px}.qd-bar{height:6px;background:rgba(82,99,128,.20);border:1px solid rgba(126,145,178,.18);overflow:hidden;margin-top:10px}.qd-bar-fill{height:100%;background:linear-gradient(90deg,#6e7fb9,#a06cff)!important}.qd-reel{margin:10px 0;background:rgba(71,44,128,.16);border:1px solid rgba(139,92,246,.25);padding:10px;text-align:center;font-family:'Cormorant Garamond',serif;color:#e5daf7}.qd-reel.spinning{animation:qdshake .09s infinite}.qd-spin-btn{width:100%;background:linear-gradient(180deg,#7e5bd8,#5b3eaa);border:1px solid #a88cf1;color:#fff;padding:8px;cursor:pointer}.qd-spin-btn:disabled{opacity:.35;cursor:not-allowed}.qd-reward-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.qd-chip{font-size:9px;border:1px solid var(--line-soft);background:#0a1729;padding:4px 6px;display:flex;gap:5px;align-items:center}.qd-chip button{background:none;border:none;color:var(--dim);cursor:pointer}.qd-add-row{display:flex;gap:5px;margin-top:8px}.qd-add-row input{min-width:0;flex:1}.qd-threshold-row{display:flex;gap:5px;align-items:center;font-size:9px;color:var(--dim);margin-top:8px}.qd-threshold-row input{width:48px;padding:4px}.qd-reset-box{font-size:9px;color:var(--dim);margin-top:8px}.qd-reset-time{color:var(--gold-bright)}
 
-.qd-big-reel.spinning{
-  animation:qdBigShake .07s infinite;
-}
+/* FULL QUEST LOG */
+.qd-section{margin-top:22px}.qd-section-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px}.qd-section h2{font-family:'Cinzel',serif;font-size:20px;letter-spacing:.08em;color:#efdfc3;margin:0}.qd-section-tag{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--dim)}.qd-quest-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.qd-quest{background:linear-gradient(180deg,rgba(8,19,35,.90),rgba(7,16,30,.94));border:1px solid var(--line);padding:16px;position:relative;overflow:hidden}.qd-quest::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,var(--purple));box-shadow:0 0 14px var(--accent,var(--purple))}.qd-quest-head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}.qd-quest-emoji{font-size:23px}.qd-quest-titlewrap{flex:1;min-width:150px}.qd-quest-title{font-family:'Cinzel',serif;font-size:14px;color:#f0e1c9;letter-spacing:.04em}.qd-quest-narrative{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--dim);font-size:14px;margin-top:3px}.qd-quest-target{font-size:9px;color:var(--dim);display:flex;flex-direction:column;align-items:center}.qd-quest-target input{width:45px;background:#0a1729;border:1px solid var(--line);color:var(--text);text-align:center}.qd-quest-count{font-size:10px;color:var(--dim);margin-top:5px}.qd-tasklist{margin-top:10px;display:flex;flex-direction:column}.qd-task{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:11px;flex-wrap:wrap}.qd-task.done .qd-task-name{opacity:.45;text-decoration:line-through}.qd-task-name{flex:1;min-width:120px}.qd-task-day{font-size:9px;color:#8fb0df}.qd-task-xp{font-size:10px;color:var(--purple-2)}.qd-task-del{background:none;border:none;color:#758197;font-size:16px;cursor:pointer}.qd-task-del:hover{color:var(--red)}
 
-.qd-celebration-result{
-  font-size:13px;
-  color:var(--dim);
-  margin-top:8px;
-}
+.qd-reset-card{margin-top:18px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.qd-reset-title{font-family:'Cinzel',serif;font-size:12px;color:#ead9bc}.qd-dim{color:var(--dim);font-size:11px}.qd-footer{text-align:center;margin-top:32px;font-family:'Cinzel',serif;letter-spacing:.16em;font-size:10px;color:#8f99ae}.qd-footer::before,.qd-footer::after{content:' ~~~ ';color:#8f77d4}
+.qd-loading{min-height:100vh;display:grid;place-items:center;background:#06101d;color:#e9dfcd;font-family:'Cinzel',serif;letter-spacing:.08em}
+.qd-celebration-backdrop{position:fixed;inset:0;z-index:99999;background:rgba(3,7,16,.88);backdrop-filter:blur(14px);display:grid;place-items:center;padding:20px}.qd-celebration{width:min(650px,94vw);text-align:center;padding:42px 24px;border:1px solid var(--gold);background:radial-gradient(circle,#28204c 0%,#0a1729 55%,#06101d 100%);box-shadow:0 0 90px rgba(139,92,246,.28)}.qd-celebration-icon{font-size:64px}.qd-celebration-title{font-family:'Cinzel',serif;font-size:clamp(32px,7vw,58px);color:var(--gold-bright)}.qd-celebration-subtitle{color:var(--dim)}.qd-big-reel{margin:28px auto 20px;border:1px solid rgba(139,92,246,.5);background:#091426;padding:20px;color:#d9c8ff;font-family:'Cormorant Garamond',serif;font-size:clamp(24px,5vw,38px)}.qd-big-reel.spinning{animation:qdshake .07s infinite}.qd-celebration-result{font-size:11px;color:var(--dim)}
+@keyframes qdshake{0%{transform:translateY(0)}50%{transform:translateY(-2px)}100%{transform:translateY(0)}}
 
-@keyframes qdFadeIn{
-  from{opacity:0}
-  to{opacity:1}
-}
-
-@keyframes qdCelebrationPop{
-  from{transform:scale(.75);opacity:0}
-  to{transform:scale(1);opacity:1}
-}
-
-@keyframes qdTrophyBounce{
-  from{transform:translateY(0) rotate(-4deg)}
-  to{transform:translateY(-12px) rotate(4deg)}
-}
-
-@keyframes qdBigShake{
-  0%{transform:translateX(-3px) rotate(-1deg)}
-  50%{transform:translateX(3px) rotate(1deg)}
-  100%{transform:translateX(-3px) rotate(-1deg)}
-}
-
-.qd-reset-box{
-  margin-top:12px;
-  padding:9px 12px;
-  border-radius:8px;
-  background:var(--panel-2);
-  color:var(--dim);
-  font-size:11px;
-  text-align:center;
-}
-
-.qd-reset-time{
-  color:var(--gold-bright);
-  font-weight:600;
-  font-variant-numeric:tabular-nums;
-}
-
-@media(max-width:480px){
-  .qd-rings{gap:20px}
-  .ring-wrap{width:120px;height:120px}
-}
+@media(max-width:1120px){.qd-dashboard-grid{grid-template-columns:1fr}.qd-lower-grid{grid-template-columns:1fr 1fr}.qd-side-stack{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.qd-quest-grid{grid-template-columns:1fr}}
+@media(max-width:820px){.qd-shell{grid-template-columns:1fr}.qd-sidebar{position:relative;height:auto;padding:14px 14px 10px;gap:12px}.qd-brand{padding-bottom:10px}.qd-nav{flex-direction:row;overflow:auto}.qd-nav a{font-size:14px;white-space:nowrap;padding:8px 10px}.qd-sidebar-quote{display:none}.qd-logout{position:absolute;right:14px;top:14px;width:auto}.qd-main{padding:20px 14px 50px}.qd-topbar{padding-top:4px}.qd-topmeta{display:none}.qd-lower-grid{grid-template-columns:1fr}.qd-side-stack{grid-column:auto;display:flex}.qd-dashboard-grid{grid-template-columns:1fr}.qd-voyage-row{grid-template-columns:28px 1fr 90px 38px}.qd-clock-svg{max-width:390px}}
+@media(max-width:520px){.qd-greeting{font-size:27px}.qd-brand-title{font-size:16px}.qd-laurel{width:40px;height:40px}.qd-panel-head{padding:15px 15px 0}.qd-voyage-list{padding:12px 15px}.qd-voyage-row{grid-template-columns:24px 1fr 70px 34px;font-size:10px}.qd-voyage-num{width:21px;height:21px}.qd-quest-grid{grid-template-columns:1fr}.qd-anchor-week{justify-content:flex-start;flex-wrap:wrap}.qd-clock{padding:10px}.qd-main{padding-left:10px;padding-right:10px}}
 `;
 
 // ======================================================
@@ -1299,27 +647,31 @@ function ClockDial({
   onPrev,
   onNext,
   onToggle,
+  now,
 }) {
-  const size = 260;
+  const size = 430;
   const cx = size / 2;
   const cy = size / 2;
-  const R = size / 2 - 34;
+  const outerR = 194;
+  const taskR = 146;
 
-  const pos = (hour) => {
-    const angle =
-      (hour / 24) * 2 * Math.PI - Math.PI / 2;
-
+  const pos = (hour, radius = taskR) => {
+    const angle = (hour / 24) * 2 * Math.PI - Math.PI / 2;
     return {
-      x: cx + R * Math.cos(angle),
-      y: cy + R * Math.sin(angle),
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
     };
   };
-
-  const ticks = [0, 3, 6, 9, 12, 15, 18, 21];
 
   const timed = tasks.filter(
     (t) => t.hour !== null && t.hour !== undefined
   );
+
+  const current = now || new Date();
+  const exactHour = current.getHours() + current.getMinutes() / 60;
+  const hand = pos(exactHour, 104);
+  const roman = ["XII", "III", "VI", "IX"];
+  const romanHours = [0, 6, 12, 18];
 
   return (
     <div className="qd-clock">
@@ -1329,84 +681,67 @@ function ClockDial({
         <button type="button" onClick={onNext}>›</button>
       </div>
 
-      <svg
-        width={size}
-        height={size}
-        className="qd-clock-svg"
-      >
-        <circle
-          cx={cx}
-          cy={cy}
-          r={R}
-          className="qd-clock-face"
-          fill="none"
-        />
+      <svg viewBox={`0 0 ${size} ${size}`} className="qd-clock-svg" aria-label="Ancient Greek astrolabe clock">
+        <defs>
+          <radialGradient id="qdClockGlow" cx="50%" cy="45%" r="60%">
+            <stop offset="0%" stopColor="#1b2149" />
+            <stop offset="65%" stopColor="#0a1529" />
+            <stop offset="100%" stopColor="#07111f" />
+          </radialGradient>
+        </defs>
+        <circle cx={cx} cy={cy} r={outerR} fill="url(#qdClockGlow)" className="qd-clock-outer" />
+        <circle cx={cx} cy={cy} r={174} className="qd-clock-ring" />
+        <circle cx={cx} cy={cy} r={150} className="qd-clock-ring-purple" />
+        <circle cx={cx} cy={cy} r={115} className="qd-clock-ring" />
+        <circle cx={cx} cy={cy} r={70} className="qd-clock-ring" />
 
-        {ticks.map((h) => {
-          const p = pos(h);
-
+        {Array.from({ length: 24 }, (_, h) => {
+          const p1 = pos(h, h % 3 === 0 ? 164 : 168);
+          const p2 = pos(h, 178);
+          const label = pos(h, 187);
           return (
-            <text
-              key={h}
-              x={p.x}
-              y={p.y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              className="qd-clock-ticklabel"
-            >
-              {h}
-            </text>
+            <g key={h}>
+              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} className={`qd-clock-tick${h % 3 === 0 ? " major" : ""}`} />
+              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="qd-clock-hour-small">{h}</text>
+            </g>
           );
+        })}
+
+        {romanHours.map((h, i) => {
+          const p = pos(h, 128);
+          return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" className="qd-clock-ticklabel">{roman[i]}</text>;
         })}
 
         {timed.map((t) => {
-          const p = pos(t.hour);
-
+          const p = pos(t.hour, taskR);
           return (
-            <circle
-              key={t.id}
-              cx={p.x}
-              cy={p.y}
-              r={7}
-              fill={t.done ? "#6FA86F" : t.domainColor}
-              className="qd-clock-dot"
-              onClick={() => onToggle(t.domainId, t.id)}
-            />
+            <g key={t.id} onClick={() => onToggle(t.domainId, t.id)} style={{ cursor: "pointer" }}>
+              <circle cx={p.x} cy={p.y} r={10} fill={t.done ? "#7ec5a0" : "#8b5cf6"} className="qd-clock-dot" />
+              <text x={p.x} y={p.y - 16} textAnchor="middle" fill="#eee7f5" fontSize="10">{t.domainEmoji}</text>
+            </g>
           );
         })}
+
+        <line x1={cx} y1={cy} x2={hand.x} y2={hand.y} className="qd-clock-hand" />
+        <circle cx={cx} cy={cy} r={11} className="qd-clock-center" />
+        <text x={cx} y={cy + 48} textAnchor="middle" className="qd-clock-time">
+          {current.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </text>
+        <text x={cx} y={cy + 67} textAnchor="middle" className="qd-clock-date">
+          {current.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+        </text>
       </svg>
 
       <div className="qd-clock-list">
         {tasks.length === 0 && (
-          <div className="qd-dim">
-            Nothing scheduled — add a task in a quest below and
-            pick this date.
-          </div>
+          <div className="qd-dim">Nothing scheduled for this date — add a date and time to a quest task.</div>
         )}
-
         {tasks.map((t) => (
-          <div
-            key={t.id}
-            className={
-              "qd-clock-item" + (t.done ? " done" : "")
-            }
-            onClick={() => onToggle(t.domainId, t.id)}
-          >
+          <div key={t.id} className={"qd-clock-item" + (t.done ? " done" : "")} onClick={() => onToggle(t.domainId, t.id)}>
             <span>{t.domainEmoji}</span>
-
-            <span className="qd-clock-item-name">
-              {t.name}
-            </span>
-
-            <span className="qd-clock-item-time">
-              {t.hour !== null && t.hour !== undefined
-                ? String(t.hour).padStart(2, "0") + ":00"
-                : "—"}
-            </span>
-
-            <span className="qd-clock-item-xp">
-              {t.xp} XP
-            </span>
+            <span className="qd-clock-item-name">{t.name}</span>
+            <span className="qd-clock-item-time">{t.hour !== null && t.hour !== undefined ? String(t.hour).padStart(2, "0") + ":00" : "—"}</span>
+            <span className="qd-clock-item-xp">{t.xp} XP</span>
           </div>
         ))}
       </div>
@@ -3061,448 +2396,302 @@ export default function QuestDashboard() {
   // RENDER
   // ====================================================
 
+  const voyageRows = state.domains.map((domain, index) => ({
+    domain,
+    status: questStatus(domain, today),
+    index,
+  }));
+
+  const voyagePct = voyageRows.length
+    ? voyageRows.reduce((sum, row) => sum + row.status.pct, 0) / voyageRows.length
+    : 0;
+
+  const voyageStage = Math.min(
+    STAGES.length,
+    Math.max(1, Math.floor(voyagePct * (STAGES.length - 1)) + 1)
+  );
+
+  const todayQuestTasks = viewTasks;
+  const todayThreshold = Math.round(
+    dMaxToday * (Number(state.settings.dayThresholdPct ?? 70) / 100)
+  );
+  const weekThreshold = Math.round(
+    wMax * (Number(state.settings.weekThresholdPct ?? 70) / 100)
+  );
+  const greeting =
+    today.getHours() < 12
+      ? "GOOD MORNING"
+      : today.getHours() < 18
+      ? "GOOD AFTERNOON"
+      : "GOOD EVENING";
+
   return (
     <div className="qd-root">
+      <style>{CSS}</style>
 
       {celebration && (
         <CelebrationModal
           kind={celebration}
-          items={
-            celebration === "daily"
-              ? state.rewards.daily
-              : state.rewards.weekly
-          }
+          items={celebration === "daily" ? state.rewards.daily : state.rewards.weekly}
           onComplete={finishCelebration}
         />
       )}
 
-      {/* LOGOUT */}
-
-      <button
-        type="button"
-        onClick={async () => {
-          playSFX("click");
-          await supabase.auth.signOut();
-        }}
-        style={{
-          position: "fixed",
-          top: 15,
-          right: 15,
-          background: "none",
-          border: "1px solid #22384f",
-          color: "#8FA3B5",
-          borderRadius: 8,
-          padding: "6px 10px",
-          cursor: "pointer",
-          zIndex: 1000,
-        }}
-      >
-        Log out
-      </button>
-
-      <style>{CSS}</style>
-
-      {/* HERO */}
-
-      <header className="qd-hero">
-        <div className="qd-hero-title">
-          Your Odyssey
-        </div>
-
-        <span className="qd-hero-sub">
-          {today.toLocaleDateString(
-            undefined,
-            {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            }
-          )}
-        </span>
-
-        <div className="qd-rings">
-          <Ring
-            pct={
-              dMaxToday
-                ? dToday / dMaxToday
-                : 0
-            }
-            size={150}
-            stroke={12}
-            color="#C9A24B"
-            label={String(dToday)}
-            sublabel={
-              `/ ${Math.round(
-                dMaxToday *
-                state.settings.dayThresholdPct /
-                100
-              )} XP today`
-            }
-          />
-
-          <Ring
-            pct={
-              wMax
-                ? wXP / wMax
-                : 0
-            }
-            size={150}
-            stroke={12}
-            color="#4FA8A0"
-            label={String(wXP)}
-            sublabel={
-              `/ ${Math.round(
-                wMax *
-                state.settings.weekThresholdPct /
-                100
-              )} XP this week`
-            }
-          />
-        </div>
-
-        <div className="qd-hero-hint">
-          Tap anchors to check them off.
-          Tag a quest task with a date to
-          pin it to the clock below.
-        </div>
-      </header>
-
-      {/* DAY RESET */}
-
-      <div
-        style={{
-          background: "var(--panel)",
-          border: "1px solid var(--line)",
-          borderRadius: 12,
-          padding: "12px 14px",
-          marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 13 }}>
-            🌙 Day Reset Time
+      <div className="qd-shell">
+        <aside className="qd-sidebar">
+          <div className="qd-brand">
+            <div className="qd-laurel">⚔</div>
+            <div>
+              <div className="qd-brand-title">ODYSSEUS</div>
+              <div className="qd-brand-sub">Discipline today, Ithaca tomorrow.</div>
+            </div>
           </div>
 
-          <div className="qd-dim">
-            Your daily XP and reward reset at
-            this time.
+          <nav className="qd-nav">
+            <a className="active" href="#home"><span className="qd-nav-icon">⌂</span>Home</a>
+            <a href="#quests"><span className="qd-nav-icon">⚔</span>Quests</a>
+            <a href="#voyage"><span className="qd-nav-icon">⛵</span>The Voyage</a>
+            <a href="#anchors"><span className="qd-nav-icon">⚓</span>Anchors</a>
+            <a href="#rewards"><span className="qd-nav-icon">🏺</span>Rewards</a>
+          </nav>
+
+          <div className="qd-sidebar-quote">
+            “The journey is the reward.”
+            <span>— Odysseus</span>
           </div>
-        </div>
 
-        <select
-          value={resetHour}
-          onChange={(e) =>
-            setResetHour(e.target.value)
-          }
-          style={{
-            background: "var(--panel-2)",
-            border: "1px solid var(--line)",
-            color: "var(--text)",
-            borderRadius: 6,
-            padding: "6px 10px",
-          }}
-        >
-          {Array.from(
-            { length: 24 },
-            (_, h) => (
-              <option
-                key={h}
-                value={h}
-              >
-                {h === 0
-                  ? "12:00 AM"
-                  : h < 12
-                  ? `${h}:00 AM`
-                  : h === 12
-                  ? "12:00 PM"
-                  : `${h - 12}:00 PM`}
-              </option>
-            )
-          )}
-        </select>
-      </div>
+          <button
+            type="button"
+            className="qd-logout"
+            onClick={async () => {
+              playSFX("click");
+              await supabase.auth.signOut();
+            }}
+          >
+            Log out
+          </button>
+        </aside>
 
-      {/* DAILY CLOCK */}
+        <main className="qd-main" id="home">
+          <div className="qd-topbar">
+            <div>
+              <div className="qd-greeting-kicker">{greeting},</div>
+              <div className="qd-greeting">ODYSSEUS</div>
+              <div className="qd-greeting-sub">The sea is calm, and so is your mind.</div>
+            </div>
+            <div className="qd-topmeta">
+              <div className="qd-meta-pill">
+                {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+              </div>
+              <div className="qd-meta-pill">XP <strong>{wXP}</strong></div>
+            </div>
+          </div>
 
-      <section className="qd-section">
-        <h2>Daily Clock</h2>
-
-        <ClockDial
-          tasks={viewTasks}
-          dateLabel={viewDateLabel}
-          onPrev={() =>
-            setViewOffset(
-              viewOffset - 1
-            )
-          }
-          onNext={() =>
-            setViewOffset(
-              viewOffset + 1
-            )
-          }
-          onToggle={toggleTask}
-        />
-      </section>
-
-      {/* DAILY ANCHORS */}
-
-      <section className="qd-section">
-        <h2>Daily Anchors</h2>
-
-        <div className="qd-anchors">
-          {state.anchors.map(
-            (anchor) => (
-              <AnchorCard
-                key={anchor.id}
-                anchor={anchor}
-                weekDates={wDates}
-                onToggle={toggleAnchor}
-                onUpdate={updateAnchor}
-                onDelete={deleteAnchor}
+          <div className="qd-dashboard-grid">
+            <section className="qd-panel" aria-label="Daily clock">
+              <ClockDial
+                tasks={viewTasks}
+                dateLabel={viewDateLabel}
+                onPrev={() => setViewOffset(viewOffset - 1)}
+                onNext={() => setViewOffset(viewOffset + 1)}
+                onToggle={toggleTask}
+                now={clockNow}
               />
-            )
-          )}
-        </div>
+            </section>
 
-        {showAddAnchor ? (
-          <AnchorAddForm
-            onAdd={addAnchor}
-            onCancel={() =>
-              setShowAddAnchor(false)
-            }
-          />
-        ) : (
-          <button
-            type="button"
-            className="qd-add-btn"
-            onClick={() => {
-              playSFX("click");
-              setShowAddAnchor(true);
-            }}
-          >
-            + New daily anchor
-          </button>
-        )}
-      </section>
+            <section className="qd-panel qd-voyage" id="voyage">
+              <div className="qd-panel-head">
+                <div>
+                  <div className="qd-panel-title">THE VOYAGE</div>
+                  <div className="qd-panel-sub">Your journey toward Ithaca.</div>
+                </div>
+                <div className="qd-voyage-stage">Stage {voyageStage} of {STAGES.length}</div>
+              </div>
 
-      {/* QUEST LOG */}
+              <div className="qd-voyage-list">
+                {voyageRows.map(({ domain, status }, index) => (
+                  <div className="qd-voyage-row" key={domain.id}>
+                    <div className="qd-voyage-num">{index + 1}</div>
+                    <div className="qd-voyage-name">{domain.emoji} {domain.name}</div>
+                    <div className="qd-voyage-bar"><div className="qd-voyage-fill" style={{ width: `${status.pct * 100}%` }} /></div>
+                    <div className="qd-voyage-pct">{Math.round(status.pct * 100)}%</div>
+                  </div>
+                ))}
+              </div>
 
-      <section className="qd-section">
-        <h2>Quest Log</h2>
-
-        {state.domains.map(
-          (domain) => (
-            <QuestCard
-              key={domain.id}
-              domain={domain}
-              today={today}
-
-              onToggleTask={(taskId) =>
-                toggleTask(
-                  domain.id,
-                  taskId
-                )
-              }
-
-              onAddTask={(payload) =>
-                addTask(
-                  domain.id,
-                  payload
-                )
-              }
-
-              onDeleteTask={(taskId) =>
-                deleteTask(
-                  domain.id,
-                  taskId
-                )
-              }
-
-              onTargetChange={(value) =>
-                updateTarget(
-                  domain.id,
-                  value
-                )
-              }
-
-              onDeleteDomain={
-                deleteDomain
-              }
-            />
-          )
-        )}
-
-        {showAddDomain ? (
-          <div className="qd-add-task">
-            <input
-              type="text"
-              placeholder="Quest name"
-              value={newDomainName}
-              onChange={(e) =>
-                setNewDomainName(
-                  e.target.value
-                )
-              }
-            />
-
-            <input
-              type="text"
-              placeholder="Emoji"
-              value={newDomainEmoji}
-              onChange={(e) =>
-                setNewDomainEmoji(
-                  e.target.value
-                )
-              }
-              style={{ width: 50 }}
-            />
-
-            <input
-              type="number"
-              min="1"
-              placeholder="Monthly target"
-              value={newDomainTarget}
-              onChange={(e) =>
-                setNewDomainTarget(
-                  e.target.value
-                )
-              }
-              style={{ width: 70 }}
-            />
-
-            <button
-              type="button"
-              onClick={addDomain}
-            >
-              Add
-            </button>
-
-            <button
-              type="button"
-              className="qd-cancel"
-              onClick={() =>
-                setShowAddDomain(false)
-              }
-            >
-              Cancel
-            </button>
+              <div className="qd-voyage-note">
+                {voyagePct >= 1 ? "Ithaca. You are home." : STAGES[Math.min(STAGES.length - 1, voyageStage - 1)]}
+              </div>
+            </section>
           </div>
-        ) : (
-          <button
-            type="button"
-            className="qd-add-btn"
-            onClick={() => {
-              playSFX("click");
-              setShowAddDomain(true);
-            }}
-          >
-            + New quest
-          </button>
-        )}
-      </section>
 
-      {/* REWARDS */}
+          <div className="qd-lower-grid">
+            <section className="qd-panel qd-today-panel">
+              <div className="qd-panel-head">
+                <div>
+                  <div className="qd-panel-title">TODAY'S QUESTS</div>
+                  <div className="qd-panel-sub">Create. Endure. Return stronger.</div>
+                </div>
+                <span className="qd-dim">{todayQuestTasks.length} scheduled</span>
+              </div>
+              <div className="qd-today-list">
+                {todayQuestTasks.length === 0 && <div className="qd-empty">No quests scheduled for this date.</div>}
+                {todayQuestTasks.slice(0, 6).map((task) => (
+                  <div key={task.id} className={"qd-today-task" + (task.done ? " done" : "")} onClick={() => toggleTask(task.domainId, task.id)}>
+                    <div className="qd-today-check">{task.done ? "✓" : ""}</div>
+                    <div>
+                      <div className="qd-today-name">{task.name}</div>
+                      <div className="qd-today-sub">{task.domainEmoji} {task.domainName}{task.hour !== null && task.hour !== undefined ? ` · ${String(task.hour).padStart(2, "0")}:00` : ""}</div>
+                    </div>
+                    <div className="qd-today-xp">+{task.xp} XP</div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-      <section className="qd-section">
-        <h2>Rewards</h2>
+            <section className="qd-panel qd-anchor-panel" id="anchors">
+              <div className="qd-panel-head">
+                <div>
+                  <div className="qd-panel-title">DAILY ANCHORS</div>
+                  <div className="qd-panel-sub">The things that keep the voyager moving.</div>
+                </div>
+              </div>
 
-        <div className="qd-machines">
+              <div className="qd-anchors">
+                {state.anchors.map((anchor) => (
+                  <AnchorCard
+                    key={anchor.id}
+                    anchor={anchor}
+                    weekDates={wDates}
+                    onToggle={toggleAnchor}
+                    onUpdate={updateAnchor}
+                    onDelete={deleteAnchor}
+                  />
+                ))}
+              </div>
 
-          <RewardMachine
-            title="Daily Treasure"
-            icon="🪙"
-            items={state.rewards.daily}
-            xpNow={dToday}
-            xpMax={dMaxToday}
-            thresholdPct={
-              state.settings.dayThresholdPct
-            }
-            onThresholdChange={(value) =>
-              setThresholdPct(
-                "dayThresholdPct",
-                value
-              )
-            }
-            claimedValue={
-              state.claimed.daily[todayStr]
-            }
-            onClaim={(reward) =>
-              claimReward(
-                "daily",
-                todayStr,
-                reward
-              )
-            }
-            onAddItem={(text) =>
-              addReward(
-                "daily",
-                text
-              )
-            }
-            onRemoveItem={(index) =>
-              removeReward(
-                "daily",
-                index
-              )
-            }
-            periodLabel="Daily reward"
-            resetCountdown={dailyCountdown}
-          />
+              {showAddAnchor ? (
+                <div style={{ padding: "0 16px 12px" }}>
+                  <AnchorAddForm onAdd={addAnchor} onCancel={() => setShowAddAnchor(false)} />
+                </div>
+              ) : (
+                <button type="button" className="qd-add-btn" onClick={() => { playSFX("click"); setShowAddAnchor(true); }}>
+                  + New daily anchor
+                </button>
+              )}
+            </section>
 
-          <RewardMachine
-            title="Weekly Treasure"
-            icon="🏺"
-            items={state.rewards.weekly}
-            xpNow={wXP}
-            xpMax={wMax}
-            thresholdPct={
-              state.settings.weekThresholdPct
-            }
-            onThresholdChange={(value) =>
-              setThresholdPct(
-                "weekThresholdPct",
-                value
-              )
-            }
-            claimedValue={
-              state.claimed.weekly[weekKeyStr]
-            }
-            onClaim={(reward) =>
-              claimReward(
-                "weekly",
-                weekKeyStr,
-                reward
-              )
-            }
-            onAddItem={(text) =>
-              addReward(
-                "weekly",
-                text
-              )
-            }
-            onRemoveItem={(index) =>
-              removeReward(
-                "weekly",
-                index
-              )
-            }
-            periodLabel="Resets Monday"
-            resetCountdown={weeklyCountdown}
-          />
+            <div className="qd-side-stack">
+              <section className="qd-panel qd-xp-card">
+                <div className="qd-xp-top">
+                  <div>
+                    <div className="qd-panel-title">CURRENT XP</div>
+                    <div className="qd-panel-sub">Today’s progress</div>
+                  </div>
+                  <div className="qd-xp-number">{dToday}</div>
+                </div>
+                <div className="qd-xp-bar"><div className="qd-xp-fill" style={{ width: `${Math.min(100, dMaxToday ? (dToday / dMaxToday) * 100 : 0)}%` }} /></div>
+                <div className="qd-xp-caption"><span>{dToday} / {todayThreshold || 0} XP to unlock</span><span>Weekly {wXP}/{weekThreshold || 0}</span></div>
+                <div className="qd-reset-mini">Daily reset in <strong>{dailyCountdown}</strong></div>
+              </section>
 
-        </div>
-      </section>
+              <section className="qd-panel qd-reward-stack" id="rewards">
+                <div className="qd-panel-head">
+                  <div>
+                    <div className="qd-panel-title">REWARDS</div>
+                    <div className="qd-panel-sub">Treasure earned through discipline.</div>
+                  </div>
+                </div>
+                <div className="qd-machines">
+                  <RewardMachine
+                    title="Daily Treasure"
+                    icon="🪙"
+                    items={state.rewards.daily}
+                    xpNow={dToday}
+                    xpMax={dMaxToday}
+                    thresholdPct={state.settings.dayThresholdPct}
+                    onThresholdChange={(value) => setThresholdPct("dayThresholdPct", value)}
+                    claimedValue={state.claimed.daily[todayStr]}
+                    onClaim={(reward) => claimReward("daily", todayStr, reward)}
+                    onAddItem={(text) => addReward("daily", text)}
+                    onRemoveItem={(index) => removeReward("daily", index)}
+                    periodLabel="Daily reward"
+                    resetCountdown={dailyCountdown}
+                  />
+                  <RewardMachine
+                    title="Weekly Treasure"
+                    icon="🏺"
+                    items={state.rewards.weekly}
+                    xpNow={wXP}
+                    xpMax={wMax}
+                    thresholdPct={state.settings.weekThresholdPct}
+                    onThresholdChange={(value) => setThresholdPct("weekThresholdPct", value)}
+                    claimedValue={state.claimed.weekly[weekKeyStr]}
+                    onClaim={(reward) => claimReward("weekly", weekKeyStr, reward)}
+                    onAddItem={(text) => addReward("weekly", text)}
+                    onRemoveItem={(index) => removeReward("weekly", index)}
+                    periodLabel="Resets Monday"
+                    resetCountdown={weeklyCountdown}
+                  />
+                </div>
+              </section>
+            </div>
+          </div>
 
-      {/* FOOTER */}
+          <section className="qd-section" id="quests">
+            <div className="qd-section-heading">
+              <div>
+                <h2>QUEST LOG</h2>
+                <div className="qd-section-tag">Every task is another mile toward Ithaca.</div>
+              </div>
+            </div>
 
-      <div className="qd-footer qd-dim">
-        Your voyage, your rules — edit
-        anything above.
+            <div className="qd-quest-grid">
+              {state.domains.map((domain) => (
+                <QuestCard
+                  key={domain.id}
+                  domain={domain}
+                  today={today}
+                  onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
+                  onAddTask={(payload) => addTask(domain.id, payload)}
+                  onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
+                  onTargetChange={(value) => updateTarget(domain.id, value)}
+                  onDeleteDomain={deleteDomain}
+                />
+              ))}
+            </div>
+
+            {showAddDomain ? (
+              <div className="qd-add-task">
+                <input type="text" placeholder="Quest name" value={newDomainName} onChange={(e) => setNewDomainName(e.target.value)} />
+                <input type="text" placeholder="Emoji" value={newDomainEmoji} onChange={(e) => setNewDomainEmoji(e.target.value)} style={{ width: 55 }} />
+                <input type="number" min="1" placeholder="Monthly target" value={newDomainTarget} onChange={(e) => setNewDomainTarget(e.target.value)} style={{ width: 90 }} />
+                <button type="button" onClick={addDomain}>Add</button>
+                <button type="button" className="qd-cancel" onClick={() => setShowAddDomain(false)}>Cancel</button>
+              </div>
+            ) : (
+              <button type="button" className="qd-add-btn" style={{ marginLeft: 0, width: "auto" }} onClick={() => { playSFX("click"); setShowAddDomain(true); }}>
+                + New quest
+              </button>
+            )}
+          </section>
+
+          <section className="qd-panel qd-reset-card">
+            <div>
+              <div className="qd-reset-title">☾ DAY RESET TIME</div>
+              <div className="qd-dim">Your daily XP and reward reset at this hour.</div>
+            </div>
+            <select value={resetHour} onChange={(e) => setResetHour(e.target.value)}>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {h === 0 ? "12:00 AM" : h < 12 ? `${h}:00 AM` : h === 12 ? "12:00 PM" : `${h - 12}:00 PM`}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          <div className="qd-footer">SMALL STEPS. GREAT JOURNEYS.</div>
+        </main>
       </div>
     </div>
   );
