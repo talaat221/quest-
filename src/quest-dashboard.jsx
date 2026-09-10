@@ -47,6 +47,64 @@ const isSameMonth = (dateStr, ref) =>
 const clone = (x) =>
   JSON.parse(JSON.stringify(x));
 
+// Task timing memory is stored inside each quest/domain so similarly named
+// tasks in different quests (for example Reading > Anki vs French > Anki)
+// never share timing history.
+const normalizeTaskTimingKey = (name = "") =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u00C0-\u024F\u0600-\u06FF]+/g, " " )
+    .replace(/\s+/g, " " )
+    .trim();
+
+const roundLearnedMinutes = (minutes) => {
+  const value = Number(minutes) || 0;
+  if (value <= 0) return null;
+  return value < 10
+    ? Math.max(1, Math.round(value))
+    : Math.max(5, Math.round(value / 5) * 5);
+};
+
+const getTimingProfile = (domain, taskName) => {
+  const key = normalizeTaskTimingKey(taskName);
+  if (!key) return null;
+  return domain?.timingProfiles?.[key] || null;
+};
+
+const getLearnedEstimate = (domain, taskName) => {
+  const profile = getTimingProfile(domain, taskName);
+  const samples = (profile?.samples || [])
+    .filter((sample) => Number(sample?.actualMinutes) > 0)
+    .slice(-5);
+
+  if (!samples.length) return null;
+
+  // Recent attempts matter more: for 3 samples, weights are 1, 2, 3.
+  const weighted = samples.reduce(
+    (sum, sample, index) =>
+      sum + Number(sample.actualMinutes) * (index + 1),
+    0
+  );
+  const weights = samples.reduce((sum, _sample, index) => sum + index + 1, 0);
+
+  return roundLearnedMinutes(weighted / weights);
+};
+
+const getTimingSampleCount = (domain, taskName) =>
+  (getTimingProfile(domain, taskName)?.samples || []).filter(
+    (sample) => Number(sample?.actualMinutes) > 0
+  ).length;
+
+const formatMinutes = (minutes) => {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  if (!value) return "—";
+  if (value < 60) return `${value}m`;
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
+  return mins ? `${hours}h ${mins}m` : `${hours}h`;
+};
+
 // ======================================================
 // SOUND EFFECTS
 // ======================================================
@@ -719,8 +777,32 @@ body{overflow-x:hidden;-webkit-text-size-adjust:100%;}
 .qd-xp-row-label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;color:var(--dim)}
 .qd-xp-row-label span{font-family:'Cinzel',serif;color:#e5d6bb;letter-spacing:.05em}.qd-xp-row-label strong{color:var(--purple-2);font-weight:600}
 .qd-weekly-xp-bar .qd-xp-fill{background:linear-gradient(90deg,#657fc4,#a96fff)!important}
+
+/* TASK TIME LEARNING */
+.qd-task-timing{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:9px}
+.qd-time-chip{border:1px solid rgba(203,166,106,.25);background:rgba(203,166,106,.07);color:#d8c6a6;padding:3px 6px;border-radius:999px;white-space:nowrap}
+.qd-time-chip.actual{border-color:rgba(126,197,160,.28);background:rgba(126,197,160,.08);color:#a8d9bc}
+.qd-time-hint{grid-column:1/-1;color:#a391c6;font-size:10px;font-family:'Cormorant Garamond',serif;font-style:italic;margin-top:-2px}
+.qd-estimate-field{display:flex;align-items:center;gap:6px;min-width:0}
+.qd-estimate-field input{width:78px!important;flex:0 0 78px!important}
+.qd-estimate-unit{font-size:10px;color:var(--dim);white-space:nowrap}
+.qd-completion-backdrop{position:fixed;inset:0;z-index:100000;background:rgba(3,7,16,.82);backdrop-filter:blur(10px);display:grid;place-items:center;padding:18px}
+.qd-completion-card{width:min(430px,94vw);background:linear-gradient(180deg,#0c1930,#07111f);border:1px solid var(--gold);box-shadow:0 24px 80px rgba(0,0,0,.55),0 0 50px rgba(139,92,246,.14);padding:24px;position:relative}
+.qd-completion-card::before{content:"";position:absolute;inset:6px;border:1px solid rgba(203,166,106,.12);pointer-events:none}
+.qd-completion-kicker{font-family:'Cinzel',serif;color:var(--gold);font-size:10px;letter-spacing:.15em;text-transform:uppercase;position:relative;z-index:1}
+.qd-completion-title{font-family:'Cinzel',serif;color:#f2e4ca;font-size:20px;margin-top:7px;position:relative;z-index:1}
+.qd-completion-quest{color:var(--dim);font-size:11px;margin-top:4px;position:relative;z-index:1}
+.qd-completion-estimate{margin-top:18px;border:1px solid var(--line-soft);background:rgba(11,25,44,.68);padding:10px 12px;color:#d6c7aa;font-size:11px;position:relative;z-index:1}
+.qd-completion-label{display:block;color:#d9dfea;font-size:11px;margin:16px 0 6px;position:relative;z-index:1}
+.qd-completion-input-wrap{display:flex;align-items:center;gap:8px;position:relative;z-index:1}
+.qd-completion-input{width:120px;background:#0a1729;border:1px solid var(--line);color:var(--text);padding:10px 11px;border-radius:4px;font-size:18px}
+.qd-completion-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;position:relative;z-index:1}
+.qd-completion-actions button{border:1px solid var(--line);background:transparent;color:var(--text);padding:9px 12px;cursor:pointer}
+.qd-completion-actions .primary{background:linear-gradient(180deg,#7e5bd8,#5b3eaa);border-color:#a88cf1;color:#fff;font-weight:700}
+.qd-completion-actions .primary:disabled{opacity:.4;cursor:not-allowed}
+
 @media(max-width:900px){.qd-task-edit-row{grid-template-columns:minmax(0,1fr) 74px}.qd-task-edit-actions{grid-column:1/-1;justify-content:flex-end}.qd-task-edit-row>select{grid-column:1/-1}}
-@media(max-width:520px){.qd-task-edit-row{display:flex;flex-direction:column;align-items:stretch}.qd-task-date-edit{display:grid;grid-template-columns:1fr auto auto}.qd-task-edit-actions{width:100%;justify-content:stretch}.qd-task-edit-actions button{flex:1}.qd-task-edit-btn{padding:5px 7px}.qd-xp-caption{font-size:9px}}
+@media(max-width:520px){.qd-task-edit-row{display:flex;flex-direction:column;align-items:stretch}.qd-task-date-edit{display:grid;grid-template-columns:1fr auto auto}.qd-task-edit-actions{width:100%;justify-content:stretch}.qd-task-edit-actions button{flex:1}.qd-task-edit-btn{padding:5px 7px}.qd-xp-caption{font-size:9px}.qd-estimate-field{width:100%}.qd-estimate-field input{width:100%!important;flex:1!important}.qd-completion-card{padding:20px 16px}.qd-completion-actions{flex-direction:column-reverse}.qd-completion-actions button{width:100%}}
 `;
 
 
@@ -931,6 +1013,9 @@ function ClockDial({
                 ? String(item.hour).padStart(2, "0") + ":00"
                 : "—"}
             </span>
+            {item.sourceType === "task" && item.estimatedMinutes && (
+              <span className="qd-time-chip">~{formatMinutes(item.estimatedMinutes)}</span>
+            )}
             <span className="qd-clock-item-xp">{item.xp} XP</span>
           </div>
         ))}
@@ -1193,23 +1278,43 @@ function QuestCard({
   const [xp, setXp] = useState(20);
   const [day, setDay] = useState("");
   const [hour, setHour] = useState("");
+  const [estimatedMinutes, setEstimatedMinutes] = useState("");
+  const [estimateTouched, setEstimateTouched] = useState(false);
 
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editXp, setEditXp] = useState(20);
   const [editDay, setEditDay] = useState("");
   const [editHour, setEditHour] = useState("");
+  const [editEstimatedMinutes, setEditEstimatedMinutes] = useState("");
+  const [editEstimateTouched, setEditEstimateTouched] = useState(false);
 
   const status = questStatus(domain, today);
+  const learnedEstimate = getLearnedEstimate(domain, name);
+  const learnedSamples = getTimingSampleCount(domain, name);
 
   const submitTask = () => {
     if (!name.trim()) return;
 
-    onAddTask({ name: name.trim(), xp, day, hour });
+    const learned = getLearnedEstimate(domain, name);
+    const finalEstimate =
+      estimatedMinutes === "" || estimatedMinutes === null
+        ? learned
+        : Math.max(1, Number(estimatedMinutes) || 1);
+
+    onAddTask({
+      name: name.trim(),
+      xp,
+      day,
+      hour,
+      estimatedMinutes: finalEstimate,
+    });
     setName("");
     setXp(20);
     setDay("");
     setHour("");
+    setEstimatedMinutes("");
+    setEstimateTouched(false);
     setShowAdd(false);
   };
 
@@ -1220,6 +1325,10 @@ function QuestCard({
     setEditXp(Number(task.xp) || 10);
     setEditDay(task.day || "");
     setEditHour(task.hour === null || task.hour === undefined ? "" : String(task.hour));
+    setEditEstimatedMinutes(
+      task.estimatedMinutes ?? getLearnedEstimate(domain, task.name) ?? ""
+    );
+    setEditEstimateTouched(false);
   };
 
   const cancelTaskEdit = () => {
@@ -1228,16 +1337,24 @@ function QuestCard({
     setEditXp(20);
     setEditDay("");
     setEditHour("");
+    setEditEstimatedMinutes("");
+    setEditEstimateTouched(false);
   };
 
   const saveTaskEdit = () => {
     if (!editingTaskId || !editName.trim()) return;
+
+    const learned = getLearnedEstimate(domain, editName);
 
     onUpdateTask(editingTaskId, {
       name: editName.trim(),
       xp: Math.max(1, Number(editXp) || 1),
       day: editDay || null,
       hour: editHour === "" || editHour === null || editHour === undefined ? null : Number(editHour),
+      estimatedMinutes:
+        editEstimatedMinutes === "" || editEstimatedMinutes === null
+          ? learned
+          : Math.max(1, Number(editEstimatedMinutes) || 1),
     });
 
     cancelTaskEdit();
@@ -1296,7 +1413,15 @@ function QuestCard({
                 type="text"
                 value={editName}
                 placeholder="Task name"
-                onChange={(e) => setEditName(e.target.value)}
+                onChange={(e) => {
+                  const nextName = e.target.value;
+                  setEditName(nextName);
+                  if (!editEstimateTouched) {
+                    setEditEstimatedMinutes(
+                      getLearnedEstimate(domain, nextName) ?? ""
+                    );
+                  }
+                }}
               />
 
               <input
@@ -1306,6 +1431,28 @@ function QuestCard({
                 aria-label="Task XP"
                 onChange={(e) => setEditXp(e.target.value)}
               />
+
+              <div className="qd-estimate-field" style={{ gridColumn: "1 / -1" }}>
+                <input
+                  type="number"
+                  min="1"
+                  step="5"
+                  value={editEstimatedMinutes}
+                  placeholder="Estimate"
+                  aria-label="Estimated minutes"
+                  onChange={(e) => {
+                    setEditEstimatedMinutes(e.target.value);
+                    setEditEstimateTouched(true);
+                  }}
+                />
+                <span className="qd-estimate-unit">estimated minutes</span>
+              </div>
+
+              {getLearnedEstimate(domain, editName) && (
+                <div className="qd-time-hint">
+                  Learned estimate: about {formatMinutes(getLearnedEstimate(domain, editName))} from {getTimingSampleCount(domain, editName)} previous {getTimingSampleCount(domain, editName) === 1 ? "run" : "runs"}. You can override it.
+                </div>
+              )}
 
               <div className="qd-task-date-edit">
                 <input
@@ -1376,6 +1523,17 @@ function QuestCard({
 
               <span className="qd-task-xp">{t.xp} XP</span>
 
+              {(t.estimatedMinutes || t.actualMinutes) && (
+                <span className="qd-task-timing">
+                  {t.estimatedMinutes && (
+                    <span className="qd-time-chip">~{formatMinutes(t.estimatedMinutes)} est.</span>
+                  )}
+                  {t.actualMinutes && (
+                    <span className="qd-time-chip actual">{formatMinutes(t.actualMinutes)} actual</span>
+                  )}
+                </span>
+              )}
+
               <button
                 type="button"
                 className="qd-task-edit-btn"
@@ -1410,7 +1568,15 @@ function QuestCard({
             type="text"
             placeholder="Task name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              const nextName = e.target.value;
+              setName(nextName);
+              if (!estimateTouched) {
+                setEstimatedMinutes(
+                  getLearnedEstimate(domain, nextName) ?? ""
+                );
+              }
+            }}
             onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
           />
 
@@ -1422,6 +1588,28 @@ function QuestCard({
             onChange={(e) => setXp(e.target.value)}
             style={{ width: 60 }}
           />
+
+          <div className="qd-estimate-field">
+            <input
+              type="number"
+              min="1"
+              step="5"
+              placeholder="Estimate"
+              value={estimatedMinutes}
+              aria-label="Estimated minutes"
+              onChange={(e) => {
+                setEstimatedMinutes(e.target.value);
+                setEstimateTouched(true);
+              }}
+            />
+            <span className="qd-estimate-unit">min estimate</span>
+          </div>
+
+          {learnedEstimate && (
+            <div className="qd-time-hint" style={{ width: "100%" }}>
+              Odyssey learned ~{formatMinutes(learnedEstimate)} for “{name.trim()}” in {domain.name} from {learnedSamples} previous {learnedSamples === 1 ? "run" : "runs"}.
+            </div>
+          )}
 
           <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
 
@@ -1447,6 +1635,79 @@ function QuestCard({
           + Add task
         </button>
       )}
+    </div>
+  );
+}
+
+// ======================================================
+// COMPLETION TIME MODAL
+// ======================================================
+
+function CompletionTimeModal({ task, domainName, onSave, onCancel }) {
+  const [actualMinutes, setActualMinutes] = useState("");
+
+  useEffect(() => {
+    setActualMinutes("");
+  }, [task?.id]);
+
+  if (!task) return null;
+
+  const numericActual = Number(actualMinutes);
+  const canSave = Number.isFinite(numericActual) && numericActual > 0;
+
+  return (
+    <div className="qd-completion-backdrop" role="dialog" aria-modal="true">
+      <div className="qd-completion-card">
+        <div className="qd-completion-kicker">Voyage log</div>
+        <div className="qd-completion-title">How long did it actually take?</div>
+        <div className="qd-completion-quest">
+          {domainName} · {task.name}
+        </div>
+
+        {task.estimatedMinutes && (
+          <div className="qd-completion-estimate">
+            Your estimate was <strong>{formatMinutes(task.estimatedMinutes)}</strong>.
+          </div>
+        )}
+
+        <label className="qd-completion-label" htmlFor="qd-actual-minutes">
+          Actual time
+        </label>
+        <div className="qd-completion-input-wrap">
+          <input
+            id="qd-actual-minutes"
+            className="qd-completion-input"
+            type="number"
+            min="1"
+            step="1"
+            value={actualMinutes}
+            autoFocus
+            placeholder={task.estimatedMinutes ? String(task.estimatedMinutes) : "30"}
+            onChange={(e) => setActualMinutes(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canSave) onSave(numericActual);
+              if (e.key === "Escape") onCancel();
+            }}
+          />
+          <span className="qd-estimate-unit">minutes</span>
+        </div>
+
+        <div className="qd-time-hint" style={{ marginTop: 10 }}>
+          This actual time teaches Odyssey how long this exact task usually takes inside this quest.
+        </div>
+
+        <div className="qd-completion-actions">
+          <button type="button" onClick={onCancel}>Cancel</button>
+          <button
+            type="button"
+            className="primary"
+            disabled={!canSave}
+            onClick={() => onSave(numericActual)}
+          >
+            Save & complete
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1778,6 +2039,7 @@ export default function QuestDashboard() {
 
   const [celebrationQueue, setCelebrationQueue] = useState([]);
   const [celebration, setCelebration] = useState(null);
+  const [pendingTimeLog, setPendingTimeLog] = useState(null);
 
   const rewardDetectionReady = useRef(false);
 
@@ -2380,32 +2642,90 @@ export default function QuestDashboard() {
 
     if (!task) return;
 
-    const newDone = !task.done;
+    // Completing a task opens the actual-time log first.
+    if (!task.done) {
+      setPendingTimeLog({
+        domainId,
+        taskId,
+        domainName: domain.name,
+        task: { ...task },
+      });
+      playSFX("click");
+      return;
+    }
 
+    // Undoing a completion also removes that task's timing sample so an
+    // accidental completion does not teach the estimator bad data.
     updateState((next) => {
-      const d = next.domains.find(
-        (x) => x.id === domainId
-      );
+      const d = next.domains.find((x) => x.id === domainId);
+      const t = d?.tasks.find((x) => x.id === taskId);
+      if (!d || !t) return;
 
-      if (!d) return;
+      const profileKey =
+        t.timingProfileKey || normalizeTaskTimingKey(t.name);
 
-      const t = d.tasks.find(
-        (x) => x.id === taskId
-      );
+      if (profileKey && d.timingProfiles?.[profileKey]?.samples) {
+        d.timingProfiles[profileKey].samples =
+          d.timingProfiles[profileKey].samples.filter(
+            (sample) => sample.taskId !== taskId
+          );
+      }
 
-      if (!t) return;
-
-      t.done = newDone;
-      t.doneAt = newDone
-        ? new Date().toISOString()
-        : null;
+      t.done = false;
+      t.doneAt = null;
+      t.actualMinutes = null;
+      t.timingProfileKey = null;
     });
 
-    playSFX(
-      newDone
-        ? "complete"
-        : "undo"
-    );
+    playSFX("undo");
+  };
+
+  const completeTaskWithTime = (actualMinutes) => {
+    if (!pendingTimeLog) return;
+
+    const parsedActual = Number(actualMinutes);
+    if (!Number.isFinite(parsedActual) || parsedActual <= 0) return;
+    const actual = Math.max(1, Math.round(parsedActual));
+
+    const { domainId, taskId } = pendingTimeLog;
+
+    updateState((next) => {
+      const domain = next.domains.find((d) => d.id === domainId);
+      const task = domain?.tasks.find((t) => t.id === taskId);
+      if (!domain || !task) return;
+
+      const profileKey = normalizeTaskTimingKey(task.name);
+
+      if (!domain.timingProfiles) domain.timingProfiles = {};
+      if (!domain.timingProfiles[profileKey]) {
+        domain.timingProfiles[profileKey] = { samples: [] };
+      }
+
+      const profile = domain.timingProfiles[profileKey];
+      if (!Array.isArray(profile.samples)) profile.samples = [];
+
+      // One task completion contributes one sample.
+      profile.samples = profile.samples.filter(
+        (sample) => sample.taskId !== taskId
+      );
+      profile.samples.push({
+        taskId,
+        actualMinutes: actual,
+        estimatedMinutes: Number(task.estimatedMinutes) || null,
+        loggedAt: new Date().toISOString(),
+      });
+
+      // Keep enough recent history to learn while avoiding endlessly growing JSON.
+      profile.samples = profile.samples.slice(-20);
+
+      task.done = true;
+      task.doneAt = new Date().toISOString();
+      task.actualMinutes = actual;
+      task.timingProfileKey = profileKey;
+    });
+
+    setPendingTimeLog(null);
+    playSFX("complete");
   };
 
   const addTask = (
@@ -2415,6 +2735,7 @@ export default function QuestDashboard() {
       xp,
       day,
       hour,
+      estimatedMinutes,
     }
   ) => {
     updateState((next) => {
@@ -2448,6 +2769,12 @@ export default function QuestDashboard() {
             ? null
             : Number(hour),
 
+        estimatedMinutes:
+          estimatedMinutes === "" || estimatedMinutes === null || estimatedMinutes === undefined
+            ? null
+            : Math.max(1, Math.round(Number(estimatedMinutes) || 1)),
+        actualMinutes: null,
+        timingProfileKey: null,
         done: false,
         doneAt: null,
       });
@@ -2468,6 +2795,44 @@ export default function QuestDashboard() {
       const task = domain.tasks.find((t) => t.id === taskId);
       if (!task) return;
 
+      const oldProfileKey =
+        task.timingProfileKey || normalizeTaskTimingKey(task.name);
+      const newProfileKey = normalizeTaskTimingKey(changes.name);
+
+      // If a completed task is renamed, move its timing sample to the new
+      // task identity inside the same quest.
+      if (
+        task.done &&
+        Number(task.actualMinutes) > 0 &&
+        oldProfileKey &&
+        newProfileKey &&
+        oldProfileKey !== newProfileKey
+      ) {
+        if (!domain.timingProfiles) domain.timingProfiles = {};
+        if (domain.timingProfiles[oldProfileKey]?.samples) {
+          domain.timingProfiles[oldProfileKey].samples =
+            domain.timingProfiles[oldProfileKey].samples.filter(
+              (sample) => sample.taskId !== taskId
+            );
+        }
+        if (!domain.timingProfiles[newProfileKey]) {
+          domain.timingProfiles[newProfileKey] = { samples: [] };
+        }
+        const newProfile = domain.timingProfiles[newProfileKey];
+        if (!Array.isArray(newProfile.samples)) newProfile.samples = [];
+        newProfile.samples = newProfile.samples.filter(
+          (sample) => sample.taskId !== taskId
+        );
+        newProfile.samples.push({
+          taskId,
+          actualMinutes: Number(task.actualMinutes),
+          estimatedMinutes: Number(changes.estimatedMinutes) || Number(task.estimatedMinutes) || null,
+          loggedAt: task.doneAt || new Date().toISOString(),
+        });
+        newProfile.samples = newProfile.samples.slice(-20);
+        task.timingProfileKey = newProfileKey;
+      }
+
       task.name = changes.name;
       task.xp = Math.max(1, Number(changes.xp) || 1);
       task.day = changes.day || null;
@@ -2475,6 +2840,12 @@ export default function QuestDashboard() {
         changes.hour === "" || changes.hour === null || changes.hour === undefined
           ? null
           : Number(changes.hour);
+      task.estimatedMinutes =
+        changes.estimatedMinutes === "" ||
+        changes.estimatedMinutes === null ||
+        changes.estimatedMinutes === undefined
+          ? null
+          : Math.max(1, Math.round(Number(changes.estimatedMinutes) || 1));
     });
 
     playSFX("add");
@@ -2782,6 +3153,15 @@ export default function QuestDashboard() {
         />
       )}
 
+      {pendingTimeLog && (
+        <CompletionTimeModal
+          task={pendingTimeLog.task}
+          domainName={pendingTimeLog.domainName}
+          onSave={completeTaskWithTime}
+          onCancel={() => setPendingTimeLog(null)}
+        />
+      )}
+
       <div className="qd-shell">
         <aside className="qd-sidebar">
           <div className="qd-brand">
@@ -2892,7 +3272,11 @@ export default function QuestDashboard() {
                     <div className="qd-today-check">{task.done ? "✓" : ""}</div>
                     <div>
                       <div className="qd-today-name">{task.name}</div>
-                      <div className="qd-today-sub">{task.domainEmoji} {task.domainName}{task.hour !== null && task.hour !== undefined ? ` · ${String(task.hour).padStart(2, "0")}:00` : ""}</div>
+                      <div className="qd-today-sub">
+                        {task.domainEmoji} {task.domainName}
+                        {task.hour !== null && task.hour !== undefined ? ` · ${String(task.hour).padStart(2, "0")}:00` : ""}
+                        {task.estimatedMinutes ? ` · ~${formatMinutes(task.estimatedMinutes)} est.` : ""}
+                      </div>
                     </div>
                     <div className="qd-today-xp">+{task.xp} XP</div>
                   </div>
