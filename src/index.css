@@ -109,3 +109,293 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* =====================================================
+   QUEST — IPHONE APP PASS
+   This only changes the small-screen presentation.
+   Desktop remains controlled by quest-dashboard.jsx.
+   ===================================================== */
+@media (max-width: 700px) {
+  html { scroll-behavior: smooth; }
+  body { background: #06101d !important; overflow-x: hidden !important; }
+  #root {
+    width: 100% !important;
+    max-width: none !important;
+    border: 0 !important;
+    text-align: initial !important;
+    min-height: 100dvh !important;
+  }
+
+  .qd-root {
+    min-height: 100dvh !important;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Top app bar */
+  .qd-sidebar {
+    position: sticky !important;
+    left: auto !important;
+    top: 0 !important;
+    transform: none !important;
+    animation: none !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+    height: 62px !important;
+    max-height: none !important;
+    padding: 9px 12px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(203,166,106,.22) !important;
+    border-radius: 0 !important;
+    background: rgba(5,14,26,.90) !important;
+    backdrop-filter: blur(20px) saturate(1.2) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.22) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+  .qd-brand {
+    width: auto !important;
+    flex: 1 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+  .qd-brand > div:last-child { display: block !important; }
+  .qd-brand-title { display: block !important; font-size: 17px !important; letter-spacing: .07em !important; }
+  .qd-brand-sub { display: none !important; }
+  .qd-laurel { width: 35px !important; height: 35px !important; flex: 0 0 35px !important; font-size: 16px !important; }
+  .qd-logout {
+    position: static !important;
+    width: auto !important;
+    height: 36px !important;
+    margin: 0 !important;
+    padding: 0 11px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-size: 11px !important;
+    border-radius: 10px !important;
+  }
+  .qd-logout::before { display: none !important; }
+
+  /* Existing desktop navigator becomes a native-style bottom tab bar */
+  .qd-sidebar .qd-nav {
+    position: fixed !important;
+    z-index: 1500 !important;
+    left: 9px !important;
+    right: 9px !important;
+    bottom: max(9px, env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    height: 68px !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 3px !important;
+    overflow: visible !important;
+    border: 1px solid rgba(203,166,106,.24) !important;
+    border-radius: 20px !important;
+    background: rgba(5,14,26,.92) !important;
+    backdrop-filter: blur(22px) saturate(1.25) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.25) !important;
+    box-shadow: 0 16px 44px rgba(0,0,0,.46) !important;
+  }
+  .qd-sidebar .qd-nav a {
+    width: 100% !important;
+    height: 54px !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    border-radius: 14px !important;
+    font-size: 8px !important;
+    color: #8f9aaf !important;
+    white-space: nowrap !important;
+    transform: none !important;
+  }
+  .qd-sidebar .qd-nav a .qd-nav-icon {
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 20px !important;
+    font-size: 16px !important;
+    transform: none !important;
+  }
+  .qd-sidebar .qd-nav a.active {
+    color: #f0dfbf !important;
+    background: linear-gradient(145deg,rgba(126,91,216,.38),rgba(44,65,113,.24)) !important;
+    border-color: rgba(185,156,255,.26) !important;
+    box-shadow: inset 0 0 0 1px rgba(185,156,255,.18) !important;
+  }
+  .qd-sidebar .qd-nav a.active::before { display: none !important; }
+
+  .qd-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 14px 11px calc(106px + env(safe-area-inset-bottom)) !important;
+  }
+  .qd-topbar { display: block !important; margin: 0 0 12px !important; padding: 0 !important; }
+  .qd-greeting-kicker { font-size: 9px !important; letter-spacing: .16em !important; }
+  .qd-greeting { font-size: 27px !important; line-height: 1 !important; margin-top: 5px !important; }
+  .qd-greeting-sub { font-size: 15px !important; line-height: 1.25 !important; margin-top: 6px !important; max-width: 94% !important; }
+  .qd-topmeta { display: none !important; }
+
+  /* Phone cards */
+  .qd-panel,
+  .qd-voyage-adjust-bar,
+  .qd-safe-harbor-banner,
+  .qd-quest,
+  .qd-reset-card {
+    border-radius: 15px !important;
+    border-color: rgba(203,166,106,.22) !important;
+    box-shadow: 0 12px 28px rgba(0,0,0,.20) !important;
+  }
+  .qd-panel::before { display: none !important; }
+  .qd-panel-head { padding: 14px 14px 0 !important; }
+  .qd-panel-title { font-size: 15px !important; letter-spacing: .07em !important; }
+  .qd-panel-sub { font-size: 13px !important; line-height: 1.25 !important; }
+
+  .qd-voyage-adjust-bar { display: block !important; margin: 0 0 12px !important; padding: 14px !important; }
+  .qd-voyage-adjust-title { font-size: 11px !important; }
+  .qd-voyage-adjust-sub { font-size: 14px !important; line-height: 1.3 !important; margin-top: 5px !important; }
+  .qd-voyage-adjust-actions { width: 100% !important; margin-top: 11px !important; }
+  .qd-voyage-adjust-actions button { width: 100% !important; min-height: 44px !important; border-radius: 10px !important; }
+  .qd-safe-harbor-banner { margin: 0 0 12px !important; padding: 12px !important; }
+  .qd-safe-harbor-title { font-size: 10px !important; }
+  .qd-safe-harbor-text { font-size: 13px !important; }
+
+  .qd-dashboard-grid,
+  .qd-lower-grid,
+  .qd-quest-grid { display: block !important; margin: 0 !important; }
+  .qd-dashboard-grid > .qd-panel,
+  .qd-lower-grid > .qd-panel,
+  .qd-lower-grid > .qd-side-stack,
+  .qd-side-stack > .qd-panel,
+  .qd-quest-grid > .qd-quest { margin: 0 0 12px !important; }
+  .qd-side-stack { display: block !important; }
+
+  /* Clock hero */
+  .qd-clock { padding: 10px 7px 13px !important; min-height: 0 !important; }
+  .qd-clock-nav {
+    display: grid !important;
+    grid-template-columns: 40px minmax(0,1fr) 40px !important;
+    gap: 7px !important;
+    width: 100% !important;
+    margin: 2px 0 4px !important;
+    font-size: 12px !important;
+  }
+  .qd-clock-nav button { width: 40px !important; height: 40px !important; border-radius: 50% !important; }
+  .qd-clock-svg { width: min(88vw, 360px) !important; max-width: 360px !important; height: auto !important; margin: 0 auto !important; }
+  .qd-clock-list { max-height: none !important; margin-top: 7px !important; gap: 5px !important; }
+  .qd-clock-item { min-height: 42px !important; padding: 8px 9px !important; border-radius: 9px !important; }
+
+  /* Voyage summary */
+  .qd-voyage { padding-bottom: 13px !important; }
+  .qd-voyage-stage { font-size: 9px !important; padding: 5px 7px !important; }
+  .qd-voyage-list { padding: 11px 13px 12px !important; gap: 7px !important; }
+  .qd-voyage-row { grid-template-columns: 24px minmax(0,1fr) 36px !important; gap: 7px !important; font-size: 11px !important; min-height: 29px !important; }
+  .qd-voyage-bar { display: none !important; }
+  .qd-voyage-num { width: 22px !important; height: 22px !important; }
+  .qd-voyage-name { white-space: normal !important; line-height: 1.18 !important; }
+  .qd-voyage-note { margin: 0 13px !important; padding: 10px !important; border-radius: 10px !important; font-size: 13px !important; }
+
+  /* Today's quests */
+  .qd-today-list { padding: 9px 13px 13px !important; }
+  .qd-today-task { grid-template-columns: 27px minmax(0,1fr) auto !important; gap: 8px !important; min-height: 61px !important; padding: 10px 0 !important; }
+  .qd-today-check { width: 24px !important; height: 24px !important; }
+  .qd-today-name { font-size: 16px !important; line-height: 1.1 !important; }
+  .qd-today-sub { font-size: 9px !important; line-height: 1.35 !important; }
+  .qd-today-xp { font-size: 10px !important; white-space: nowrap !important; }
+
+  /* Anchors */
+  .qd-anchors { padding: 10px 11px 12px !important; gap: 9px !important; }
+  .qd-anchor { padding: 10px !important; border-radius: 12px !important; }
+  .qd-anchor-head { display: grid !important; grid-template-columns: 38px minmax(0,1fr) auto !important; gap: 8px !important; margin-bottom: 7px !important; }
+  .qd-anchor-head > span:first-child { width: 36px !important; height: 36px !important; grid-row: 1 / span 2 !important; }
+  .qd-anchor-title { min-width: 0 !important; font-size: 11px !important; }
+  .qd-anchor-actions { width: auto !important; justify-content: flex-end !important; grid-column: 3 !important; }
+  .qd-anchor-actions button { padding: 6px 7px !important; border-radius: 8px !important; font-size: 9px !important; }
+  .qd-anchor-meta { grid-column: 2 / 4 !important; width: auto !important; padding: 0 !important; display: flex !important; gap: 5px !important; flex-wrap: wrap !important; }
+  .qd-anchor-week { display: grid !important; grid-template-columns: repeat(7,1fr) !important; gap: 5px !important; width: 100% !important; margin-top: 8px !important; }
+  .qd-dot { width: 32px !important; height: 32px !important; max-width: none !important; font-size: 9px !important; }
+  .qd-add-btn { min-height: 44px !important; border-radius: 10px !important; font-size: 13px !important; }
+
+  /* XP + rewards */
+  .qd-xp-card { padding: 14px !important; }
+  .qd-xp-number { font-size: 19px !important; }
+  .qd-xp-progress-block { margin-top: 12px !important; }
+  .qd-xp-row-label { font-size: 10px !important; }
+  .qd-xp-caption { font-size: 8.5px !important; line-height: 1.35 !important; }
+  .qd-xp-bar { height: 8px !important; border-radius: 999px !important; }
+  .qd-xp-fill { border-radius: 999px !important; }
+  .qd-machines { padding: 10px 11px 12px !important; gap: 9px !important; }
+  .qd-machine { padding: 11px !important; border-radius: 12px !important; }
+  .qd-machine-icon { width: 35px !important; height: 35px !important; }
+  .qd-reel { padding: 9px !important; border-radius: 9px !important; }
+  .qd-spin-btn, .qd-add-row button { min-height: 42px !important; border-radius: 9px !important; }
+  .qd-add-row { display: grid !important; grid-template-columns: 1fr auto !important; gap: 7px !important; }
+  .qd-add-row input { min-height: 42px !important; }
+  .qd-chip { font-size: 8.5px !important; border-radius: 8px !important; padding: 5px 7px !important; }
+
+  /* Quest log */
+  .qd-section { margin-top: 14px !important; }
+  .qd-section-heading { margin-bottom: 8px !important; }
+  .qd-section h2 { font-size: 18px !important; }
+  .qd-section-tag { font-size: 13px !important; }
+  .qd-quest { padding: 12px !important; }
+  .qd-quest-head { display: grid !important; grid-template-columns: 34px minmax(0,1fr) auto !important; gap: 8px !important; align-items: start !important; }
+  .qd-quest-emoji { font-size: 21px !important; min-width: 30px !important; }
+  .qd-quest-titlewrap { min-width: 0 !important; }
+  .qd-quest-title { font-size: 13px !important; }
+  .qd-quest-narrative { font-size: 13px !important; line-height: 1.25 !important; }
+  .qd-quest-actions { grid-column: 3 !important; width: auto !important; justify-content: flex-end !important; }
+  .qd-quest-actions button { padding: 6px 7px !important; border-radius: 8px !important; font-size: 9px !important; }
+  .qd-quest-target { grid-column: 2 / 4 !important; justify-self: start !important; display: flex !important; flex-direction: row !important; gap: 7px !important; align-items: center !important; }
+  .qd-quest-target input { width: 48px !important; height: 34px !important; border-radius: 8px !important; }
+  .qd-bar { margin-top: 10px !important; border-radius: 999px !important; }
+  .qd-bar-fill { border-radius: 999px !important; }
+  .qd-quest-count { margin: 7px 0 2px !important; font-size: 9px !important; }
+
+  .qd-task { display: grid !important; grid-template-columns: 26px minmax(0,1fr) auto !important; column-gap: 7px !important; row-gap: 6px !important; padding: 11px 0 !important; font-size: 10px !important; align-items: center !important; }
+  .qd-task > input[type="checkbox"] { grid-column: 1 !important; grid-row: 1 !important; width: 21px !important; height: 21px !important; margin: 0 !important; }
+  .qd-task-name { grid-column: 2 !important; grid-row: 1 !important; min-width: 0 !important; font-size: 13px !important; line-height: 1.2 !important; }
+  .qd-task-day, .qd-task-unscheduled { grid-column: 2 !important; grid-row: 2 !important; justify-self: start !important; }
+  .qd-task-xp { grid-column: 3 !important; grid-row: 1 !important; white-space: nowrap !important; }
+  .qd-flex-chip { grid-column: 2 !important; grid-row: 3 !important; justify-self: start !important; }
+  .qd-task-timing { grid-column: 2 / 4 !important; grid-row: 4 !important; }
+  .qd-task-edit-btn { grid-column: 3 !important; grid-row: 2 !important; padding: 6px 8px !important; border-radius: 8px !important; }
+  .qd-task-del { grid-column: 3 !important; grid-row: 3 !important; justify-self: end !important; width: 30px !important; height: 30px !important; }
+  .qd-time-chip { font-size: 8px !important; }
+
+  .qd-add-task, .qd-task-edit-row { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+  .qd-add-task input, .qd-add-task select, .qd-add-task button, .qd-task-edit-row input, .qd-task-edit-row select, .qd-task-edit-row button { width: 100% !important; min-height: 43px !important; border-radius: 9px !important; }
+  .qd-task-date-edit { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 7px !important; }
+  .qd-task-date-edit input { grid-column: 1 / -1 !important; }
+  .qd-task-edit-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; width: 100% !important; }
+
+  .qd-reset-card { margin-top: 12px !important; padding: 13px !important; display: block !important; }
+  .qd-reset-card select { width: 100% !important; min-height: 44px !important; margin-top: 10px !important; border-radius: 9px !important; }
+  .qd-footer { margin: 24px 0 4px !important; font-size: 8px !important; letter-spacing: .10em !important; }
+
+  /* Safe Harbor / completion as bottom sheets instead of desktop popups */
+  .qd-voyage-modal-backdrop, .qd-completion-backdrop, .qd-celebration-backdrop { align-items: flex-end !important; padding: 0 !important; }
+  .qd-voyage-modal, .qd-completion-card, .qd-celebration {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 8px) !important;
+    overflow-y: auto !important;
+    border-radius: 22px 22px 0 0 !important;
+    padding: 19px 15px calc(22px + env(safe-area-inset-bottom)) !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+  .qd-voyage-mode-grid, .qd-anchor-choice-grid { grid-template-columns: 1fr !important; }
+  .qd-voyage-mode, .qd-voyage-field, .qd-capacity-btn, .qd-anchor-choice-btn, .qd-anchor-pick { border-radius: 10px !important; min-height: 44px !important; }
+  .qd-voyage-modal-actions { position: sticky !important; bottom: calc(-22px - env(safe-area-inset-bottom)) !important; margin-left: -15px !important; margin-right: -15px !important; padding: 10px 15px calc(12px + env(safe-area-inset-bottom)) !important; background: linear-gradient(180deg,rgba(7,17,31,.80),#07111f 30%) !important; border-top: 1px solid rgba(203,166,106,.18) !important; z-index: 20 !important; }
+}
