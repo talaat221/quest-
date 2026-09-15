@@ -9,20 +9,25 @@
      ----------------------------- */
   .qd-voyage-modal-backdrop {
     display: flex !important;
-    align-items: flex-end !important;
+    align-items: stretch !important;
     justify-content: stretch !important;
     padding: 0 !important;
     overflow: hidden !important;
     min-height: 100dvh !important;
   }
 
+  /* On iPhone this is a full-screen flow, not a short bottom sheet.
+     This removes the large dead space above the form while keeping
+     the action buttons pinned to the bottom. */
   .qd-voyage-modal {
     width: 100% !important;
     max-width: none !important;
-    max-height: min(82dvh, 760px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    box-sizing: border-box !important;
     margin: 0 !important;
-    padding: 18px 16px 0 !important;
-    border-radius: 24px 24px 0 0 !important;
+    padding: max(18px, env(safe-area-inset-top)) 16px 0 !important;
+    border-radius: 0 !important;
     border-left: 0 !important;
     border-right: 0 !important;
     border-bottom: 0 !important;
