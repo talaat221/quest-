@@ -1,19 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = "https://nagxpuqdurdcogzudblo.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im5hZ3hwdXFkdXJkY29nenVkYmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4OTgxNTQsImV4cCI6MjEwNDQ3NDE1NH0.tKlbuXHSYNUd8VymgFbESpGJZYjCCUrRckI05TH-j08";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZ3hwdXFkdXJkY29nenVkYmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4OTgxNTQsImV4cCI6MjEwNDQ3NDE1NH0.tKlbuXHSYNUd8VymgFbESpGJZYjCCUrRckI05TH-j08";
 
 const rawSupabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const CACHE_PREFIX = "quest-offline-v1:";
+const CACHE_PREFIX = "quest-offline-v2:";
+const LEGACY_CACHE_PREFIX = "quest-offline-v1:";
 const SYNC_EVENT = "quest-sync-status";
 
-export type QuestSyncState =
-  | "synced"
-  | "syncing"
-  | "offline"
-  | "pending"
-  | "conflict";
+type QuestSyncState = "synced" | "syncing" | "offline" | "pending" | "conflict";
 
 export type QuestSyncSnapshot = {
   state: QuestSyncState;
@@ -53,8 +49,8 @@ let syncSnapshot: QuestSyncSnapshot = {
 const syncLocks = new Map<string, Promise<void>>();
 
 const nowISO = () => new Date().toISOString();
-
 const cacheKey = (userId: string) => `${CACHE_PREFIX}${userId}`;
+const legacyCacheKey = (userId: string) => `${LEGACY_CACHE_PREFIX}${userId}`;
 
 const stateHash = (data: any) => {
   try {
@@ -64,13 +60,25 @@ const stateHash = (data: any) => {
   }
 };
 
+const isOnline = () =>
+  typeof navigator === "undefined" ? true : navigator.onLine !== false;
+
 const readCache = (userId: string): QuestCacheRecord | null => {
   if (typeof localStorage === "undefined") return null;
 
   try {
-    const raw = localStorage.getItem(cacheKey(userId));
-    if (!raw) return null;
-    return JSON.parse(raw) as QuestCacheRecord;
+    let raw = localStorage.getItem(cacheKey(userId));
+
+    // One-time migration from the first offline-first preview.
+    if (!raw) {
+      const legacy = localStorage.getItem(legacyCacheKey(userId));
+      if (legacy) {
+        localStorage.setItem(cacheKey(userId), legacy);
+        raw = legacy;
+      }
+    }
+
+    return raw ? (JSON.parse(raw) as QuestCacheRecord) : null;
   } catch (error) {
     console.warn("Quest offline cache could not be read:", error);
     return null;
@@ -79,7 +87,6 @@ const readCache = (userId: string): QuestCacheRecord | null => {
 
 const writeCache = (userId: string, record: QuestCacheRecord) => {
   if (typeof localStorage === "undefined") return;
-
   try {
     localStorage.setItem(cacheKey(userId), JSON.stringify(record));
   } catch (error) {
@@ -94,11 +101,14 @@ const pendingCount = () => {
   for (let i = 0; i < localStorage.length; i += 1) {
     const key = localStorage.key(i);
     if (!key?.startsWith(CACHE_PREFIX)) continue;
+
     try {
-      const value = JSON.parse(localStorage.getItem(key) || "null") as QuestCacheRecord | null;
-      if (value?.dirty) count += Math.max(1, Number(value.pendingEdits) || 1);
+      const record = JSON.parse(localStorage.getItem(key) || "null") as QuestCacheRecord | null;
+      if (record?.dirty) {
+        count += Math.max(1, Number(record.pendingEdits) || 1);
+      }
     } catch {
-      // Ignore malformed stale cache entries.
+      // Ignore malformed stale entries.
     }
   }
   return count;
@@ -137,9 +147,6 @@ export const subscribeQuestSync = (
   return () => window.removeEventListener(SYNC_EVENT, handler);
 };
 
-const isOnline = () =>
-  typeof navigator === "undefined" ? true : navigator.onLine !== false;
-
 const markConflict = (
   userId: string,
   cache: QuestCacheRecord,
@@ -155,6 +162,7 @@ const markConflict = (
     },
     cachedAt: nowISO(),
   };
+
   writeCache(userId, next);
   emitSync({
     state: "conflict",
@@ -170,11 +178,12 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
 
   const run = (async () => {
     const cache = readCache(userId);
+
     if (!cache?.dirty) {
       emitSync({
         state: isOnline() ? "synced" : "offline",
         pending: pendingCount(),
-        lastSyncedAt: cache?.lastSyncedAt || syncSnapshot.lastSyncedAt,
+        lastSyncedAt: cache?.lastSyncedAt || null,
         message: isOnline()
           ? "Quest is synced."
           : "Offline. Quest is saving changes on this device.",
@@ -209,8 +218,6 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       message: "Syncing Quest…",
     });
 
-    let remoteRow: { data: any; updated_at: string | null } | null = null;
-
     if (!forceLocal) {
       const { data: remote, error: remoteError } = await rawSupabase
         .from("quest_data")
@@ -220,66 +227,48 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
 
       if (remoteError) {
         emitSync({
-          state: isOnline() ? "pending" : "offline",
+          state: "pending",
           pending: pendingCount(),
           lastSyncedAt: cache.lastSyncedAt,
-          message: "Could not reach the cloud yet. Changes remain safe on this device.",
+          message: "Could not reach the cloud yet. Your changes remain safe on this device.",
         });
         return;
       }
 
-      remoteRow = remote;
+      const remoteHash = remote ? stateHash(remote.data) : null;
+      const localHash = stateHash(cache.data);
 
-      const remoteHash = remoteRow ? stateHash(remoteRow.data) : null;
-      const remoteChangedFromBase =
-        !!remoteRow &&
-        !!cache.baseHash &&
-        remoteHash !== cache.baseHash;
-
-      const timestampChangedFromBase =
-        !!remoteRow &&
-        !!cache.baseUpdatedAt &&
-        !!remoteRow.updated_at &&
-        remoteRow.updated_at !== cache.baseUpdatedAt;
-
-      const remoteMatchesBase =
-        !!remoteRow &&
-        !!cache.baseHash &&
-        remoteHash === cache.baseHash;
-
-      if (remoteRow) {
-        if (!cache.baseHash && !cache.serverKnownMissing) {
-          if (remoteHash === stateHash(cache.data)) {
-            const syncedAt = remoteRow.updated_at || nowISO();
-            writeCache(userId, {
-              ...cache,
-              dirty: false,
-              baseHash: remoteHash,
-              baseUpdatedAt: remoteRow.updated_at || null,
-              serverKnownMissing: false,
-              lastSyncedAt: syncedAt,
-              pendingEdits: 0,
-              conflict: null,
-              cachedAt: nowISO(),
-            });
-            emitSync({
-              state: "synced",
-              pending: pendingCount(),
-              lastSyncedAt: syncedAt,
-              message: "Quest is synced.",
-            });
+      if (remote) {
+        if (cache.baseHash) {
+          const remoteChanged = remoteHash !== cache.baseHash;
+          if (remoteChanged && remoteHash !== localHash) {
+            markConflict(userId, cache, remote.data, remote.updated_at || null);
             return;
           }
-
-          markConflict(userId, cache, remoteRow.data, remoteRow.updated_at || null);
+        } else if (!cache.serverKnownMissing && remoteHash !== localHash) {
+          markConflict(userId, cache, remote.data, remote.updated_at || null);
           return;
         }
 
-        if (
-          (remoteChangedFromBase || timestampChangedFromBase) &&
-          !remoteMatchesBase
-        ) {
-          markConflict(userId, cache, remoteRow.data, remoteRow.updated_at || null);
+        if (remoteHash === localHash) {
+          const syncedAt = remote.updated_at || nowISO();
+          writeCache(userId, {
+            ...cache,
+            dirty: false,
+            baseUpdatedAt: remote.updated_at || null,
+            baseHash: remoteHash,
+            serverKnownMissing: false,
+            lastSyncedAt: syncedAt,
+            pendingEdits: 0,
+            conflict: null,
+            cachedAt: nowISO(),
+          });
+          emitSync({
+            state: "synced",
+            pending: pendingCount(),
+            lastSyncedAt: syncedAt,
+            message: "Quest is synced.",
+          });
           return;
         }
       } else if (cache.baseHash && !cache.serverKnownMissing) {
@@ -290,7 +279,7 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
 
     const revisionBeingSynced = cache.localRevision;
     const dataBeingSynced = cache.data;
-    const dataBeingSyncedHash = stateHash(dataBeingSynced);
+    const dataHash = stateHash(dataBeingSynced);
     const serverTimestamp = nowISO();
 
     const { error: saveError } = await rawSupabase
@@ -306,7 +295,7 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
 
     if (saveError) {
       emitSync({
-        state: isOnline() ? "pending" : "offline",
+        state: "pending",
         pending: pendingCount(),
         lastSyncedAt: cache.lastSyncedAt,
         message: "Cloud sync is waiting. Your latest changes are still saved locally.",
@@ -321,7 +310,7 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       ...latest,
       dirty: changedWhileSyncing,
       baseUpdatedAt: serverTimestamp,
-      baseHash: dataBeingSyncedHash,
+      baseHash: dataHash,
       serverKnownMissing: false,
       lastSyncedAt: serverTimestamp,
       pendingEdits: changedWhileSyncing ? Math.max(1, latest.pendingEdits) : 0,
@@ -336,9 +325,10 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
         lastSyncedAt: serverTimestamp,
         message: "A newer local change is waiting to sync.",
       });
+
       setTimeout(() => {
         void flushUser(userId);
-      }, 60);
+      }, 80);
     } else {
       emitSync({
         state: "synced",
@@ -407,11 +397,9 @@ const loadQuestRow = async (userId: string) => {
   }
 
   if (!data) {
-    if (cached) {
-      return { data: { data: cached.data }, error: null };
-    }
-
-    return { data: null, error: null };
+    return cached
+      ? { data: { data: cached.data }, error: null }
+      : { data: null, error: null };
   }
 
   const syncedAt = data.updated_at || nowISO();
@@ -440,6 +428,7 @@ const loadQuestRow = async (userId: string) => {
 
 const saveQuestRow = async (payload: any) => {
   const userId = String(payload?.user_id || "");
+
   if (!userId) {
     return {
       data: null,
@@ -498,9 +487,8 @@ const createQuestTable = () => ({
 
   insert: async (payload: any) => {
     const userId = String(payload?.user_id || "");
-    const existing = readCache(userId);
 
-    if (!existing && userId) {
+    if (userId && !readCache(userId)) {
       writeCache(userId, {
         data: payload.data,
         dirty: true,
@@ -530,12 +518,11 @@ export const flushQuestSync = async () => {
   await flushUser(session.user.id);
 };
 
-export const resolveQuestConflict = async (
-  strategy: "cloud" | "local"
-) => {
+export const resolveQuestConflict = async (strategy: "cloud" | "local") => {
   const {
     data: { session },
   } = await rawSupabase.auth.getSession();
+
   const userId = session?.user?.id;
   if (!userId) return;
 
@@ -547,7 +534,6 @@ export const resolveQuestConflict = async (
     const remoteUpdatedAt = cache.conflict.remoteUpdatedAt;
 
     if (remoteData == null) {
-      // The server row disappeared. Keep the local copy rather than erasing the app.
       await flushUser(userId, true);
       return;
     }
@@ -583,6 +569,7 @@ export const resolveQuestConflict = async (
     dirty: true,
     cachedAt: nowISO(),
   });
+
   await flushUser(userId, true);
 };
 
