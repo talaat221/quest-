@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v1';
+const CACHE_NAME = 'quest-shell-v2';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -31,7 +31,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Supabase and other external requests should remain network-controlled.
+  // Supabase and other external requests remain network-controlled. Quest data
+  // itself is handled by the local-first sync layer in the app.
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
