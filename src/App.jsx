@@ -5,17 +5,40 @@ import {
   getQuestSyncSnapshot,
   resolveQuestConflict,
   subscribeQuestSync,
+  supabase,
 } from './supabaseClient';
 
 function SyncIndicator() {
   const [sync, setSync] = useState(getQuestSyncSnapshot());
   const [showConflict, setShowConflict] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => subscribeQuestSync(setSync), []);
 
   useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setHasSession(!!data.session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setHasSession(!!session);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (sync.state !== 'conflict') setShowConflict(false);
   }, [sync.state]);
+
+  if (!hasSession) return null;
 
   const labels = {
     synced: '✓ Synced',
