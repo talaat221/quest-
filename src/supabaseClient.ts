@@ -1,12 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = "https://nagxpuqdurdcogzudblo.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZ3hwdXFkdXJkY29nenVkYmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4OTgxNTQsImV4cCI6MjEwNDQ3NDE1NH0.tKlbuXHSYNUd8VymgFbESpGJZYjCCUrRckI05TH-j08";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im5hZ3hwdXFkdXJkY29nenVkYmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4OTgxNTQsImV4cCI6MjEwNDQ3NDE1NH0.tKlbuXHSYNUd8VymgFbESpGJZYjCCUrRckI05TH-j08";
 
 const rawSupabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const CACHE_PREFIX = "quest-offline-v2:";
-const LEGACY_CACHE_PREFIX = "quest-offline-v1:";
+const CACHE_PREFIX = "quest-offline-v3:";
+const LEGACY_CACHE_PREFIXES = ["quest-offline-v2:", "quest-offline-v1:"];
 const SYNC_EVENT = "quest-sync-status";
 
 type QuestSyncState = "synced" | "syncing" | "offline" | "pending" | "conflict";
@@ -21,13 +21,16 @@ export type QuestSyncSnapshot = {
 type ConflictRecord = {
   remoteData: any;
   remoteUpdatedAt: string | null;
+  remoteRevision: number | null;
 };
 
 type QuestCacheRecord = {
   data: any;
   dirty: boolean;
+  baseData: any | null;
   baseUpdatedAt: string | null;
   baseHash: string | null;
+  baseRevision: number | null;
   serverKnownMissing: boolean;
   lastSyncedAt: string | null;
   cachedAt: string;
@@ -40,6 +43,7 @@ type CloudState = {
   data: any | null;
   updatedAt: string | null;
   baseHash: string | null;
+  revision: number | null;
   legacyExists: boolean;
   source: "normalized" | "legacy" | "none";
   error: any | null;
@@ -59,7 +63,6 @@ const syncLocks = new Map<string, Promise<void>>();
 
 const nowISO = () => new Date().toISOString();
 const cacheKey = (userId: string) => `${CACHE_PREFIX}${userId}`;
-const legacyCacheKey = (userId: string) => `${LEGACY_CACHE_PREFIX}${userId}`;
 
 const stateHash = (data: any) => {
   try {
@@ -69,8 +72,35 @@ const stateHash = (data: any) => {
   }
 };
 
+const same = (a: any, b: any) => stateHash(a) === stateHash(b);
+
 const isOnline = () =>
   typeof navigator === "undefined" ? true : navigator.onLine !== false;
+
+const normalizeCacheRecord = (record: any): QuestCacheRecord => ({
+  data: record?.data ?? null,
+  dirty: !!record?.dirty,
+  baseData: record?.baseData ?? null,
+  baseUpdatedAt: record?.baseUpdatedAt ?? null,
+  baseHash: record?.baseHash ?? null,
+  baseRevision:
+    Number.isFinite(Number(record?.baseRevision)) ? Number(record.baseRevision) : null,
+  serverKnownMissing: !!record?.serverKnownMissing,
+  lastSyncedAt: record?.lastSyncedAt ?? null,
+  cachedAt: record?.cachedAt || nowISO(),
+  localRevision: Number(record?.localRevision) || 0,
+  pendingEdits: Number(record?.pendingEdits) || 0,
+  conflict: record?.conflict
+    ? {
+        remoteData: record.conflict.remoteData,
+        remoteUpdatedAt: record.conflict.remoteUpdatedAt || null,
+        remoteRevision:
+          Number.isFinite(Number(record.conflict.remoteRevision))
+            ? Number(record.conflict.remoteRevision)
+            : null,
+      }
+    : null,
+});
 
 const readCache = (userId: string): QuestCacheRecord | null => {
   if (typeof localStorage === "undefined") return null;
@@ -79,14 +109,17 @@ const readCache = (userId: string): QuestCacheRecord | null => {
     let raw = localStorage.getItem(cacheKey(userId));
 
     if (!raw) {
-      const legacy = localStorage.getItem(legacyCacheKey(userId));
-      if (legacy) {
-        localStorage.setItem(cacheKey(userId), legacy);
-        raw = legacy;
+      for (const prefix of LEGACY_CACHE_PREFIXES) {
+        const legacy = localStorage.getItem(`${prefix}${userId}`);
+        if (legacy) {
+          raw = legacy;
+          localStorage.setItem(cacheKey(userId), legacy);
+          break;
+        }
       }
     }
 
-    return raw ? (JSON.parse(raw) as QuestCacheRecord) : null;
+    return raw ? normalizeCacheRecord(JSON.parse(raw)) : null;
   } catch (error) {
     console.warn("Quest offline cache could not be read:", error);
     return null;
@@ -112,7 +145,9 @@ const pendingCount = () => {
     if (!key?.startsWith(CACHE_PREFIX)) continue;
 
     try {
-      const record = JSON.parse(localStorage.getItem(key) || "null") as QuestCacheRecord | null;
+      const record = normalizeCacheRecord(
+        JSON.parse(localStorage.getItem(key) || "null")
+      );
       if (record?.dirty) {
         count += Math.max(1, Number(record.pendingEdits) || 1);
       }
@@ -197,37 +232,30 @@ const normalizedLooksComplete = (normalized: any, legacy: any) => {
   return legacyDaily === newDaily && legacyWeekly === newWeekly;
 };
 
-const fetchLegacyRow = async (userId: string) => {
-  return rawSupabase
+const fetchLegacyRow = async (userId: string) =>
+  rawSupabase
     .from("quest_data")
     .select("data,updated_at")
     .eq("user_id", userId)
     .maybeSingle();
-};
 
-const fetchNormalizedState = async () => {
-  return rawSupabase.rpc("get_my_quest_state");
-};
+const fetchNormalizedSnapshot = async () =>
+  rawSupabase.rpc("get_my_quest_snapshot");
 
 const fetchCloudState = async (userId: string): Promise<CloudState> => {
   const [legacyResult, normalizedResult] = await Promise.all([
     fetchLegacyRow(userId),
-    fetchNormalizedState(),
+    fetchNormalizedSnapshot(),
   ]);
 
   const legacy = legacyResult.data;
-  const normalized = normalizedResult.data;
-
-  if (legacyResult.error && normalizedResult.error) {
-    return {
-      data: null,
-      updatedAt: null,
-      baseHash: null,
-      legacyExists: false,
-      source: "none",
-      error: legacyResult.error,
-    };
-  }
+  const snapshot: any = normalizedResult.data;
+  const normalized = snapshot?.data ?? null;
+  const snapshotRevision = Number(snapshot?.revision);
+  const revision = Number.isFinite(snapshotRevision) ? snapshotRevision : null;
+  const snapshotUpdatedAt = snapshot?.updatedAt
+    ? String(snapshot.updatedAt)
+    : null;
 
   if (
     !normalizedResult.error &&
@@ -235,8 +263,9 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
   ) {
     return {
       data: normalized,
-      updatedAt: legacy?.updated_at || null,
-      baseHash: legacy ? stateHash(legacy.data) : null,
+      updatedAt: snapshotUpdatedAt || legacy?.updated_at || null,
+      baseHash: stateHash(normalized),
+      revision,
       legacyExists: !!legacy,
       source: "normalized",
       error: null,
@@ -245,7 +274,10 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
 
   if (legacy) {
     if (normalizedResult.error) {
-      console.warn("Quest normalized read unavailable; using legacy cloud row.", normalizedResult.error);
+      console.warn(
+        "Quest normalized read unavailable; using legacy cloud row.",
+        normalizedResult.error
+      );
     } else {
       console.warn("Quest normalized read failed parity checks; using legacy cloud row.");
     }
@@ -254,6 +286,7 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
       data: legacy.data,
       updatedAt: legacy.updated_at || null,
       baseHash: stateHash(legacy.data),
+      revision,
       legacyExists: true,
       source: "legacy",
       error: null,
@@ -263,8 +296,9 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
   if (!normalizedResult.error && normalized) {
     return {
       data: normalized,
-      updatedAt: null,
-      baseHash: null,
+      updatedAt: snapshotUpdatedAt,
+      baseHash: stateHash(normalized),
+      revision,
       legacyExists: false,
       source: "normalized",
       error: null,
@@ -275,17 +309,208 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
     data: null,
     updatedAt: null,
     baseHash: null,
+    revision,
     legacyExists: false,
     source: "none",
     error: legacyResult.error || normalizedResult.error || null,
   };
 };
 
+const mapById = (items: any[]) =>
+  new Map(
+    items
+      .filter((item) => item?.id != null)
+      .map((item) => [String(item.id), item] as const)
+  );
+
+const questShells = (state: any) =>
+  (Array.isArray(state?.domains) ? state.domains : []).map(
+    (domain: any, index: number) => ({
+      id: String(domain?.id || ""),
+      name: domain?.name ?? "Untitled Quest",
+      emoji: domain?.emoji ?? null,
+      color: domain?.color ?? null,
+      monthlyTarget: Number(domain?.monthlyTarget) || 1,
+      timingProfiles: domain?.timingProfiles || {},
+      sortOrder: index,
+    })
+  );
+
+const flatTasks = (state: any) =>
+  (Array.isArray(state?.domains) ? state.domains : []).flatMap(
+    (domain: any) =>
+      (Array.isArray(domain?.tasks) ? domain.tasks : []).map(
+        (task: any, index: number) => ({
+          id: String(task?.id || ""),
+          questId: String(domain?.id || ""),
+          name: task?.name ?? "Untitled Task",
+          xp: Number(task?.xp) || 10,
+          day: task?.day || null,
+          hour: task?.hour ?? null,
+          estimatedMinutes: task?.estimatedMinutes ?? null,
+          actualMinutes: task?.actualMinutes ?? null,
+          timingProfileKey: task?.timingProfileKey || null,
+          flexibility: task?.flexibility === "fixed" ? "fixed" : "flexible",
+          done: !!task?.done,
+          doneAt: task?.doneAt || null,
+          sortOrder: index,
+        })
+      )
+  );
+
+const anchorShells = (state: any) =>
+  (Array.isArray(state?.anchors) ? state.anchors : []).map(
+    (anchor: any, index: number) => ({
+      id: String(anchor?.id || ""),
+      name: anchor?.name ?? "Untitled Anchor",
+      emoji: anchor?.emoji ?? null,
+      xpPerDay: Number(anchor?.xpPerDay) || 1,
+      category: anchor?.category || "General",
+      activeWeekdays:
+        Array.isArray(anchor?.activeWeekdays) && anchor.activeWeekdays.length
+          ? anchor.activeWeekdays
+          : [1, 2, 3, 4, 5, 6, 7],
+      hour: anchor?.hour ?? null,
+      sortOrder: index,
+    })
+  );
+
+const anchorHistoryMap = (state: any) => {
+  const map = new Map<string, any>();
+  for (const anchor of Array.isArray(state?.anchors) ? state.anchors : []) {
+    const history = anchor?.history && typeof anchor.history === "object"
+      ? anchor.history
+      : {};
+    for (const [day, completed] of Object.entries(history)) {
+      if (completed) {
+        map.set(`${anchor.id}::${day}`, {
+          anchorId: String(anchor.id),
+          day,
+        });
+      }
+    }
+  }
+  return map;
+};
+
+const flattenClaims = (claimed: any) => {
+  const result: any[] = [];
+  for (const kind of ["daily", "weekly"]) {
+    const obj = claimed?.[kind] && typeof claimed[kind] === "object"
+      ? claimed[kind]
+      : {};
+    for (const [periodKey, rewardText] of Object.entries(obj)) {
+      result.push({ kind, periodKey, rewardText: String(rewardText ?? "") });
+    }
+  }
+  return result;
+};
+
+const voyageMap = (state: any) => {
+  const source =
+    state?.voyageAdjustments && typeof state.voyageAdjustments === "object"
+      ? state.voyageAdjustments
+      : {};
+  return new Map(
+    Object.entries(source).map(([day, value]: [string, any]) => [
+      day,
+      { day, ...(value || {}) },
+    ])
+  );
+};
+
+const changedUpserts = (oldItems: any[], newItems: any[]) => {
+  const oldMap = mapById(oldItems);
+  return newItems.filter((item) => !same(oldMap.get(String(item.id)), item));
+};
+
+const deletedIds = (oldItems: any[], newItems: any[]) => {
+  const newMap = mapById(newItems);
+  return oldItems
+    .map((item) => String(item.id))
+    .filter((id) => id && !newMap.has(id));
+};
+
+const buildNormalizedChanges = (baseState: any, nextState: any) => {
+  const base = baseState || {};
+  const next = nextState || {};
+  const changes: any = {};
+
+  if (!same(base.settings || {}, next.settings || {})) {
+    changes.settings = next.settings || {};
+  }
+
+  const oldQuests = questShells(base);
+  const newQuests = questShells(next);
+  const questUpserts = changedUpserts(oldQuests, newQuests);
+  const questDeletes = deletedIds(oldQuests, newQuests);
+  if (questUpserts.length) changes.questUpserts = questUpserts;
+  if (questDeletes.length) changes.questDeletes = questDeletes;
+
+  const oldTasks = flatTasks(base);
+  const newTasks = flatTasks(next);
+  const taskUpserts = changedUpserts(oldTasks, newTasks);
+  const taskDeletes = deletedIds(oldTasks, newTasks);
+  if (taskUpserts.length) changes.taskUpserts = taskUpserts;
+  if (taskDeletes.length) changes.taskDeletes = taskDeletes;
+
+  const oldAnchors = anchorShells(base);
+  const newAnchors = anchorShells(next);
+  const anchorUpserts = changedUpserts(oldAnchors, newAnchors);
+  const anchorDeletes = deletedIds(oldAnchors, newAnchors);
+  if (anchorUpserts.length) changes.anchorUpserts = anchorUpserts;
+  if (anchorDeletes.length) changes.anchorDeletes = anchorDeletes;
+
+  const oldHistory = anchorHistoryMap(base);
+  const newHistory = anchorHistoryMap(next);
+  const historyUpserts = [...newHistory.entries()]
+    .filter(([key]) => !oldHistory.has(key))
+    .map(([, value]) => value);
+  const historyDeletes = [...oldHistory.entries()]
+    .filter(([key]) => !newHistory.has(key))
+    .map(([, value]) => value);
+  if (historyUpserts.length) changes.anchorHistoryUpserts = historyUpserts;
+  if (historyDeletes.length) changes.anchorHistoryDeletes = historyDeletes;
+
+  if (!same(base.rewards || {}, next.rewards || {})) {
+    const daily = Array.isArray(next?.rewards?.daily) ? next.rewards.daily : [];
+    const weekly = Array.isArray(next?.rewards?.weekly) ? next.rewards.weekly : [];
+    changes.rewards = {
+      daily: daily.map((text: any, position: number) => ({
+        position,
+        text: String(text ?? ""),
+      })),
+      weekly: weekly.map((text: any, position: number) => ({
+        position,
+        text: String(text ?? ""),
+      })),
+    };
+  }
+
+  if (!same(base.claimed || {}, next.claimed || {})) {
+    changes.claims = flattenClaims(next.claimed);
+  }
+
+  const oldVoyage = voyageMap(base);
+  const newVoyage = voyageMap(next);
+  const voyageUpserts = [...newVoyage.entries()]
+    .filter(([day, value]) => !same(oldVoyage.get(day), value))
+    .map(([, value]) => value);
+  const voyageDeletes = [...oldVoyage.keys()].filter((day) => !newVoyage.has(day));
+  if (voyageUpserts.length) changes.voyageUpserts = voyageUpserts;
+  if (voyageDeletes.length) changes.voyageDeletes = voyageDeletes;
+
+  return changes;
+};
+
+const hasChanges = (changes: any) => Object.keys(changes || {}).length > 0;
+
 const markConflict = (
   userId: string,
   cache: QuestCacheRecord,
   remoteData: any,
-  remoteUpdatedAt: string | null
+  remoteUpdatedAt: string | null,
+  remoteRevision: number | null
 ) => {
   const next: QuestCacheRecord = {
     ...cache,
@@ -293,6 +518,7 @@ const markConflict = (
     conflict: {
       remoteData,
       remoteUpdatedAt,
+      remoteRevision,
     },
     cachedAt: nowISO(),
   };
@@ -305,6 +531,17 @@ const markConflict = (
     message: "Offline changes and newer cloud changes both exist. Nothing was overwritten.",
   });
 };
+
+const commitNormalizedChanges = async (
+  expectedRevision: number | null,
+  changes: any,
+  force: boolean
+) =>
+  rawSupabase.rpc("apply_my_quest_changes", {
+    p_expected_revision: expectedRevision,
+    p_changes: changes,
+    p_force: force,
+  });
 
 const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
   const existingLock = syncLocks.get(userId);
@@ -352,78 +589,102 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       message: "Syncing Quest…",
     });
 
+    const cloud = await fetchCloudState(userId);
+    if (cloud.error || !cloud.data) {
+      emitSync({
+        state: "pending",
+        pending: pendingCount(),
+        lastSyncedAt: cache.lastSyncedAt,
+        message: "Could not reach the cloud yet. Your changes remain safe on this device.",
+      });
+      return;
+    }
+
+    const remoteHash = stateHash(cloud.data);
+    const localHash = stateHash(cache.data);
+
     if (!forceLocal) {
-      const { data: remote, error: remoteError } = await fetchLegacyRow(userId);
+      const revisionChanged =
+        cache.baseRevision != null &&
+        cloud.revision != null &&
+        cache.baseRevision !== cloud.revision;
+      const contentChanged =
+        !!cache.baseHash && remoteHash !== cache.baseHash;
 
-      if (remoteError) {
-        emitSync({
-          state: "pending",
-          pending: pendingCount(),
-          lastSyncedAt: cache.lastSyncedAt,
-          message: "Could not reach the cloud yet. Your changes remain safe on this device.",
-        });
-        return;
-      }
-
-      const remoteHash = remote ? stateHash(remote.data) : null;
-      const localHash = stateHash(cache.data);
-
-      if (remote) {
-        if (cache.baseHash) {
-          const remoteChanged = remoteHash !== cache.baseHash;
-          if (remoteChanged && remoteHash !== localHash) {
-            markConflict(userId, cache, remote.data, remote.updated_at || null);
-            return;
-          }
-        } else if (remoteHash !== localHash) {
-          markConflict(userId, cache, remote.data, remote.updated_at || null);
-          return;
-        }
-
-        if (remoteHash === localHash) {
-          const syncedAt = remote.updated_at || nowISO();
-          writeCache(userId, {
-            ...cache,
-            dirty: false,
-            baseUpdatedAt: remote.updated_at || null,
-            baseHash: remoteHash,
-            serverKnownMissing: false,
-            lastSyncedAt: syncedAt,
-            pendingEdits: 0,
-            conflict: null,
-            cachedAt: nowISO(),
-          });
-          emitSync({
-            state: "synced",
-            pending: pendingCount(),
-            lastSyncedAt: syncedAt,
-            message: "Quest is synced.",
-          });
-          return;
-        }
-      } else if (cache.baseHash && !cache.serverKnownMissing) {
-        markConflict(userId, cache, null, null);
+      if ((revisionChanged || contentChanged) && remoteHash !== localHash) {
+        markConflict(
+          userId,
+          cache,
+          cloud.data,
+          cloud.updatedAt,
+          cloud.revision
+        );
         return;
       }
     }
 
-    const revisionBeingSynced = cache.localRevision;
-    const dataBeingSynced = cache.data;
-    const dataHash = stateHash(dataBeingSynced);
-    const serverTimestamp = nowISO();
+    if (remoteHash === localHash) {
+      const syncedAt = cloud.updatedAt || nowISO();
+      writeCache(userId, {
+        ...cache,
+        data: cloud.data,
+        dirty: false,
+        baseData: cloud.data,
+        baseUpdatedAt: cloud.updatedAt,
+        baseHash: remoteHash,
+        baseRevision: cloud.revision,
+        serverKnownMissing: false,
+        lastSyncedAt: syncedAt,
+        pendingEdits: 0,
+        conflict: null,
+        cachedAt: nowISO(),
+      });
+      emitSync({
+        state: "synced",
+        pending: pendingCount(),
+        lastSyncedAt: syncedAt,
+        message: "Quest is synced.",
+      });
+      return;
+    }
 
-    const { error: saveError } = await rawSupabase
-      .from("quest_data")
-      .upsert(
-        {
-          user_id: userId,
-          data: dataBeingSynced,
-          updated_at: serverTimestamp,
-        },
-        { onConflict: "user_id" }
+    const baseline = cache.baseData || cloud.data || {};
+    const changes = buildNormalizedChanges(baseline, cache.data);
+
+    if (!hasChanges(changes)) {
+      markConflict(
+        userId,
+        cache,
+        cloud.data,
+        cloud.updatedAt,
+        cloud.revision
       );
+      return;
+    }
+
+    const revisionBeingSynced = cache.localRevision;
+    const { data: commitResult, error: saveError } = await commitNormalizedChanges(
+      forceLocal ? cloud.revision : cache.baseRevision ?? cloud.revision,
+      changes,
+      forceLocal
+    );
 
     if (saveError) {
+      if (String(saveError.code || "") === "40001" || String(saveError.message || "").includes("QUEST_SYNC_CONFLICT")) {
+        const latestCloud = await fetchCloudState(userId);
+        if (latestCloud.data) {
+          markConflict(
+            userId,
+            cache,
+            latestCloud.data,
+            latestCloud.updatedAt,
+            latestCloud.revision
+          );
+          return;
+        }
+      }
+
+      console.warn("Quest normalized write failed:", saveError);
       emitSync({
         state: "pending",
         pending: pendingCount(),
@@ -433,16 +694,28 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       return;
     }
 
+    const committedData = (commitResult as any)?.data || cache.data;
+    const committedRevisionValue = Number((commitResult as any)?.revision);
+    const committedRevision = Number.isFinite(committedRevisionValue)
+      ? committedRevisionValue
+      : cloud.revision;
+    const committedAt = (commitResult as any)?.updatedAt
+      ? String((commitResult as any).updatedAt)
+      : nowISO();
+
     const latest = readCache(userId) || cache;
     const changedWhileSyncing = latest.localRevision !== revisionBeingSynced;
 
     writeCache(userId, {
       ...latest,
+      data: changedWhileSyncing ? latest.data : committedData,
       dirty: changedWhileSyncing,
-      baseUpdatedAt: serverTimestamp,
-      baseHash: dataHash,
+      baseData: committedData,
+      baseUpdatedAt: committedAt,
+      baseHash: stateHash(committedData),
+      baseRevision: committedRevision,
       serverKnownMissing: false,
-      lastSyncedAt: serverTimestamp,
+      lastSyncedAt: committedAt,
       pendingEdits: changedWhileSyncing ? Math.max(1, latest.pendingEdits) : 0,
       conflict: null,
       cachedAt: nowISO(),
@@ -452,18 +725,15 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       emitSync({
         state: "pending",
         pending: pendingCount(),
-        lastSyncedAt: serverTimestamp,
+        lastSyncedAt: committedAt,
         message: "A newer local change is waiting to sync.",
       });
-
-      setTimeout(() => {
-        void flushUser(userId);
-      }, 80);
+      setTimeout(() => void flushUser(userId), 80);
     } else {
       emitSync({
         state: "synced",
         pending: pendingCount(),
-        lastSyncedAt: serverTimestamp,
+        lastSyncedAt: committedAt,
         message: "Quest is synced.",
       });
     }
@@ -518,7 +788,6 @@ const loadQuestRow = async (userId: string) => {
       });
       return { data: { data: cached.data }, error: null };
     }
-
     return { data: null, error: cloud.error };
   }
 
@@ -529,12 +798,13 @@ const loadQuestRow = async (userId: string) => {
   }
 
   const syncedAt = cloud.updatedAt || cached?.lastSyncedAt || nowISO();
-
   writeCache(userId, {
     data: cloud.data,
     dirty: false,
+    baseData: cloud.data,
     baseUpdatedAt: cloud.updatedAt,
-    baseHash: cloud.baseHash,
+    baseHash: stateHash(cloud.data),
+    baseRevision: cloud.revision,
     serverKnownMissing: !cloud.legacyExists,
     lastSyncedAt: syncedAt,
     cachedAt: nowISO(),
@@ -550,16 +820,11 @@ const loadQuestRow = async (userId: string) => {
     message: "Quest is synced.",
   });
 
-  if (cloud.source === "normalized") {
-    console.info("Quest cloud read: normalized database.");
-  }
-
   return { data: { data: cloud.data }, error: null };
 };
 
 const saveQuestRow = async (payload: any) => {
   const userId = String(payload?.user_id || "");
-
   if (!userId) {
     return {
       data: null,
@@ -571,8 +836,10 @@ const saveQuestRow = async (payload: any) => {
   const next: QuestCacheRecord = {
     data: payload.data,
     dirty: true,
+    baseData: existing?.baseData ?? null,
     baseUpdatedAt: existing?.baseUpdatedAt || null,
     baseHash: existing?.baseHash || null,
+    baseRevision: existing?.baseRevision ?? null,
     serverKnownMissing: existing?.serverKnownMissing || false,
     lastSyncedAt: existing?.lastSyncedAt || null,
     cachedAt: nowISO(),
@@ -615,28 +882,7 @@ const createQuestTable = () => ({
       },
     }),
   }),
-
-  insert: async (payload: any) => {
-    const userId = String(payload?.user_id || "");
-
-    if (userId && !readCache(userId)) {
-      writeCache(userId, {
-        data: payload.data,
-        dirty: true,
-        baseUpdatedAt: null,
-        baseHash: null,
-        serverKnownMissing: isOnline(),
-        lastSyncedAt: null,
-        cachedAt: nowISO(),
-        localRevision: 1,
-        pendingEdits: 1,
-        conflict: null,
-      });
-    }
-
-    return saveQuestRow(payload);
-  },
-
+  insert: async (payload: any) => saveQuestRow(payload),
   upsert: async (payload: any, _options?: any) => saveQuestRow(payload),
 });
 
@@ -663,6 +909,7 @@ export const resolveQuestConflict = async (strategy: "cloud" | "local") => {
   if (strategy === "cloud") {
     const remoteData = cache.conflict.remoteData;
     const remoteUpdatedAt = cache.conflict.remoteUpdatedAt;
+    const remoteRevision = cache.conflict.remoteRevision;
 
     if (remoteData == null) {
       await flushUser(userId, true);
@@ -674,8 +921,10 @@ export const resolveQuestConflict = async (strategy: "cloud" | "local") => {
       ...cache,
       data: remoteData,
       dirty: false,
-      baseUpdatedAt: remoteUpdatedAt || null,
+      baseData: remoteData,
+      baseUpdatedAt: remoteUpdatedAt,
       baseHash: stateHash(remoteData),
+      baseRevision: remoteRevision,
       serverKnownMissing: false,
       lastSyncedAt: syncedAt,
       pendingEdits: 0,
@@ -700,7 +949,6 @@ export const resolveQuestConflict = async (strategy: "cloud" | "local") => {
     dirty: true,
     cachedAt: nowISO(),
   });
-
   await flushUser(userId, true);
 };
 
