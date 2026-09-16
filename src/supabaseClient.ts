@@ -36,6 +36,15 @@ type QuestCacheRecord = {
   conflict: ConflictRecord | null;
 };
 
+type CloudState = {
+  data: any | null;
+  updatedAt: string | null;
+  baseHash: string | null;
+  legacyExists: boolean;
+  source: "normalized" | "legacy" | "none";
+  error: any | null;
+};
+
 let syncSnapshot: QuestSyncSnapshot = {
   state:
     typeof navigator !== "undefined" && navigator.onLine === false
@@ -69,7 +78,6 @@ const readCache = (userId: string): QuestCacheRecord | null => {
   try {
     let raw = localStorage.getItem(cacheKey(userId));
 
-    // One-time migration from the first offline-first preview.
     if (!raw) {
       const legacy = localStorage.getItem(legacyCacheKey(userId));
       if (legacy) {
@@ -87,6 +95,7 @@ const readCache = (userId: string): QuestCacheRecord | null => {
 
 const writeCache = (userId: string, record: QuestCacheRecord) => {
   if (typeof localStorage === "undefined") return;
+
   try {
     localStorage.setItem(cacheKey(userId), JSON.stringify(record));
   } catch (error) {
@@ -145,6 +154,131 @@ export const subscribeQuestSync = (
   callback(getQuestSyncSnapshot());
 
   return () => window.removeEventListener(SYNC_EVENT, handler);
+};
+
+const sortedIds = (items: any[]) =>
+  items
+    .map((item) => String(item?.id || ""))
+    .filter(Boolean)
+    .sort();
+
+const sameStringArray = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+const taskIds = (state: any) =>
+  sortedIds(
+    (Array.isArray(state?.domains) ? state.domains : []).flatMap((domain: any) =>
+      Array.isArray(domain?.tasks) ? domain.tasks : []
+    )
+  );
+
+const normalizedLooksComplete = (normalized: any, legacy: any) => {
+  if (!normalized || typeof normalized !== "object") return false;
+  if (!Array.isArray(normalized.domains) || !Array.isArray(normalized.anchors)) {
+    return false;
+  }
+
+  if (!legacy || typeof legacy !== "object") return true;
+
+  const legacyDomains = Array.isArray(legacy.domains) ? legacy.domains : [];
+  const normalizedDomains = Array.isArray(normalized.domains) ? normalized.domains : [];
+  const legacyAnchors = Array.isArray(legacy.anchors) ? legacy.anchors : [];
+  const normalizedAnchors = Array.isArray(normalized.anchors) ? normalized.anchors : [];
+
+  if (!sameStringArray(sortedIds(legacyDomains), sortedIds(normalizedDomains))) return false;
+  if (!sameStringArray(sortedIds(legacyAnchors), sortedIds(normalizedAnchors))) return false;
+  if (!sameStringArray(taskIds(legacy), taskIds(normalized))) return false;
+
+  const legacyDaily = Array.isArray(legacy?.rewards?.daily) ? legacy.rewards.daily.length : 0;
+  const newDaily = Array.isArray(normalized?.rewards?.daily) ? normalized.rewards.daily.length : 0;
+  const legacyWeekly = Array.isArray(legacy?.rewards?.weekly) ? legacy.rewards.weekly.length : 0;
+  const newWeekly = Array.isArray(normalized?.rewards?.weekly) ? normalized.rewards.weekly.length : 0;
+
+  return legacyDaily === newDaily && legacyWeekly === newWeekly;
+};
+
+const fetchLegacyRow = async (userId: string) => {
+  return rawSupabase
+    .from("quest_data")
+    .select("data,updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+};
+
+const fetchNormalizedState = async () => {
+  return rawSupabase.rpc("get_my_quest_state");
+};
+
+const fetchCloudState = async (userId: string): Promise<CloudState> => {
+  const [legacyResult, normalizedResult] = await Promise.all([
+    fetchLegacyRow(userId),
+    fetchNormalizedState(),
+  ]);
+
+  const legacy = legacyResult.data;
+  const normalized = normalizedResult.data;
+
+  if (legacyResult.error && normalizedResult.error) {
+    return {
+      data: null,
+      updatedAt: null,
+      baseHash: null,
+      legacyExists: false,
+      source: "none",
+      error: legacyResult.error,
+    };
+  }
+
+  if (
+    !normalizedResult.error &&
+    normalizedLooksComplete(normalized, legacy?.data)
+  ) {
+    return {
+      data: normalized,
+      updatedAt: legacy?.updated_at || null,
+      baseHash: legacy ? stateHash(legacy.data) : null,
+      legacyExists: !!legacy,
+      source: "normalized",
+      error: null,
+    };
+  }
+
+  if (legacy) {
+    if (normalizedResult.error) {
+      console.warn("Quest normalized read unavailable; using legacy cloud row.", normalizedResult.error);
+    } else {
+      console.warn("Quest normalized read failed parity checks; using legacy cloud row.");
+    }
+
+    return {
+      data: legacy.data,
+      updatedAt: legacy.updated_at || null,
+      baseHash: stateHash(legacy.data),
+      legacyExists: true,
+      source: "legacy",
+      error: null,
+    };
+  }
+
+  if (!normalizedResult.error && normalized) {
+    return {
+      data: normalized,
+      updatedAt: null,
+      baseHash: null,
+      legacyExists: false,
+      source: "normalized",
+      error: null,
+    };
+  }
+
+  return {
+    data: null,
+    updatedAt: null,
+    baseHash: null,
+    legacyExists: false,
+    source: "none",
+    error: legacyResult.error || normalizedResult.error || null,
+  };
 };
 
 const markConflict = (
@@ -219,11 +353,7 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
     });
 
     if (!forceLocal) {
-      const { data: remote, error: remoteError } = await rawSupabase
-        .from("quest_data")
-        .select("data,updated_at")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data: remote, error: remoteError } = await fetchLegacyRow(userId);
 
       if (remoteError) {
         emitSync({
@@ -245,7 +375,7 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
             markConflict(userId, cache, remote.data, remote.updated_at || null);
             return;
           }
-        } else if (!cache.serverKnownMissing && remoteHash !== localHash) {
+        } else if (remoteHash !== localHash) {
           markConflict(userId, cache, remote.data, remote.updated_at || null);
           return;
         }
@@ -376,13 +506,9 @@ const loadQuestRow = async (userId: string) => {
     }
   }
 
-  const { data, error } = await rawSupabase
-    .from("quest_data")
-    .select("data,updated_at")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const cloud = await fetchCloudState(userId);
 
-  if (error) {
+  if (cloud.error) {
     if (cached) {
       emitSync({
         state: "pending",
@@ -393,22 +519,23 @@ const loadQuestRow = async (userId: string) => {
       return { data: { data: cached.data }, error: null };
     }
 
-    return { data: null, error };
+    return { data: null, error: cloud.error };
   }
 
-  if (!data) {
+  if (!cloud.data) {
     return cached
       ? { data: { data: cached.data }, error: null }
       : { data: null, error: null };
   }
 
-  const syncedAt = data.updated_at || nowISO();
+  const syncedAt = cloud.updatedAt || cached?.lastSyncedAt || nowISO();
+
   writeCache(userId, {
-    data: data.data,
+    data: cloud.data,
     dirty: false,
-    baseUpdatedAt: data.updated_at || null,
-    baseHash: stateHash(data.data),
-    serverKnownMissing: false,
+    baseUpdatedAt: cloud.updatedAt,
+    baseHash: cloud.baseHash,
+    serverKnownMissing: !cloud.legacyExists,
     lastSyncedAt: syncedAt,
     cachedAt: nowISO(),
     localRevision: cached?.localRevision || 0,
@@ -423,7 +550,11 @@ const loadQuestRow = async (userId: string) => {
     message: "Quest is synced.",
   });
 
-  return { data: { data: data.data }, error: null };
+  if (cloud.source === "normalized") {
+    console.info("Quest cloud read: normalized database.");
+  }
+
+  return { data: { data: cloud.data }, error: null };
 };
 
 const saveQuestRow = async (payload: any) => {
