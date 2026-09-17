@@ -1356,6 +1356,88 @@ const PIXEL_CSS = `
   .qd-sidebar{bottom:7px;width:calc(100vw - 12px);height:68px;grid-template-columns:1fr}.qd-nav a{font-size:14px;gap:4px;padding:4px 1px}.qd-nav-icon{font-size:17px}.qd-logout{display:none}
   .qd-voyage-adjust-bar{padding:13px;gap:10px}.qd-voyage-adjust-title{font-size:9px}.qd-voyage-adjust-sub{font-size:17px}.qd-voyage-adjust-actions{width:100%}.qd-voyage-adjust-actions button{width:100%}
 }
+
+/* iPhone top scene — composed to mirror the supplied reference. */
+.qd-date-card{display:flex;flex-direction:column;align-items:center;gap:5px}
+.qd-date-main{display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap}
+.qd-journey-day{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'VT323',monospace;font-size:17px;line-height:1;color:#ffd17c;text-transform:none;white-space:nowrap}
+.qd-journey-day span{margin:0;font-size:14px}
+
+@media(max-width:640px){
+  .qd-main{padding-top:0}
+  .qd-scene{
+    width:calc(100% + 18px);
+    height:clamp(318px,84vw,350px);
+    min-height:0;
+    margin:0 -9px;
+    border:0;
+    outline:0;
+    box-shadow:none;
+    background-image:url('/pixel-garden-mobile.webp');
+    background-size:cover;
+    background-position:center top;
+  }
+  .qd-scene::after{
+    z-index:1;
+    background:linear-gradient(180deg,rgba(1,16,34,.16) 0%,transparent 42%,rgba(2,21,27,.08) 76%,rgba(4,24,29,.32) 100%);
+    box-shadow:none;
+  }
+  .qd-topbar{position:absolute;inset:0;display:block;margin:0;padding:0}
+  .qd-scene-copy{
+    position:absolute;
+    z-index:3;
+    left:clamp(22px,7vw,32px);
+    top:max(35px,calc(env(safe-area-inset-top) + 10px));
+    width:155px;
+    max-width:43%;
+    padding:0;
+    background:none;
+    text-shadow:2px 2px 0 #061522;
+  }
+  .qd-greeting-kicker{font-size:8px;line-height:1.55;letter-spacing:.015em;white-space:nowrap}
+  .qd-greeting{font-size:20px;line-height:1.35;letter-spacing:.01em;margin-top:1px;white-space:nowrap}
+  .qd-greeting span{font-size:14px;vertical-align:2px}
+  .qd-greeting-sub{font-size:16px;line-height:.92;max-width:130px;margin-top:3px;color:#f1f5f2}
+  .qd-topmeta{
+    position:absolute;
+    z-index:3;
+    right:clamp(12px,4vw,18px);
+    top:max(34px,calc(env(safe-area-inset-top) + 9px));
+    width:132px;
+    max-width:40%;
+  }
+  .qd-scene .qd-meta-pill{
+    width:100%;
+    padding:8px 8px 7px;
+    border:3px solid #6f422c;
+    outline:2px solid #261a19;
+    background:linear-gradient(180deg,#74432d,#4e2d24);
+    box-shadow:inset 0 0 0 2px rgba(255,185,95,.14),3px 4px 0 rgba(2,13,21,.64);
+    font-size:8px;
+    line-height:1.25;
+  }
+  .qd-date-main{gap:5px}
+  .qd-date-main span{margin:0;color:#ffb45c;font-size:10px}
+  .qd-journey-day{gap:3px;font-size:14px}
+  .qd-journey-day span{font-size:11px}
+  .qd-level-card{
+    left:10px;
+    right:10px;
+    bottom:8px;
+    height:43px;
+    grid-template-columns:55px minmax(0,1fr) 72px;
+    gap:8px;
+    padding:6px 8px;
+    border:3px solid #422b23;
+    outline:2px solid #071927;
+    background:linear-gradient(180deg,#70442e,#442c25);
+    box-shadow:inset 0 0 0 2px #9c5b37,0 4px 0 rgba(2,15,22,.7);
+  }
+  .qd-level-badge{padding:6px 4px;border:2px solid #18141a;font-size:8px;text-align:center}
+  .qd-level-track{height:17px;padding:2px;border:2px solid #201d22}
+  .qd-level-fill{border-top-width:2px}
+  .qd-level-value{grid-column:auto;margin:0;text-align:right;font-size:7px;line-height:1.35;white-space:nowrap}
+}
 `;
 
 
@@ -4457,8 +4539,50 @@ export default function QuestDashboard() {
       : today.getHours() < 18
       ? "GOOD AFTERNOON"
       : "GOOD EVENING";
-  const level = Math.max(1, Math.floor(wXP / 500) + 1);
-  const levelXP = wXP % 500;
+  const lifetimeXP =
+    state.domains.reduce(
+      (total, domain) =>
+        total +
+        domain.tasks.reduce(
+          (taskTotal, task) => taskTotal + (task.done ? Number(task.xp) || 0 : 0),
+          0
+        ),
+      0
+    ) +
+    state.anchors.reduce(
+      (total, anchor) =>
+        total +
+        Object.values(anchor.history || {}).filter(Boolean).length *
+          (Number(anchor.xpPerDay) || 0),
+      0
+    );
+  const level = Math.max(1, Math.floor(lifetimeXP / 500) + 1);
+  const levelXP = lifetimeXP % 500;
+  const recordedJourneyDates = [
+    ...state.anchors.flatMap((anchor) =>
+      Object.entries(anchor.history || {})
+        .filter(([, completed]) => completed)
+        .map(([date]) => date)
+    ),
+    ...state.domains.flatMap((domain) =>
+      domain.tasks
+        .filter((task) => task.done && task.doneAt)
+        .map((task) => String(task.doneAt).slice(0, 10))
+    ),
+  ].filter(Boolean);
+  const journeyStart = recordedJourneyDates.sort()[0] || todayStr;
+  const journeyDay = Math.max(
+    1,
+    Math.floor(
+      (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
+        Date.UTC(
+          Number(journeyStart.slice(0, 4)),
+          Number(journeyStart.slice(5, 7)) - 1,
+          Number(journeyStart.slice(8, 10))
+        )) /
+        86400000
+    ) + 1
+  );
 
   return (
     <div
@@ -4549,8 +4673,11 @@ export default function QuestDashboard() {
               </div>
               <div className="qd-topmeta">
                 <div className="qd-meta-pill qd-date-card">
-                  <span aria-hidden="true">▣</span>
-                  {today.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                  <div className="qd-date-main">
+                    <span aria-hidden="true">▣</span>
+                    {today.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                  </div>
+                  <div className="qd-journey-day"><span aria-hidden="true">🌱</span> Day {journeyDay}</div>
                 </div>
               </div>
             </div>

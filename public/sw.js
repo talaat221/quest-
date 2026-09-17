@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v3';
+const CACHE_NAME = 'quest-shell-v4';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -7,7 +7,8 @@ const APP_SHELL = [
   '/icon-512.png',
   '/icon-maskable-512.png',
   '/odyssey-sea.jpg',
-  '/pixel-garden-hero.webp'
+  '/pixel-garden-hero.webp',
+  '/pixel-garden-mobile.webp'
 ];
 
 self.addEventListener('install', (event) => {
