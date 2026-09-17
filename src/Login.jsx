@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { playLoginError, playLoginSuccess, playLoginTap } from "./loginSfx";
 import "./Login.css";
@@ -8,11 +8,35 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState("error");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [farmArt, setFarmArt] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/quest-farm-hero.b64.txt")
+      .then((response) => {
+        if (!response.ok) throw new Error("Farm artwork could not be loaded.");
+        return response.text();
+      })
+      .then((base64) => {
+        if (!cancelled) {
+          setFarmArt(`data:image/webp;base64,${base64.trim()}`);
+        }
+      })
+      .catch((error) => {
+        console.warn(error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const showError = async (text) => {
     setMessageKind("error");
@@ -82,44 +106,13 @@ export default function Login({ onLogin }) {
           </p>
         </header>
 
-        <div className="pixel-world" aria-hidden="true">
-          <div className="pixel-world__back-hill" />
-          <div className="pixel-world__far-trees" />
-          <div className="pixel-fence" />
-
-          <div className="pixel-tree">
-            <span className="pixel-tree__trunk" />
-            <span className="pixel-tree__leaf pixel-tree__leaf--a" />
-            <span className="pixel-tree__leaf pixel-tree__leaf--b" />
-            <span className="pixel-tree__leaf pixel-tree__leaf--c" />
-          </div>
-
-          <div className="pixel-house">
-            <span className="pixel-house__chimney" />
-            <span className="pixel-smoke pixel-smoke--one" />
-            <span className="pixel-smoke pixel-smoke--two" />
-            <span className="pixel-house__roof" />
-            <span className="pixel-house__body" />
-            <span className="pixel-house__window pixel-house__window--left" />
-            <span className="pixel-house__window pixel-house__window--right" />
-            <span className="pixel-house__door" />
-          </div>
-
-          <div className="pixel-garden">
-            {[0, 1, 2, 3].map((plot) => (
-              <div className={`pixel-plot pixel-plot--${plot + 1}`} key={plot}>
-                <span className="pixel-crop" />
-              </div>
-            ))}
-          </div>
-
-          <div className="pixel-campfire">
-            <span className="pixel-campfire__log pixel-campfire__log--a" />
-            <span className="pixel-campfire__log pixel-campfire__log--b" />
-            <span className="pixel-campfire__flame" />
-          </div>
-
-          <div className="pixel-world__grass" />
+        <div className={`farm-art ${farmArt ? "is-ready" : ""}`} aria-hidden="true">
+          {farmArt && <img src={farmArt} alt="" />}
+          <span className="farm-art__glow farm-art__glow--one" />
+          <span className="farm-art__glow farm-art__glow--two" />
+          <span className="farm-art__firefly farm-art__firefly--one" />
+          <span className="farm-art__firefly farm-art__firefly--two" />
+          <span className="farm-art__firefly farm-art__firefly--three" />
         </div>
 
         <form
@@ -128,30 +121,47 @@ export default function Login({ onLogin }) {
         >
           <label className="login-field">
             <span>Email</span>
-            <input
-              type="email"
-              autoComplete="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <div className="login-input-shell">
+              <span className="login-input-icon" aria-hidden="true">✉</span>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </label>
 
           <label className="login-field">
             <span>Password</span>
-            <input
-              type="password"
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="login-input-shell">
+              <span className="login-input-icon" aria-hidden="true">▣</span>
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                className="login-password-toggle"
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "◉" : "◎"}
+              </button>
+            </div>
           </label>
 
           {message && (
-            <p className={`login-message login-message--${messageKind}`} role={messageKind === "error" ? "alert" : "status"}>
+            <p
+              className={`login-message login-message--${messageKind}`}
+              role={messageKind === "error" ? "alert" : "status"}
+            >
               {message}
             </p>
           )}
@@ -165,6 +175,11 @@ export default function Login({ onLogin }) {
             {isSignUp ? "Already have a farm? Log in" : "New here? Start your farm"}
           </button>
         </form>
+
+        <div className="login-sign" aria-hidden="true">
+          A BRIGHTER<br />TOMORROW GROWS HERE
+          <span>♥</span>
+        </div>
       </section>
     </main>
   );
