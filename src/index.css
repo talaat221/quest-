@@ -131,56 +131,31 @@ code {
     padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
   }
 
-  /* Top app bar */
+  /* The sidebar only hosts the fixed bottom navigation on phones. */
   .qd-sidebar {
-    position: sticky !important;
+    position: static !important;
     left: auto !important;
-    top: 0 !important;
+    top: auto !important;
+    bottom: auto !important;
     transform: none !important;
     animation: none !important;
-    z-index: 1000 !important;
-    width: 100% !important;
-    height: 62px !important;
+    z-index: auto !important;
+    width: 0 !important;
+    height: 0 !important;
     max-height: none !important;
-    padding: 9px 12px !important;
-    border: 0 !important;
-    border-bottom: 1px solid rgba(203,166,106,.22) !important;
-    border-radius: 0 !important;
-    background: rgba(5,14,26,.90) !important;
-    backdrop-filter: blur(20px) saturate(1.2) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,.22) !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 8px !important;
-    overflow: visible !important;
-  }
-  .qd-brand {
-    width: auto !important;
-    flex: 1 !important;
     padding: 0 !important;
     border: 0 !important;
-    justify-content: flex-start !important;
-    gap: 8px !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    display: block !important;
+    overflow: visible !important;
   }
-  .qd-brand > div:last-child { display: block !important; }
-  .qd-brand-title { display: block !important; font-size: 17px !important; letter-spacing: .07em !important; }
-  .qd-brand-sub { display: none !important; }
-  .qd-laurel { width: 35px !important; height: 35px !important; flex: 0 0 35px !important; font-size: 16px !important; }
-  .qd-logout {
-    position: static !important;
-    width: auto !important;
-    height: 36px !important;
-    margin: 0 !important;
-    padding: 0 11px !important;
-    display: flex !important;
-    align-items: center !important;
-    font-size: 11px !important;
-    border-radius: 10px !important;
-  }
-  .qd-logout::before { display: none !important; }
+  .qd-brand,
+  .qd-sidebar-quote,
+  .qd-logout { display: none !important; }
 
   /* Existing desktop navigator becomes a native-style bottom tab bar */
   .qd-sidebar .qd-nav {
@@ -237,13 +212,13 @@ code {
   .qd-main {
     margin-left: 0 !important;
     width: 100% !important;
-    padding: 14px 11px calc(106px + env(safe-area-inset-bottom)) !important;
+    padding: 0 0 calc(106px + env(safe-area-inset-bottom)) !important;
   }
-  .qd-topbar { display: block !important; margin: 0 0 12px !important; padding: 0 !important; }
-  .qd-greeting-kicker { font-size: 9px !important; letter-spacing: .16em !important; }
-  .qd-greeting { font-size: 27px !important; line-height: 1 !important; margin-top: 5px !important; }
-  .qd-greeting-sub { font-size: 15px !important; line-height: 1.25 !important; margin-top: 6px !important; max-width: 94% !important; }
-  .qd-topmeta { display: none !important; }
+  .qd-topbar { position: absolute !important; inset: 0 !important; display: block !important; margin: 0 !important; padding: 0 !important; }
+  .qd-greeting-kicker { font-size: 8px !important; line-height: 1.55 !important; letter-spacing: .015em !important; }
+  .qd-greeting { font-size: 20px !important; line-height: 1.35 !important; margin-top: 1px !important; }
+  .qd-greeting-sub { font-size: 16px !important; line-height: .92 !important; margin-top: 3px !important; max-width: 130px !important; }
+  .qd-topmeta { display: flex !important; }
 
   /* Phone cards */
   .qd-panel,
