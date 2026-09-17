@@ -1338,7 +1338,7 @@ const PIXEL_CSS = `
   .qd-side-stack{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.qd-quest-grid{grid-template-columns:1fr}
 }
 @media(max-width:640px){
-  .qd-root{font-size:19px;padding-bottom:82px}.qd-shell{padding:0 9px 18px}.qd-main{gap:14px;padding:9px 0 62px}
+  .qd-root{font-size:19px;padding-bottom:82px}.qd-shell{padding:0 13px 18px}.qd-main{gap:14px;padding:9px 0 62px}
   .qd-scene{min-height:430px;border-width:3px;outline-width:1px;background-position:45% center}
   .qd-topbar{padding:20px 16px;gap:10px;flex-direction:column}.qd-scene-copy{padding:11px 12px;max-width:86%}
   .qd-greeting-kicker{font-size:9px}.qd-greeting{font-size:25px}.qd-greeting-sub{font-size:21px;max-width:220px}
@@ -1366,10 +1366,10 @@ const PIXEL_CSS = `
 @media(max-width:640px){
   .qd-main{padding-top:0}
   .qd-scene{
-    width:calc(100% + 18px);
+    width:calc(100% + 26px);
     height:clamp(318px,84vw,350px);
     min-height:0;
-    margin:0 -9px;
+    margin:0 -13px -1px;
     border:0;
     outline:0;
     box-shadow:none;
@@ -1379,7 +1379,9 @@ const PIXEL_CSS = `
   }
   .qd-scene::after{
     z-index:1;
-    background:linear-gradient(180deg,rgba(1,16,34,.16) 0%,transparent 42%,rgba(2,21,27,.08) 76%,rgba(4,24,29,.32) 100%);
+    background:
+      linear-gradient(180deg,transparent 88%,rgba(10,40,51,.52) 96%,#0a2833 100%),
+      linear-gradient(180deg,rgba(1,16,34,.16) 0%,transparent 42%,rgba(2,21,27,.08) 76%,rgba(4,24,29,.24) 100%);
     box-shadow:none;
   }
   .qd-topbar{position:absolute;inset:0;display:block;margin:0;padding:0}
@@ -1426,7 +1428,7 @@ const PIXEL_CSS = `
     bottom:5px;
     height:auto;
     aspect-ratio:1043 / 126;
-    grid-template-columns:43px minmax(0,1fr) 71px;
+    grid-template-columns:43px minmax(0,1fr) 84px;
     gap:8px;
     padding:9px 15px;
     border:0;
@@ -1463,7 +1465,10 @@ const PIXEL_CSS = `
     margin:0;
     padding:0;
     text-align:right;
-    font-size:8px;
+    max-width:100%;
+    overflow:hidden;
+    font-size:clamp(6px,1.75vw,7px);
+    letter-spacing:-.02em;
     line-height:1.2;
     white-space:nowrap;
   }
