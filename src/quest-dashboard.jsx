@@ -1423,33 +1423,50 @@ const PIXEL_CSS = `
   .qd-level-card{
     left:8.5%;
     right:8.5%;
-    bottom:7px;
-    height:38px;
-    grid-template-columns:46px minmax(0,1fr) 68px;
-    gap:6px;
-    padding:5px 7px;
-    border:3px solid #422b23;
-    outline:2px solid #071927;
-    background:linear-gradient(180deg,#784a32,#482b23);
-    box-shadow:inset 0 0 0 2px #a8643d,inset 0 0 0 4px rgba(52,28,24,.36),0 4px 0 rgba(2,15,22,.7);
+    bottom:5px;
+    height:auto;
+    aspect-ratio:1043 / 126;
+    grid-template-columns:43px minmax(0,1fr) 71px;
+    gap:8px;
+    padding:9px 15px;
+    border:0;
+    outline:0;
+    background:url('/xp-frame-mobile.png') center / 100% 100% no-repeat;
+    box-shadow:none;
+    image-rendering:pixelated;
   }
-  .qd-level-card::before{
-    content:"";
-    position:absolute;
-    z-index:0;
-    left:59px;
-    right:6px;
-    top:6px;
-    bottom:6px;
-    border:2px solid #1c1718;
-    background:#1d2932;
-    box-shadow:inset 0 2px 0 rgba(0,0,0,.34);
-  }
+  .qd-level-card::before{display:none}
   .qd-level-card>*{position:relative;z-index:1}
-  .qd-level-badge{height:24px;padding:5px 3px;border:2px solid #18141a;font-size:7px;text-align:center}
-  .qd-level-track{height:13px;padding:1px;border:2px solid #201d22;background:#132630}
-  .qd-level-fill{border-top-width:2px;box-shadow:0 0 7px rgba(111,224,92,.42)}
-  .qd-level-value{grid-column:auto;margin:0;padding-right:1px;text-align:right;font-size:7px;line-height:1.35;white-space:nowrap}
+  .qd-level-badge{
+    height:22px;
+    padding:5px 3px;
+    border:2px solid #171519;
+    background:#24232b;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.035);
+    font-size:8px;
+    text-align:center;
+  }
+  .qd-level-track{
+    height:13px;
+    padding:1px;
+    border:2px solid #17191d;
+    background:#112733;
+    box-shadow:inset 0 2px 0 rgba(0,0,0,.42);
+  }
+  .qd-level-fill{
+    border-top:2px solid #c4ff9d;
+    background:linear-gradient(180deg,#9aee73 0 42%,#58bd55 43% 100%);
+    box-shadow:inset -2px 0 0 #3c9446,0 0 7px rgba(111,224,92,.42);
+  }
+  .qd-level-value{
+    grid-column:auto;
+    margin:0;
+    padding:0;
+    text-align:right;
+    font-size:8px;
+    line-height:1.2;
+    white-space:nowrap;
+  }
 }
 `;
 
