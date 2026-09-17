@@ -63,70 +63,75 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <main className="pixel-login">
-      <div className="pixel-login__stars" aria-hidden="true" />
-      <div className="pixel-login__cloud pixel-login__cloud--one" aria-hidden="true" />
-      <div className="pixel-login__cloud pixel-login__cloud--two" aria-hidden="true" />
-
-      <div className="pixel-login__world" aria-hidden="true">
-        <div className="pixel-login__hill" />
-        <div className="pixel-tree">
-          <div className="pixel-tree__trunk" />
-          <div className="pixel-tree__crown" />
-        </div>
-
-        <div className="pixel-house">
-          <div className="pixel-house__roof" />
-          <div className="pixel-house__chimney" />
-          <div className="pixel-smoke" />
-          <div className="pixel-house__window pixel-house__window--left" />
-          <div className="pixel-house__window pixel-house__window--right" />
-          <div className="pixel-house__door" />
-        </div>
-
-        <div className="pixel-farm">
-          {[0, 1, 2, 3].map((plot) => (
-            <div className="pixel-plot" key={plot}>
-              <div className="pixel-sprout" />
-            </div>
-          ))}
-        </div>
-        <div className="pixel-login__ground" />
+    <main className={`pixel-login ${feedback === "success" ? "is-leaving" : ""}`}>
+      <div className="pixel-sky" aria-hidden="true">
+        <div className="pixel-stars" />
+        <div className="pixel-moon" />
+        <div className="pixel-cloud pixel-cloud--one" />
+        <div className="pixel-cloud pixel-cloud--two" />
       </div>
 
       <section className="login-shell" aria-label="Quest login">
         <header className="login-brand">
-          <div className="login-brand__eyebrow">YOUR LITTLE WORLD</div>
-          <h1 className="login-brand__title">QUEST</h1>
-          <p className="login-brand__subtitle">
-            Small steps grow into something beautiful.
+          <div className="login-brand__mark">QUEST</div>
+          <h1>{isSignUp ? "START YOUR FARM" : "WELCOME BACK"}</h1>
+          <p>
+            {isSignUp
+              ? "Plant the first seed. Your little world starts here."
+              : "Small steps, a brighter tomorrow."}
           </p>
         </header>
 
+        <div className="pixel-world" aria-hidden="true">
+          <div className="pixel-world__back-hill" />
+          <div className="pixel-world__far-trees" />
+          <div className="pixel-fence" />
+
+          <div className="pixel-tree">
+            <span className="pixel-tree__trunk" />
+            <span className="pixel-tree__leaf pixel-tree__leaf--a" />
+            <span className="pixel-tree__leaf pixel-tree__leaf--b" />
+            <span className="pixel-tree__leaf pixel-tree__leaf--c" />
+          </div>
+
+          <div className="pixel-house">
+            <span className="pixel-house__chimney" />
+            <span className="pixel-smoke pixel-smoke--one" />
+            <span className="pixel-smoke pixel-smoke--two" />
+            <span className="pixel-house__roof" />
+            <span className="pixel-house__body" />
+            <span className="pixel-house__window pixel-house__window--left" />
+            <span className="pixel-house__window pixel-house__window--right" />
+            <span className="pixel-house__door" />
+          </div>
+
+          <div className="pixel-garden">
+            {[0, 1, 2, 3].map((plot) => (
+              <div className={`pixel-plot pixel-plot--${plot + 1}`} key={plot}>
+                <span className="pixel-crop" />
+              </div>
+            ))}
+          </div>
+
+          <div className="pixel-campfire">
+            <span className="pixel-campfire__log pixel-campfire__log--a" />
+            <span className="pixel-campfire__log pixel-campfire__log--b" />
+            <span className="pixel-campfire__flame" />
+          </div>
+
+          <div className="pixel-world__grass" />
+        </div>
+
         <form
-          className={`login-card ${feedback === "error" ? "is-error" : ""} ${
-            feedback === "success" ? "is-success" : ""
-          }`}
+          className={`login-form ${feedback === "error" ? "is-error" : ""}`}
           onSubmit={handleSubmit}
         >
-          <div className="login-sparkles" aria-hidden="true" />
-
-          <h2 className="login-card__heading">
-            {isSignUp ? "PLANT YOUR FIRST SEED" : "WELCOME BACK"}
-          </h2>
-          <p className="login-card__copy">
-            {isSignUp
-              ? "Create your account and start growing your days."
-              : "Your farm has been waiting for you."}
-          </p>
-
           <label className="login-field">
-            <span className="login-field__label">Email</span>
+            <span>Email</span>
             <input
-              className="login-field__input"
               type="email"
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -134,12 +139,11 @@ export default function Login({ onLogin }) {
           </label>
 
           <label className="login-field">
-            <span className="login-field__label">Password</span>
+            <span>Password</span>
             <input
-              className="login-field__input"
               type="password"
               autoComplete={isSignUp ? "new-password" : "current-password"}
-              placeholder="••••••••"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -147,31 +151,19 @@ export default function Login({ onLogin }) {
           </label>
 
           {message && (
-            <p
-              className="login-error"
-              role={messageKind === "error" ? "alert" : "status"}
-            >
+            <p className={`login-message login-message--${messageKind}`} role={messageKind === "error" ? "alert" : "status"}>
               {message}
             </p>
           )}
 
           <button className="login-primary" type="submit" disabled={loading}>
-            {loading
-              ? "LOADING..."
-              : isSignUp
-              ? "CREATE FARM"
-              : "ENTER QUEST"}
+            <span>{loading ? "LOADING..." : isSignUp ? "CREATE FARM" : "LOG IN"}</span>
+            {!loading && <b aria-hidden="true">›</b>}
           </button>
 
           <button className="login-secondary" type="button" onClick={toggleMode}>
-            {isSignUp
-              ? "Already have a farm? Log in"
-              : "New here? Start your farm"}
+            {isSignUp ? "Already have a farm? Log in" : "New here? Start your farm"}
           </button>
-
-          <div className="login-footer-note">
-            GROW FOCUS · GROW YOUR WORLD
-          </div>
         </form>
       </section>
     </main>
