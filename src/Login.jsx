@@ -18,23 +18,35 @@ export default function Login({ onLogin }) {
 
   useEffect(() => {
     let cancelled = false;
+    let objectUrl = "";
 
-    fetch("/quest-farm-hero.b64.txt")
-      .then((response) => {
+    const loadFarmArt = async () => {
+      try {
+        const response = await fetch("/quest-farm-hero.b64.txt", { cache: "force-cache" });
         if (!response.ok) throw new Error("Farm artwork could not be loaded.");
-        return response.text();
-      })
-      .then((base64) => {
-        if (!cancelled) {
-          setFarmArt(`data:image/webp;base64,${base64.trim()}`);
+
+        const encoded = (await response.text()).replace(/\s/g, "");
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
         }
-      })
-      .catch((error) => {
-        console.warn(error);
-      });
+
+        const blob = new Blob([bytes], { type: "image/webp" });
+        objectUrl = URL.createObjectURL(blob);
+
+        if (!cancelled) setFarmArt(objectUrl);
+      } catch (error) {
+        console.warn("Quest farm art failed to load:", error);
+      }
+    };
+
+    void loadFarmArt();
 
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, []);
 
