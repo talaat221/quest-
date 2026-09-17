@@ -817,7 +817,7 @@ const DEFAULT_STATE = {
 // ======================================================
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Inter:wght@400;500;600;700&display=swap');
 
 html,body,#root{margin:0!important;padding:0!important;width:100%!important;max-width:none!important;min-width:0!important;}
 html{scroll-behavior:smooth;}
@@ -1222,6 +1222,140 @@ body{overflow-x:clip;-webkit-text-size-adjust:100%;}
 @media(max-width:900px){.qd-task-edit-row{grid-template-columns:minmax(0,1fr) 74px}.qd-task-edit-actions{grid-column:1/-1;justify-content:flex-end}.qd-task-edit-row>select{grid-column:1/-1}}
 @media(max-width:520px){.qd-task-edit-row{display:flex;flex-direction:column;align-items:stretch}.qd-task-date-edit{display:grid;grid-template-columns:1fr auto auto}.qd-task-edit-actions{width:100%;justify-content:stretch}.qd-task-edit-actions button{flex:1}.qd-task-edit-btn{padding:5px 7px}.qd-xp-caption{font-size:9px}.qd-estimate-field{width:100%}.qd-estimate-field input{width:100%!important;flex:1!important}.qd-completion-card{padding:20px 16px}.qd-completion-actions{flex-direction:column-reverse}.qd-completion-actions button{width:100%}}
 @media(max-width:640px){.qd-voyage-adjust-bar{margin-bottom:12px;padding:10px}.qd-voyage-adjust-actions{width:100%}.qd-voyage-adjust-actions button{flex:1}.qd-safe-harbor-banner{margin:-2px 0 12px;padding:12px;gap:9px}.qd-safe-harbor-icon{font-size:23px}.qd-safe-harbor-title{font-size:11px}.qd-safe-harbor-text{font-size:14px}.qd-voyage-modal{padding:20px 14px}.qd-voyage-modal-title{font-size:20px}.qd-voyage-mode-grid{grid-template-columns:1fr}.qd-voyage-preview-top{grid-template-columns:1fr}.qd-voyage-arrow{transform:rotate(90deg)}.qd-voyage-capacity{grid-template-columns:repeat(3,1fr)}.qd-anchor-choice-grid{grid-template-columns:1fr}.qd-voyage-modal-actions{flex-direction:column-reverse}.qd-voyage-modal-actions button{width:100%}.qd-voyage-move{grid-template-columns:1fr}.qd-voyage-move span{white-space:normal}}
+`;
+
+const PIXEL_CSS = `
+.qd-root{
+  --bg:#061b25;--panel:#082237;--panel-2:#0b2b43;--line:#40627b;
+  --line-soft:rgba(91,139,169,.28);--gold:#ffb552;--gold-bright:#ffd17c;
+  --purple:#75bde8;--purple-2:#a9daf5;--blue:#79b9dd;--text:#f5f1df;
+  --dim:#a9c4d5;--red:#e87a66;--green:#8be36f;
+  font-family:'VT323',monospace;font-size:20px;letter-spacing:.02em;
+  background:radial-gradient(circle at 15% 10%,rgba(17,86,83,.34),transparent 34%),linear-gradient(180deg,#061a2c 0%,#073038 56%,#082d2e 100%);
+  padding-bottom:96px;
+}
+.qd-root::before{position:fixed;background:linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),radial-gradient(circle at 50% 0,rgba(14,82,99,.24),transparent 60%);background-size:4px 4px,4px 4px,auto;opacity:1}
+.qd-root::after{background:linear-gradient(180deg,transparent 0%,rgba(1,15,23,.2) 62%,rgba(1,15,23,.55) 100%);mix-blend-mode:normal}
+.qd-root button,.qd-root input,.qd-root select,.qd-root textarea{font-family:'VT323',monospace;font-size:18px}
+.qd-shell{max-width:1240px;padding:0 18px 42px}
+.qd-main{margin-left:0;padding:24px 0 74px;display:flex;flex-direction:column;gap:18px}
+
+.qd-scene{min-height:420px;position:relative;overflow:hidden;border:4px solid #132a38;outline:2px solid #55788d;box-shadow:0 0 0 5px #071927,0 20px 45px rgba(0,0,0,.38);background-image:linear-gradient(180deg,rgba(2,18,36,.12) 0%,rgba(2,20,30,.05) 53%,rgba(4,24,30,.62) 100%),url('/pixel-garden-hero.webp');background-position:center;background-size:cover;image-rendering:pixelated}
+.qd-scene::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 70px rgba(1,9,18,.42)}
+.qd-topbar{position:relative;z-index:2;margin:0;padding:34px 38px;align-items:flex-start}
+.qd-scene-copy{padding:16px 18px;background:linear-gradient(90deg,rgba(3,20,36,.84),rgba(3,20,36,.25),transparent);text-shadow:3px 3px 0 #061522}
+.qd-greeting-kicker{font-family:'Press Start 2P',monospace;font-size:12px;line-height:1.7;color:#f6f2e5;letter-spacing:.04em}
+.qd-greeting{font-family:'Press Start 2P',monospace;font-size:clamp(25px,4vw,44px);line-height:1.3;letter-spacing:.03em;margin-top:6px;color:#fff}
+.qd-greeting span{font-size:.65em;text-shadow:none}
+.qd-greeting-sub{font-family:'VT323',monospace;font-style:normal;font-size:24px;line-height:1.05;color:#edf5f4;max-width:270px;margin-top:7px}
+.qd-topmeta{max-width:310px}
+.qd-meta-pill{border-radius:0;padding:14px 16px;border:3px solid #6d3f2a;outline:2px solid #25191a;background:linear-gradient(180deg,#75432c,#4c2d24);box-shadow:inset 0 0 0 2px rgba(255,184,95,.16),4px 5px 0 rgba(3,13,21,.6);color:#ffd586;font-family:'Press Start 2P',monospace;font-size:11px;line-height:1.6;text-transform:uppercase}
+.qd-date-card span{margin-right:8px;color:#ffb45c}
+.qd-level-card{position:absolute;z-index:3;left:8%;right:8%;bottom:20px;display:grid;grid-template-columns:auto minmax(120px,1fr) auto;gap:16px;align-items:center;padding:15px 20px;border:4px solid #422c24;outline:3px solid #071927;background:linear-gradient(180deg,#6c412c,#3b2925);box-shadow:inset 0 0 0 2px #a35f38,0 8px 0 rgba(2,15,22,.7);font-family:'Press Start 2P',monospace}
+.qd-level-badge{padding:8px 12px;background:#1e2430;color:#fff;border:2px solid #18141a;font-size:13px;white-space:nowrap}
+.qd-level-track{height:24px;padding:3px;background:#122738;border:3px solid #201d22;box-shadow:inset 0 3px 0 rgba(0,0,0,.4)}
+.qd-level-fill{height:100%;min-width:3px;background:linear-gradient(180deg,#99ed73,#4ba94d);border-top:3px solid #c0ff91;box-shadow:0 0 12px rgba(111,224,92,.35)}
+.qd-level-value{font-size:12px;color:#fff0cf;white-space:nowrap}
+
+.qd-panel,.qd-quest,.qd-voyage-adjust-bar,.qd-safe-harbor-banner,.qd-reset-card{border:3px solid #142b3b;outline:2px solid #4e7188;background:linear-gradient(180deg,rgba(8,37,59,.97),rgba(5,27,45,.98));box-shadow:inset 0 0 0 2px rgba(112,168,198,.08),5px 7px 0 rgba(2,15,23,.62);border-radius:0}
+.qd-panel::before{inset:5px;border:1px solid rgba(124,177,207,.14)}
+.qd-panel-head{padding:18px 20px 10px;border-bottom:2px solid rgba(76,115,139,.28)}
+.qd-panel-title,.qd-section h2,.qd-reset-title{font-family:'Press Start 2P',monospace;font-size:14px;line-height:1.55;letter-spacing:0;color:#fff8e6;text-shadow:2px 2px 0 #06141f}
+.qd-panel-sub,.qd-section-tag{font-family:'VT323',monospace;font-style:normal;font-size:19px;line-height:1.1;color:#9fc1d4}
+.qd-dim{color:#9fc1d4}
+.qd-dashboard-grid{grid-template-columns:minmax(380px,1.08fr) minmax(320px,.92fr);gap:20px}
+.qd-lower-grid{grid-template-columns:minmax(300px,1.08fr) minmax(300px,1fr) minmax(320px,.92fr);gap:20px;margin-top:2px}
+.qd-side-stack{gap:20px}
+
+.qd-voyage-adjust-bar{margin:0;padding:16px 18px;background:linear-gradient(180deg,#9b513c,#6d3d31);outline-color:#d07b4d;border-color:#3e2926;box-shadow:inset 0 0 0 2px rgba(255,189,124,.17),5px 7px 0 rgba(2,15,23,.62)}
+.qd-voyage-adjust-title{font-family:'Press Start 2P',monospace;font-size:12px;color:#fff3dd}
+.qd-voyage-adjust-sub{font-family:'VT323',monospace;font-size:19px;color:#f5d8c4}
+.qd-voyage-adjust-btn,.qd-voyage-restore-btn{border:2px solid #4c3028!important;border-radius:0!important;background:#fff1df!important;color:#603829!important;padding:10px 14px!important;font-family:'Press Start 2P',monospace!important;font-size:9px!important;line-height:1.5!important;box-shadow:3px 3px 0 rgba(53,30,26,.55)}
+.qd-voyage-status{font-family:'VT323',monospace;font-size:18px}
+
+.qd-clock{background:radial-gradient(circle at 50% 40%,rgba(28,85,104,.55),rgba(5,27,45,.98) 70%);padding:14px 18px 18px}
+.qd-clock-nav{font-family:'Press Start 2P',monospace;font-size:10px;color:#eef8f5}
+.qd-clock-nav button{border-radius:0;border:2px solid #476c85;background:#0a2a43;color:#ffd071;box-shadow:2px 2px 0 #04151f}
+.qd-clock-outer{stroke:#79aac5;stroke-width:3}.qd-clock-ring{stroke:rgba(101,166,199,.48)}
+.qd-clock-ring-purple{stroke:#f0b85d;filter:drop-shadow(0 0 4px rgba(240,184,93,.45))}
+.qd-clock-tick.major,.qd-clock-hand{stroke:#ffd071}.qd-clock-center{fill:#82d66c;stroke:#c1fa97}
+.qd-clock-time{font-family:'Press Start 2P',monospace;font-size:25px}
+.qd-clock-date,.qd-clock-hour-small{font-family:'VT323',monospace;font-size:12px}
+.qd-clock-item,.qd-machine,.qd-anchor{border:2px solid rgba(67,105,130,.45);background:#0b2b43}
+.qd-clock-item{font-size:17px;padding:9px 11px}.qd-clock-item-time,.qd-clock-item-xp{font-size:15px}
+.qd-voyage-stage,.qd-anchor-category,.qd-anchor-frequency,.qd-task-harbor-tag{border-radius:0}
+.qd-voyage-stage{font-family:'VT323',monospace;font-size:17px;color:#9fe384;border-color:#4c7d68;background:#0c3a3b}
+.qd-voyage-list{gap:13px}.qd-voyage-row{font-size:18px;grid-template-columns:28px minmax(120px,1fr) minmax(90px,1.2fr) 46px}
+.qd-voyage-num{border-radius:0;color:#ffd071;border:2px solid #5d7890;background:#0b2a41}
+.qd-voyage-bar,.qd-bar,.qd-xp-bar{height:12px;border:2px solid #13202a;background:#102838}
+.qd-voyage-fill,.qd-bar-fill,.qd-xp-fill{background:linear-gradient(180deg,#9be779,#4aa94e)!important;box-shadow:none}
+.qd-voyage-pct{font-size:16px;color:#a8c5d5}
+.qd-voyage-note{font-family:'VT323',monospace;font-style:normal;font-size:19px;color:#c6e0e9;background:#0b3046;border:2px solid #355d74}
+
+.qd-today-list{gap:7px;padding:12px 16px 18px}
+.qd-today-task{grid-template-columns:34px 1fr auto;padding:11px 10px;border:2px solid rgba(64,99,123,.35);background:linear-gradient(90deg,#0d304a,#0a2941)}
+.qd-today-check{width:28px;height:28px;border-radius:2px;border:3px solid #71a9c8;color:#fff;font-family:'Press Start 2P',monospace;font-size:11px}
+.qd-today-task.done .qd-today-check{background:#55b85c;border-color:#a7ed7d;box-shadow:inset 0 0 0 2px #2a7b43}
+.qd-today-name{font-family:'VT323',monospace;font-size:22px;line-height:1}.qd-today-sub,.qd-today-xp{font-size:17px}.qd-today-xp{color:#8be36f}
+.qd-anchors{gap:9px}.qd-anchor{padding:12px}
+.qd-anchor-head>span:first-child,.qd-machine-icon{border-radius:2px;background:#102e43;border:2px solid #4a6c82}
+.qd-anchor-title,.qd-machine-title{font-family:'Press Start 2P',monospace;font-size:10px;line-height:1.45;color:#fff4df}
+.qd-anchor-head .qd-dim,.qd-anchor-category,.qd-anchor-frequency{font-size:15px}
+.qd-dot{width:31px;height:31px;border-radius:2px;border:2px solid #45677e;background:#071f34;color:#9ab9cb;font-size:15px}
+.qd-dot.on{background:#59b85e;border-color:#a9eb82;box-shadow:inset 0 0 0 2px #2e7b47;color:white}
+.qd-anchor-actions button,.qd-quest-actions button{font-size:15px;border:2px solid #45677e;background:#0a2941;color:#b9d0dc}
+
+.qd-xp-card{padding:18px}.qd-xp-number{font-family:'Press Start 2P',monospace;font-size:16px;color:#9be779}
+.qd-xp-row-label{font-size:18px}.qd-xp-caption,.qd-reset-mini,.qd-machine-sub,.qd-machine-nums,.qd-reset-box{font-size:15px}
+.qd-machine{padding:13px}.qd-machine-title{font-size:9px}
+.qd-reel{font-family:'VT323',monospace;font-size:20px;background:#12364b;border:2px solid #45677e;color:#fff0d0}
+.qd-spin-btn{border:3px solid #274b35;background:linear-gradient(180deg,#8bdc66,#45964b);color:#071b22;font-family:'Press Start 2P',monospace;font-size:9px;padding:10px;box-shadow:3px 3px 0 #071923}
+.qd-chip{font-size:15px;border:2px solid #355b73;background:#0b2940}
+
+.qd-section{margin-top:5px}.qd-section-heading{margin-bottom:12px}.qd-quest-grid{gap:18px}.qd-quest{padding:18px}.qd-quest::before{width:6px;box-shadow:none}
+.qd-quest-title{font-family:'Press Start 2P',monospace;font-size:11px;line-height:1.5;color:#fff4df}
+.qd-quest-narrative{font-family:'VT323',monospace;font-size:19px;font-style:normal}
+.qd-quest-count,.qd-task-day,.qd-task-xp,.qd-flex-chip,.qd-time-chip{font-size:15px}.qd-task{font-size:18px;padding:9px 0}.qd-task button{font-size:16px}
+.qd-add-btn{font-size:18px;border:2px dashed #61849a;color:#b9d4df;background:rgba(9,39,59,.7)}
+.qd-anchor-edit input,.qd-anchor-edit select,.qd-add-task input,.qd-add-task select,.qd-add-row input,.qd-threshold-row input,.qd-reset-card select,.qd-voyage-field{border-radius:0;border:2px solid #45677e;background:#071f34;color:#f3f2e8}
+.qd-anchor-edit button,.qd-add-task button,.qd-add-row button{border-radius:0;background:#79cf61;border:2px solid #356f3e;color:#071b22;box-shadow:2px 2px 0 #061720}
+.qd-footer{font-family:'Press Start 2P',monospace;font-size:9px;color:#7fa7b8;letter-spacing:.08em}
+
+.qd-sidebar{position:fixed;z-index:100;left:50%;right:auto;top:auto;bottom:14px;transform:translateX(-50%);width:min(760px,calc(100vw - 28px));height:76px;padding:0;background:linear-gradient(180deg,rgba(8,38,60,.98),rgba(4,25,42,.99));border:3px solid #122a3b;outline:2px solid #52758b;border-radius:0;box-shadow:inset 0 0 0 2px rgba(108,161,190,.09),0 8px 24px rgba(0,0,0,.55);animation:none;display:grid;grid-template-columns:1fr auto;gap:0}
+.qd-brand,.qd-sidebar-quote{display:none}.qd-nav{display:grid;grid-template-columns:repeat(5,1fr);gap:0;height:100%;width:100%}
+.qd-nav a{width:auto;height:100%;border-radius:0;border-right:2px solid rgba(66,103,128,.24);display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;font-family:'VT323',monospace;font-size:17px;color:#b4cddd;padding:6px}
+.qd-nav a:hover{transform:none;background:#0e3b54}.qd-nav a.active{border-color:rgba(115,224,103,.42);background:linear-gradient(180deg,rgba(65,139,81,.26),rgba(7,31,48,.95));box-shadow:inset 0 4px 0 #83dd6d;color:#9bea79}
+.qd-nav a.active::before{display:none}.qd-nav-icon{font-family:'Press Start 2P','Segoe UI Emoji',sans-serif;font-size:19px;color:#8eb3cb;line-height:1}
+.qd-nav a.active .qd-nav-icon{color:#91e57b;text-shadow:0 0 8px rgba(117,224,100,.35)}
+.qd-logout{width:46px;height:100%;border-radius:0;border:0;border-left:2px solid rgba(66,103,128,.3);font-size:0;color:#91aabc}.qd-logout::before{font-size:20px}
+
+.qd-completion-card,.qd-voyage-modal,.qd-celebration{border-radius:0!important;border:3px solid #4e7188!important;background:linear-gradient(180deg,#0b2d47,#061d31)!important;box-shadow:0 0 0 4px #061723,12px 14px 0 rgba(0,0,0,.5)!important}
+.qd-completion-title,.qd-voyage-modal-title,.qd-celebration-title{font-family:'Press Start 2P',monospace!important;font-size:15px!important;line-height:1.6!important}
+
+@media(max-width:900px){
+  .qd-shell{padding:0 14px 28px}.qd-main{padding-top:14px}.qd-scene{min-height:390px}
+  .qd-dashboard-grid{grid-template-columns:1fr}.qd-lower-grid{grid-template-columns:1fr 1fr}
+  .qd-side-stack{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.qd-quest-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .qd-root{font-size:19px;padding-bottom:82px}.qd-shell{padding:0 9px 18px}.qd-main{gap:14px;padding:9px 0 62px}
+  .qd-scene{min-height:430px;border-width:3px;outline-width:1px;background-position:45% center}
+  .qd-topbar{padding:20px 16px;gap:10px;flex-direction:column}.qd-scene-copy{padding:11px 12px;max-width:86%}
+  .qd-greeting-kicker{font-size:9px}.qd-greeting{font-size:25px}.qd-greeting-sub{font-size:21px;max-width:220px}
+  .qd-topmeta{position:absolute;right:14px;top:18px;max-width:170px}.qd-meta-pill{padding:9px 10px;font-size:8px}
+  .qd-level-card{left:10px;right:10px;bottom:13px;grid-template-columns:auto 1fr;gap:9px;padding:10px 11px}
+  .qd-level-badge{font-size:9px;padding:7px 8px}.qd-level-track{height:19px}.qd-level-value{grid-column:1/-1;text-align:right;font-size:8px;margin-top:-3px}
+  .qd-panel,.qd-quest,.qd-voyage-adjust-bar,.qd-safe-harbor-banner,.qd-reset-card{border-width:2px;outline-width:1px;box-shadow:3px 5px 0 rgba(2,15,23,.62)}
+  .qd-dashboard-grid,.qd-lower-grid{display:flex;flex-direction:column;gap:14px;margin-top:0}
+  .qd-lower-grid .qd-anchor-panel{order:1}.qd-lower-grid .qd-today-panel{order:2}.qd-lower-grid .qd-side-stack{order:3;display:flex}
+  .qd-panel-head{padding:14px 14px 9px}.qd-panel-title,.qd-section h2,.qd-reset-title{font-size:11px}.qd-panel-sub{font-size:17px}
+  .qd-clock{padding:10px 8px 14px}.qd-clock-svg{width:min(100%,390px)}.qd-clock-list{max-height:240px}
+  .qd-voyage-list{padding:12px 12px 16px}.qd-voyage-row{grid-template-columns:24px minmax(90px,1fr) 80px 38px;font-size:16px;gap:6px}.qd-voyage-note{margin:0 12px}
+  .qd-today-list,.qd-anchors,.qd-machines{padding-left:10px;padding-right:10px}.qd-today-name{font-size:20px}.qd-today-sub,.qd-today-xp{font-size:15px}
+  .qd-anchor-week{justify-content:flex-start}.qd-dot{width:29px;height:29px}.qd-quest{padding:14px}
+  .qd-sidebar{bottom:7px;width:calc(100vw - 12px);height:68px;grid-template-columns:1fr}.qd-nav a{font-size:14px;gap:4px;padding:4px 1px}.qd-nav-icon{font-size:17px}.qd-logout{display:none}
+  .qd-voyage-adjust-bar{padding:13px;gap:10px}.qd-voyage-adjust-title{font-size:9px}.qd-voyage-adjust-sub{font-size:17px}.qd-voyage-adjust-actions{width:100%}.qd-voyage-adjust-actions button{width:100%}
+}
 `;
 
 
@@ -4323,6 +4457,8 @@ export default function QuestDashboard() {
       : today.getHours() < 18
       ? "GOOD AFTERNOON"
       : "GOOD EVENING";
+  const level = Math.max(1, Math.floor(wXP / 500) + 1);
+  const levelXP = wXP % 500;
 
   return (
     <div
@@ -4332,6 +4468,7 @@ export default function QuestDashboard() {
       }
     >
       <style>{CSS}</style>
+      <style>{PIXEL_CSS}</style>
 
       {celebration && (
         <CelebrationModal
@@ -4371,10 +4508,10 @@ export default function QuestDashboard() {
 
           <nav className="qd-nav" aria-label="Quick navigation">
             <a className={activeNav === "home" ? "active" : ""} href="#home" title="Home" aria-label="Home" onClick={() => setActiveNav("home")}><span className="qd-nav-icon">⌂</span><span>Home</span></a>
-            <a className={activeNav === "quests" ? "active" : ""} href="#quests" title="Quests" aria-label="Quests" onClick={() => setActiveNav("quests")}><span className="qd-nav-icon">⚔︎</span><span>Quests</span></a>
-            <a className={activeNav === "voyage" ? "active" : ""} href="#voyage" title="The Voyage" aria-label="The Voyage" onClick={() => setActiveNav("voyage")}><span className="qd-nav-icon">⛵︎</span><span>The Voyage</span></a>
-            <a className={activeNav === "anchors" ? "active" : ""} href="#anchors" title="Anchors" aria-label="Anchors" onClick={() => setActiveNav("anchors")}><span className="qd-nav-icon">⚓︎</span><span>Anchors</span></a>
-            <a className={activeNav === "rewards" ? "active" : ""} href="#rewards" title="Rewards" aria-label="Rewards" onClick={() => setActiveNav("rewards")}><span className="qd-nav-icon">🏺</span><span>Rewards</span></a>
+            <a className={activeNav === "quests" ? "active" : ""} href="#quests" title="Quests" aria-label="Quests" onClick={() => setActiveNav("quests")}><span className="qd-nav-icon">▣</span><span>Quests</span></a>
+            <a className={activeNav === "anchors" ? "active" : ""} href="#anchors" title="Anchors" aria-label="Anchors" onClick={() => setActiveNav("anchors")}><span className="qd-nav-icon">⚓</span><span>Anchors</span></a>
+            <a className={activeNav === "voyage" ? "active" : ""} href="#voyage" title="Stats" aria-label="Stats" onClick={() => setActiveNav("voyage")}><span className="qd-nav-icon">▥</span><span>Stats</span></a>
+            <a className={activeNav === "rewards" ? "active" : ""} href="#rewards" title="More" aria-label="More" onClick={() => setActiveNav("rewards")}><span className="qd-nav-icon">•••</span><span>More</span></a>
           </nav>
 
           <div className="qd-sidebar-quote">
@@ -4397,25 +4534,35 @@ export default function QuestDashboard() {
         </aside>
 
         <main className="qd-main" id="home">
-          <div className="qd-topbar">
-            <div>
-              <div className="qd-greeting-kicker">{greeting},</div>
-              <div className="qd-greeting">ODYSSEUS</div>
-              <div className="qd-greeting-sub">
-                {todayAdjustment?.mode === "harbor"
-                  ? "The ship is anchored. Today is allowed to be different."
-                  : todayAdjustment?.mode === "reduced"
-                  ? "The sails are lighter. Protect what matters and keep moving."
-                  : "The sea is calm, and so is your mind."}
+          <header className="qd-scene">
+            <div className="qd-topbar">
+              <div className="qd-scene-copy">
+                <div className="qd-greeting-kicker">{greeting},</div>
+                <div className="qd-greeting">TALAAT <span aria-hidden="true">🌱</span></div>
+                <div className="qd-greeting-sub">
+                  {todayAdjustment?.mode === "harbor"
+                    ? "Rest is part of the journey."
+                    : todayAdjustment?.mode === "reduced"
+                    ? "Small steps still move you forward."
+                    : "Small steps, a brighter tomorrow."}
+                </div>
+              </div>
+              <div className="qd-topmeta">
+                <div className="qd-meta-pill qd-date-card">
+                  <span aria-hidden="true">▣</span>
+                  {today.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                </div>
               </div>
             </div>
-            <div className="qd-topmeta">
-              <div className="qd-meta-pill">
-                {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+
+            <div className="qd-level-card" aria-label={`Level ${level}, ${levelXP} of 500 experience points`}>
+              <div className="qd-level-badge">LV {level}</div>
+              <div className="qd-level-track">
+                <div className="qd-level-fill" style={{ width: `${Math.min(100, (levelXP / 500) * 100)}%` }} />
               </div>
-              <div className="qd-meta-pill">XP <strong>{wXP}</strong></div>
+              <div className="qd-level-value">{levelXP} / 500 XP</div>
             </div>
-          </div>
+          </header>
 
           <div className="qd-voyage-adjust-bar">
             <div className="qd-voyage-adjust-copy">
