@@ -5,6 +5,20 @@ import { observeGardenVisibility } from '../src/garden-scene-motion.js';
 
 const scene = JSON.parse(readFileSync(new URL('../src/garden-scene-layers.json', import.meta.url)));
 const css = readFileSync(new URL('../src/garden-scene-motion.css', import.meta.url), 'utf8');
+const component = readFileSync(new URL('../src/GardenScene.jsx', import.meta.url), 'utf8');
+
+function keyframeBody(name) {
+  const start = css.indexOf(`@keyframes ${name} {`);
+  assert.ok(start >= 0, `missing keyframes: ${name}`);
+  const open = css.indexOf('{', start);
+  let depth = 1;
+  for (let index = open + 1; index < css.length; index++) {
+    if (css[index] === '{') depth++;
+    if (css[index] === '}') depth--;
+    if (depth === 0) return css.slice(open + 1, index);
+  }
+  assert.fail(`unclosed keyframes: ${name}`);
+}
 
 function environment(t, supportsIntersection = true) {
   const oldDocument = globalThis.document;
@@ -43,10 +57,10 @@ function environment(t, supportsIntersection = true) {
   };
 }
 
-test('only the four existing clouds, moon and wind sprite are animation targets', () => {
+test('only clouds, moon, wind and the leafy canopy are moving image layers', () => {
   const ids = [...css.matchAll(/data-scene-layer="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(new Set(ids), new Set([
-    '01-moon', '02-cloud-upper-left', '03-cloud-lower-left', '04-cloud-center', '05-cloud-right', '13-wind-leaves',
+    '01-moon', '02-cloud-upper-left', '03-cloud-lower-left', '04-cloud-center', '05-cloud-right', '08-tree-canopy', '13-wind-leaves',
   ]));
   ids.forEach(id => assert.ok(scene.layers.some(layer => layer.id === id)));
   assert.equal(scene.layers.filter(layer => layer.id.includes('-cloud-')).length, 4);
@@ -57,7 +71,7 @@ test('motion is mobile-only and opt-in to no reduced-motion preference', () => {
   const media = css.indexOf('@media (max-width: 640px) and (prefers-reduced-motion: no-preference)');
   assert.ok(media > 0);
   assert.equal(/animation\s*:/.test(css.slice(0, media)), false);
-  assert.equal((css.slice(media).match(/animation-play-state: var\(--garden-motion-state, paused\)/g) || []).length, 3);
+  assert.equal((css.slice(media).match(/animation-play-state: var\(--garden-motion-state, paused\)/g) || []).length, 5);
   assert.match(css, /0%, 100% \{ transform: translateX\(0\); \}/);
   assert.match(css, /0%, 100% \{ transform: translate\(0, 0\); \}/);
 });
@@ -77,7 +91,7 @@ test('clouds stay in the sky with their existing slow drift', () => {
 
 test('moon follows a visible but bounded arc away from the date card', () => {
   const moon = scene.layers.find(layer => layer.id === '01-moon');
-  const keyframes = css.slice(css.indexOf('@keyframes qd-garden-moon-float'), css.indexOf('@keyframes qd-garden-breeze'));
+  const keyframes = keyframeBody('qd-garden-moon-float');
   const offsets = [...keyframes.matchAll(/translate\((-?\d+)px, (-?\d+)px\)/g)]
     .map(([, x, y]) => [Number(x), Number(y)]);
   assert.equal(offsets.length, 3);
@@ -96,7 +110,7 @@ test('breeze reuses the existing leaves without changing the layer layout', () =
   const wind = scene.layers.find(layer => layer.id === '13-wind-leaves');
   assert.deepEqual([wind.x, wind.y, wind.width, wind.height], [410, 742, 117, 31]);
   assert.equal(wind.src, '/garden-scene/v1/13-wind-leaves.webp');
-  const keyframes = css.slice(css.indexOf('@keyframes qd-garden-breeze'), css.indexOf('@media'));
+  const keyframes = keyframeBody('qd-garden-breeze');
   const offsets = [...keyframes.matchAll(/translate\((-?\d+)px, (-?\d+)px\)/g)]
     .map(([, x, y]) => [Number(x), Number(y)]);
   assert.equal(offsets.length, 5);
@@ -109,8 +123,8 @@ test('breeze reuses the existing leaves without changing the layer layout', () =
   });
 });
 
-test('breeze fades before resetting and exposes a shared cycle for later plant sway', () => {
-  const keyframes = css.slice(css.indexOf('@keyframes qd-garden-breeze'), css.indexOf('@media'));
+test('breeze fades before resetting and exposes a shared cycle for plant sway', () => {
+  const keyframes = keyframeBody('qd-garden-breeze');
   assert.match(keyframes, /0%, 8%\s*\{[^}]*opacity: 0;/);
   assert.match(keyframes, /76%, 100%\s*\{[^}]*opacity: 0;/);
   assert.match(css, /--garden-breeze-duration: 14s/);
@@ -119,6 +133,53 @@ test('breeze fades before resetting and exposes a shared cycle for later plant s
   assert.match(css, /animation-delay: var\(--garden-breeze-delay\)/);
   const opacities = [...keyframes.matchAll(/opacity: ([\d.]+);/g)].map(([, value]) => Number(value));
   assert.ok(opacities.every(value => value >= 0 && value <= .8));
+});
+
+test('tree sway follows the gust cycle while the trunk and crops stay still', () => {
+  const canopy = scene.layers.find(layer => layer.id === '08-tree-canopy');
+  assert.deepEqual(canopy.pivot, [.5, .48]);
+  assert.match(css, /transform-box: fill-box;\s*transform-origin: 50% 48%/);
+  assert.match(css, /qd-garden-canopy-sway var\(--garden-breeze-duration\) ease-in-out infinite/);
+  assert.equal((css.match(/animation-delay: var\(--garden-breeze-delay\)/g) || []).length, 2);
+  const keyframes = keyframeBody('qd-garden-canopy-sway');
+  assert.match(keyframes, /0%, 8%, 100% \{ transform: rotate\(0deg\); \}/);
+  const angles = [...keyframes.matchAll(/rotate\((-?[\d.]+)deg\)/g)].map(([, value]) => Number(value));
+  assert.ok(angles.some(value => value > 0));
+  assert.ok(angles.some(value => value < 0));
+  assert.ok(angles.every(value => Math.abs(value) <= 1.3));
+  assert.doesNotMatch(css, /data-scene-layer="(?:06-tree-trunk|07-house|10-lantern|12-crop-[^"]+)"/);
+});
+
+test('flame stays clipped inside both glass panes without covering the metal frame', () => {
+  const lantern = scene.layers.find(layer => layer.id === '10-lantern');
+  assert.deepEqual([lantern.width, lantern.height], [31, 46]);
+  assert.match(component, /const flameClipId = useId\(\)/);
+  assert.match(component, /layer.id === '10-lantern'/);
+  assert.match(component, /<clipPath id=\{flameClipId\} clipPathUnits="userSpaceOnUse">/);
+  assert.match(component, /<g clipPath=\{`url\(#\$\{flameClipId\}\)`\}>/);
+  const clip = component.slice(component.indexOf('<clipPath'), component.indexOf('</clipPath>'));
+  const panes = [...clip.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)"/g)]
+    .map(match => match.slice(1).map(Number));
+  assert.deepEqual(panes, [[12, 27, 5, 12], [20, 27, 5, 12]]);
+  panes.forEach(([x, y, width, height]) => {
+    assert.ok(x > 10 && x + width < 27);
+    assert.ok(y >= 27 && y + height < 40);
+  });
+  assert.ok(panes[0][0] + panes[0][2] < panes[1][0], 'leave the center bar uncovered');
+});
+
+test('flame flicker is subtle, pauses with the scene and is absent in reduced motion', () => {
+  const keyframes = keyframeBody('qd-garden-flame-flicker');
+  const opacities = [...keyframes.matchAll(/opacity: ([\d.]+);/g)].map(([, value]) => Number(value));
+  assert.equal(opacities.length, 6);
+  assert.ok(opacities.every(value => value >= .5 && value <= .82));
+  const scales = [...keyframes.matchAll(/scaleY\(([\d.]+)\)/g)].map(([, value]) => Number(value));
+  assert.ok(scales.every(value => value >= .9 && value <= 1.1));
+  assert.match(css, /qd-garden-flame-flicker 3\.7s ease-in-out infinite/);
+  const media = css.indexOf('@media');
+  assert.match(css.slice(0, media), /data-scene-effect="lantern-flame"\]\s*\{\s*display: none;/);
+  assert.match(css.slice(media), /data-scene-effect="lantern-flame"\]\s*\{\s*display: block;/);
+  assert.doesNotMatch(css, /(?:filter|box-shadow)\s*:/);
 });
 
 test('pause and resume follow both intersection and tab visibility', (t) => {
