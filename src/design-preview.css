@@ -8,7 +8,7 @@
 .qd-design-preview .qd-sidebar,
 .qd-design-preview .qd-sync-ui,
 .qd-design-preview .qd-legacy-overlays,
-.qd-design-preview .qd-main > :not(.qd-scene):not(.qd-design-canvas) {
+.qd-design-preview .qd-main:not(.qd-main-anchors) > :not(.qd-scene):not(.qd-design-canvas) {
   display: none !important;
 }
 
@@ -22,7 +22,7 @@
   padding-bottom: 0 !important;
 }
 
-.qd-design-preview .qd-main {
+.qd-design-preview .qd-main:not(.qd-main-anchors) {
   min-height: 100svh;
   gap: 0 !important;
   padding-bottom: env(safe-area-inset-bottom, 0px) !important;
@@ -34,4 +34,11 @@
   flex: 1 0 auto;
   width: 100%;
   min-height: clamp(220px, 40svh, 440px);
+  padding-top: 2px;
+}
+
+@media (min-width: 641px) {
+  .qd-design-preview .qd-design-canvas {
+    padding-top: 12px;
+  }
 }

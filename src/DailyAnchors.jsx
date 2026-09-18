@@ -69,6 +69,15 @@ function PixelTaskIcon({ anchor }) {
       <path d="M8 20H10V23H13V25H18V26H12V24H9V22H8Z" fill="#cba16e" />
       <path d="M24 5H25V7H24ZM28 10H29V12H28ZM23 14H24V15H23Z" fill="#e4b876" />
     </>;
+  } else if (kind === "toothbrush") {
+    artwork = <>
+      <path d="M5 25H8V21H11V18H14V14H17V11H20V7H24V4H29V10H26V13H22V16H19V20H15V24H12V28H8V30H5Z" fill="#07192c" />
+      <path d="M6 25H9V21H12V18H15V14H18V11H21V8H24V11H22V14H19V18H16V22H13V26H10V29H6Z" fill="#469cbd" />
+      <path d="M6 26H8V23H11V20H14V16H17V13H20V10H22V12H20V15H18V18H15V22H12V25H9V28H6Z" fill="#8adddf" />
+      <path d="M21 7H24V4H28V9H25V12H22Z" fill="#c4e7e6" />
+      <path d="M24 5H25V9H24ZM27 4H28V7H27Z" fill="#f4f4d7" />
+      <path d="M25 9H28V10H25ZM22 11H25V12H22Z" fill="#649caf" />
+    </>;
   } else {
     return <span className="qd-daily-anchor-custom-icon" aria-hidden="true">{anchor.emoji || "🌱"}</span>;
   }
@@ -78,19 +87,28 @@ function PixelTaskIcon({ anchor }) {
 
 const statusLabels = { done: "Completed", paused: "Paused today", next: "Next up", pending: "Not completed" };
 
+// Two viewports place the generated artwork at the reference's exact card
+// proportions. The header ends at 65/287; the body remains free for live data.
+function AnchorsPanelArtwork() {
+  const picture = <image href="/daily-anchors/panel-v1.webp" width="2089" height="753" />;
+  return (
+    <svg className="qd-daily-anchors-frame" viewBox="0 0 795 287" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <svg width="795" height="65" viewBox="20 63 2050 173" preserveAspectRatio="none" overflow="hidden">{picture}</svg>
+      <svg y="65" width="795" height="222" viewBox="20 236 2050 433" preserveAspectRatio="none" overflow="hidden">{picture}</svg>
+    </svg>
+  );
+}
+
 export default function DailyAnchors({ anchors, resetHour = 0 }) {
   const headingId = useId();
   const items = getDailyAnchorTimeline(anchors, resetHour);
   return (
     <section className="qd-daily-anchors" aria-labelledby={headingId}>
-      <div className="qd-daily-anchors-heading">
-        <PixelAnchorSymbol className="qd-daily-anchors-symbol" />
-        <h2 id={headingId}>Today’s Anchors</h2>
-        <a className="qd-daily-anchors-view-all" href="#anchors" aria-label="View all daily anchors">
-          View All
-          <svg viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M2 1L7 6L2 11" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
-        </a>
-      </div>
+      <AnchorsPanelArtwork />
+      <h2 className="qd-anchor-sr-only" id={headingId}>Today’s Anchors</h2>
+      <a className="qd-daily-anchors-view-all" href="#anchors" aria-label="View all daily anchors">
+        <span className="qd-anchor-sr-only">View All</span>
+      </a>
       {items.length ? (
         <div className="qd-daily-anchors-scroll" tabIndex={items.length > 6 ? 0 : undefined} role={items.length > 6 ? "region" : undefined} aria-label={items.length > 6 ? "Today's anchors, scroll horizontally for more" : undefined}>
           <ol className="qd-daily-anchors-timeline" style={{ "--visible-anchors": Math.min(items.length, 6) }}>
@@ -99,7 +117,7 @@ export default function DailyAnchors({ anchors, resetHour = 0 }) {
                 <span className="qd-daily-anchor-time">{anchor.timeLabel}</span>
                 <PixelTaskIcon anchor={anchor} />
                 <span className="qd-daily-anchor-line" aria-hidden="true"><span className="qd-daily-anchor-node" /></span>
-                <span className="qd-daily-anchor-name">{anchor.name}</span>
+                <span className="qd-daily-anchor-name" title={anchor.name}>{anchor.name}</span>
                 <span className="qd-daily-anchor-status" role="img" aria-label={statusLabels[anchor.status]} title={statusLabels[anchor.status]}>
                   <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                     <circle cx="10" cy="10" r="8" />

@@ -3209,7 +3209,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [showAnchorPage, setShowAnchorPage] = useState(
     () => typeof window !== "undefined" && window.location.hash === "#anchors"
   );
-  const anchorPageVisible = showAnchorPage && !designPreview;
+  const anchorPageVisible = showAnchorPage;
 
   const rewardDetectionReady = useRef(false);
 
@@ -3223,7 +3223,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   }, []);
 
   useEffect(() => {
-    if (!loaded || designPreview) return;
+    if (!loaded) return;
+    if (designPreview) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
     const target = showAnchorPage ? "anchors" : window.location.hash.slice(1) || "home";
     document.getElementById(target)?.scrollIntoView({ block: "start", behavior: "auto" });
   }, [showAnchorPage, loaded, designPreview]);
@@ -4821,9 +4825,13 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             </div>
           </header>
 
-          {designPreview && <div className="qd-design-canvas" />}
-
-          <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
+          {designPreview ? (
+            <div className="qd-design-canvas">
+              <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
+            </div>
+          ) : (
+            <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
+          )}
 
           <div className="qd-voyage-adjust-bar">
             <div className="qd-voyage-adjust-copy">

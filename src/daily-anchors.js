@@ -30,6 +30,7 @@ export function getDailyAnchorTimeline(anchors, resetHour = 0) {
 export function getAnchorIcon(anchor) {
   const name = String(anchor.name || "").toLowerCase();
   const emoji = anchor.emoji || "";
+  if (/brush|teeth|tooth|dental/.test(name) || /🪥|🦷/.test(emoji)) return "toothbrush";
   if (/gym|workout|exercise|fitness|lift/.test(name) || /💪|🏋|🏃/.test(emoji)) return "gym";
   if (/french|anki|language|flashcard/.test(name) || /🇫🇷/.test(emoji)) return "purple-book";
   if (/sleep|bed|rest/.test(name) || /🌙|😴|🛌/.test(emoji)) return "moon";
