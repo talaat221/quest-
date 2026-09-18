@@ -1,0 +1,121 @@
+/* Reference: 510 × 470 card, 20 px below the 795 px-wide anchors panel.
+   Artwork provides the frame/header. The list, checks and XP stay live. */
+.qd-home-quests-row {
+  display: grid;
+  grid-template-columns: minmax(0, 510fr) minmax(0, 275fr);
+  column-gap: 1.25786%;
+  width: 100%;
+  max-width: 795px;
+  margin: min(2.51572%, 20px) auto 0;
+}
+
+.qd-root .qd-today-quests {
+  position: relative;
+  container-type: inline-size;
+  isolation: isolate;
+  min-width: 0;
+  width: 100%;
+  aspect-ratio: 510 / 470;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  color: #e1edf8;
+  font-family: 'VT323', monospace;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: .015em;
+}
+
+.qd-today-quests-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.qd-root a.qd-today-quests-view-all {
+  position: absolute;
+  z-index: 2;
+  right: 3%;
+  bottom: 86.17%;
+  width: 25%;
+  height: 13.83%;
+  min-height: 32px;
+  min-width: 44px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
+.qd-today-quests-body {
+  position: absolute;
+  inset: 15.74468% 3.92157% 2.55319%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  scroll-snap-type: y proximity;
+}
+.qd-today-quests-body::-webkit-scrollbar { display: none; }
+.qd-today-quests-list { display: grid; gap: 1.17647cqw; margin: 0; padding: 0; list-style: none; }
+.qd-quest-row { min-width: 0; margin: 0; padding: 0; scroll-snap-align: start; }
+
+.qd-root .qd-quest-row-toggle {
+  display: grid;
+  grid-template-columns: 5.88235cqw 8.23529cqw minmax(0, 1fr) 14.11765cqw;
+  align-items: center;
+  gap: 3.52941cqw;
+  box-sizing: border-box;
+  width: 100%;
+  height: 14.11765cqw;
+  min-height: 0;
+  padding: 1.17647cqw 2.7451cqw;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  appearance: none;
+  background: url('/today-quests/row-v1.svg') center / 100% 100% no-repeat;
+  box-shadow: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 4.31373cqw;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.qd-quest-row-check { width: 100%; height: auto; overflow: visible; }
+.qd-quest-check-box { fill: #10263a; stroke: #779bb6; stroke-width: 2; }
+.qd-quest-check-tick { fill: none; stroke: #f1ffdf; stroke-width: 3; stroke-linecap: square; stroke-linejoin: miter; }
+.is-complete .qd-quest-check-box { fill: #559e4a; stroke: #a6d87b; }
+.qd-today-quests .qd-daily-anchor-art { width: 100%; height: 8.23529cqw; max-height: none; }
+.qd-today-quests .qd-daily-anchor-custom-icon { display: block; font-size: 6.66667cqw; line-height: 1; text-align: center; }
+.qd-quest-row-copy { display: grid; gap: .78431cqw; min-width: 0; }
+.qd-quest-row-name, .qd-quest-row-detail { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.qd-quest-row-name { font-size: 4.31373cqw; line-height: 1; color: #e4edf7; }
+.qd-quest-row-detail { font-size: 3.52941cqw; line-height: 1; color: #9ebed4; }
+.qd-quest-row-xp { min-width: 0; font-size: calc(3.92157cqw * var(--xp-fit, 1)); line-height: 1; color: #a0e574; text-align: right; white-space: nowrap; }
+.qd-quest-row.is-paused .qd-quest-row-copy, .qd-quest-row.is-paused .qd-quest-row-xp { opacity: .65; }
+.qd-quest-row-toggle:focus-visible, .qd-today-quests-view-all:focus-visible, .qd-today-quests-body:focus-visible { outline: 2px solid #ffd07a; outline-offset: -3px; }
+.qd-quest-row-toggle:active { filter: brightness(1.15); }
+.qd-today-quests-empty { margin: 20% 5% 0; font-size: 4.3cqw; line-height: 1.3; text-align: center; }
+.qd-today-quests-empty span { display: block; margin-top: 1.5cqw; color: #9ebed4; font-size: 3.8cqw; }
+
+/* View All gives every row room to be read and tapped, without changing Home. */
+.qd-root .qd-main-today-quests { gap: 18px; padding-top: 24px !important; }
+.qd-today-quests-page-heading { width: 100%; max-width: 510px; margin: 0 auto; }
+.qd-today-quests-page-heading a { display: inline-flex; align-items: center; min-height: 44px; color: #b0cede; text-decoration: none; }
+.qd-today-quests-page-heading h1 { margin: 12px 0 8px; font: 28px/1.2 'VT323', monospace; color: #f0f3fd; }
+.qd-today-quests-page-heading p { margin: 0; font: 18px/1.2 'VT323', monospace; color: #a9c6db; }
+.qd-root .qd-today-quests.is-expanded { max-width: 510px; margin: 0 auto; aspect-ratio: auto; }
+.qd-today-quests.is-expanded .qd-today-quests-body { position: relative; inset: auto; overflow: visible; }
+.qd-today-quests.is-expanded .qd-quest-row-toggle { min-height: 48px; height: auto; padding-top: 2.35294cqw; padding-bottom: 2.35294cqw; }
+.qd-today-quests.is-expanded .qd-quest-row-name { white-space: normal; overflow-wrap: anywhere; }
+.qd-today-quests.is-expanded .qd-today-quests-empty { margin-top: 12%; }

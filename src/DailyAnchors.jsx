@@ -13,8 +13,9 @@ export function PixelAnchorSymbol({ className }) {
   );
 }
 
-function PixelTaskIcon({ anchor }) {
+export function PixelTaskIcon({ anchor, variant = "anchor" }) {
   const kind = getAnchorIcon(anchor);
+  const quest = variant === "quest";
   let artwork;
 
   if (kind === "gym") {
@@ -22,17 +23,19 @@ function PixelTaskIcon({ anchor }) {
       <path d="M2 12H5V7H10V13H22V7H27V12H30V21H27V26H22V20H10V26H5V21H2Z" fill="#051b20" />
       <path d="M10 15H22V18H10Z" fill="#88ad7a" />
       <path d="M10 15H22V16H10Z" fill="#d1e8aa" />
-      <path d="M5 8H9V24H5ZM23 8H27V24H23ZM2 13H5V20H2ZM27 13H30V20H27Z" fill="#528d35" />
-      <path d="M6 8H8V21H6ZM24 8H26V21H24ZM2 13H3V18H2ZM28 13H29V18H28Z" fill="#a1d756" />
-      <path d="M6 7H8V10H6ZM24 7H26V10H24ZM4 14H5V19H4ZM27 14H28V19H27Z" fill="#c9ef81" />
+      <path d="M5 8H9V24H5ZM23 8H27V24H23ZM2 13H5V20H2ZM27 13H30V20H27Z" fill={quest ? "#a96569" : "#528d35"} />
+      <path d="M6 8H8V21H6ZM24 8H26V21H24ZM2 13H3V18H2ZM28 13H29V18H28Z" fill={quest ? "#df9a98" : "#a1d756"} />
+      <path d="M6 7H8V10H6ZM24 7H26V10H24ZM4 14H5V19H4ZM27 14H28V19H27Z" fill={quest ? "#ffd2b7" : "#c9ef81"} />
       <path d="M8 22H10V25H8ZM25 22H27V25H25Z" fill="#35633c" />
     </>;
-  } else if (kind === "purple-book" || kind === "blue-book") {
-    const purple = kind === "purple-book";
+  } else if (kind === "purple-book" || kind === "blue-book" || (quest && kind === "laptop")) {
+    const purple = kind === "purple-book" && !quest;
+    const red = quest && kind === "laptop";
+    const cream = quest && kind === "blue-book";
     artwork = <>
       <path d="M3 8H5V6H13V7H19V6H27V8H29V26H18V28H14V26H3Z" fill="#061528" />
-      <path d="M4 10H6V8H14L16 10L18 8H26V10H28V25H18L16 27L14 25H4Z" fill={purple ? "#766797" : "#4f719f"} />
-      <path d="M6 7H13V8H15V23H13V22H6ZM18 8H20V7H26V22H19V23H17V9H18Z" fill={purple ? "#c6a4cf" : "#a1c5e5"} />
+      <path d="M4 10H6V8H14L16 10L18 8H26V10H28V25H18L16 27L14 25H4Z" fill={red ? "#ae5a55" : cream ? "#7e7d77" : purple ? "#766797" : "#4f719f"} />
+      <path d="M6 7H13V8H15V23H13V22H6ZM18 8H20V7H26V22H19V23H17V9H18Z" fill={red ? "#ed9690" : cream ? "#dfd8bc" : purple ? "#c6a4cf" : "#a1c5e5"} />
       <path d="M7 8H12V9H7ZM20 8H25V9H20Z" fill={purple ? "#ead0e4" : "#d0e9f3"} />
       <path d="M8 12H12V14H8ZM8 16H12V18H8ZM20 12H24V14H20ZM20 16H24V18H20Z" fill={purple ? "#78648d" : "#5a7da5"} />
       <path d="M15 10H17V25H15ZM5 24H13V25H5ZM19 24H27V25H19Z" fill={purple ? "#574c77" : "#345176"} />
@@ -47,6 +50,15 @@ function PixelTaskIcon({ anchor }) {
       <path d="M6 24H26V26H29V28H3V26H6Z" fill="#6185b0" />
       <path d="M7 24H25V25H7ZM4 26H11V27H4ZM20 26H28V27H20Z" fill="#b0d3ef" />
       <path d="M12 25H20V27H12ZM6 28H27V29H6Z" fill="#2c4d78" />
+    </>;
+  } else if (kind === "camera" && quest) {
+    artwork = <>
+      <path d="M4 7L27 3L29 10L7 14L29 12V29H4Z" fill="#071523" />
+      <path d="M5 8L26 4L27 9L6 13Z" fill="#9fb7d6" />
+      <path d="M7 8L11 7L14 11L10 12ZM18 6L22 5L25 9L21 10Z" fill="#243a56" />
+      <path d="M5 14H28V27H5Z" fill="#6880ae" />
+      <path d="M6 14H27V17H6Z" fill="#acc5dc" />
+      <path d="M9 14H13V17H9ZM20 14H24V17H20ZM9 20H23V22H9ZM9 24H17V25H9Z" fill="#263951" />
     </>;
   } else if (kind === "camera") {
     artwork = <>

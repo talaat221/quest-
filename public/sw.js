@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v18-preview';
+const CACHE_NAME = 'quest-shell-v19-preview';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -10,6 +10,8 @@ const APP_SHELL = [
   '/pixel-garden-hero.webp',
   '/xp-frame-mobile.png',
   '/daily-anchors/panel-v1.webp',
+  '/today-quests/panel-v1.webp',
+  '/today-quests/row-v1.svg',
   '/garden-scene/v1/00-static-background.webp',
   '/garden-scene/v1/01-moon.webp',
   '/garden-scene/v1/02-cloud-upper-left.webp',

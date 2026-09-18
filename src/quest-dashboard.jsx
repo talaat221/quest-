@@ -5,6 +5,8 @@ import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import GardenScene from "./GardenScene";
 import DailyAnchors, { PixelAnchorSymbol } from "./DailyAnchors";
+import TodayQuests from "./TodayQuests";
+import { getTodayQuestItems } from "./today-quests.js";
 
 // ======================================================
 // HELPERS
@@ -2532,10 +2534,10 @@ function CompletionTimeModal({ task, domainName, onSave, onCancel }) {
   const canSave = Number.isFinite(numericActual) && numericActual > 0;
 
   return (
-    <div className="qd-completion-backdrop" role="dialog" aria-modal="true">
+    <div className="qd-completion-backdrop" role="dialog" aria-modal="true" aria-labelledby="qd-completion-title">
       <div className="qd-completion-card">
         <div className="qd-completion-kicker">Voyage log</div>
-        <div className="qd-completion-title">How long did it actually take?</div>
+        <div className="qd-completion-title" id="qd-completion-title">How long did it actually take?</div>
         <div className="qd-completion-quest">
           {domainName} · {task.name}
         </div>
@@ -3209,6 +3211,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [showAnchorPage, setShowAnchorPage] = useState(
     () => typeof window !== "undefined" && window.location.hash === "#anchors"
   );
+  const [showTodayQuestsPage, setShowTodayQuestsPage] = useState(
+    () => typeof window !== "undefined" && window.location.hash === "#today-quests"
+  );
   const anchorPageVisible = showAnchorPage;
 
   const rewardDetectionReady = useRef(false);
@@ -3216,7 +3221,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   // The anchor manager handles editing; the home timeline supports completion.
   // Listen to the URL so bottom tabs, View All, reloads and browser Back agree.
   useEffect(() => {
-    const syncAnchorPage = () => setShowAnchorPage(window.location.hash === "#anchors");
+    const syncAnchorPage = () => {
+      setShowAnchorPage(window.location.hash === "#anchors");
+      setShowTodayQuestsPage(window.location.hash === "#today-quests");
+    };
     syncAnchorPage();
     window.addEventListener("hashchange", syncAnchorPage);
     return () => window.removeEventListener("hashchange", syncAnchorPage);
@@ -3228,15 +3236,15 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       window.scrollTo({ top: 0, behavior: "instant" });
       return;
     }
-    const target = showAnchorPage ? "anchors" : window.location.hash.slice(1) || "home";
+    const target = showAnchorPage ? "anchors" : showTodayQuestsPage ? "today-quests" : window.location.hash.slice(1) || "home";
     document.getElementById(target)?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [showAnchorPage, loaded, designPreview]);
+  }, [showAnchorPage, showTodayQuestsPage, loaded, designPreview]);
 
   // Keep the compact voyage navigator aware of the section currently nearest
   // the top of the viewport. The bar itself is fixed, so it follows the user
   // without ever becoming a second scrollable panel.
   useEffect(() => {
-    if (showAnchorPage || designPreview) return;
+    if (showAnchorPage || showTodayQuestsPage || designPreview) return;
     const ids = ["home", "voyage", "anchors", "rewards", "quests"];
     const updateActiveNav = () => {
       const marker = 150;
@@ -3263,7 +3271,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       window.removeEventListener("scroll", updateActiveNav);
       window.removeEventListener("resize", updateActiveNav);
     };
-  }, [state, showAnchorPage, designPreview]);
+  }, [state, showAnchorPage, showTodayQuestsPage, designPreview]);
 
   // ====================================================
   // CLOCK
@@ -4599,11 +4607,22 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       name: anchor.name,
       emoji: anchor.emoji,
       hour: anchor.hour,
+      xpPerDay: anchor.xpPerDay,
       done: !!anchor.history?.[todayStr],
       paused: todayAdjustment?.mode === "harbor" && !todayActiveAnchorIds.includes(anchor.id),
     }));
 
   const todayQuestTasks = viewTasks;
+  const homeQuestItems = getTodayQuestItems({
+    anchors: todayTimelineAnchors,
+    tasks: allTasks(),
+    todayStr,
+    resetHour,
+  });
+  const toggleHomeQuest = (item) => {
+    if (item.source === "anchor") toggleAnchor(item.id, todayStr);
+    else toggleTask(item.domainId, item.id);
+  };
   const todayRemainingIncompleteTasks = allTasks().filter(
     (task) => !task.done && task.day === todayStr
   );
@@ -4673,7 +4692,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     ) + 1
   );
 
-  const currentNav = anchorPageVisible ? "anchors" : activeNav;
+  const currentNav = anchorPageVisible ? "anchors" : showTodayQuestsPage ? "quests" : activeNav;
 
   return (
     <div
@@ -4694,15 +4713,6 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         />
       )}
 
-      {pendingTimeLog && (
-        <CompletionTimeModal
-          task={pendingTimeLog.task}
-          domainName={pendingTimeLog.domainName}
-          onSave={completeTaskWithTime}
-          onCancel={() => setPendingTimeLog(null)}
-        />
-      )}
-
       {showVoyageAdjustment && !todayAdjustment && (
         <VoyageAdjustmentModal
           state={state}
@@ -4712,6 +4722,15 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         />
       )}
       </div>
+
+      {pendingTimeLog && (
+        <CompletionTimeModal
+          task={pendingTimeLog.task}
+          domainName={pendingTimeLog.domainName}
+          onSave={completeTaskWithTime}
+          onCancel={() => setPendingTimeLog(null)}
+        />
+      )}
 
       <div className="qd-shell">
         <aside className="qd-sidebar">
@@ -4750,7 +4769,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : "")} id={anchorPageVisible ? "anchors" : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : "")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : "home"}>
           {anchorPageVisible ? (
             <>
               <header className="qd-anchor-page-heading">
@@ -4788,6 +4807,15 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                   </button>
                 )}
               </section>
+            </>
+          ) : showTodayQuestsPage ? (
+            <>
+              <header className="qd-today-quests-page-heading">
+                <a href="#home">‹ Back to Home</a>
+                <h1>Today’s Quests</h1>
+                <p>{homeQuestItems.filter((item) => item.done).length} / {homeQuestItems.length} completed today</p>
+              </header>
+              <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
             </>
           ) : (
           <>
@@ -4828,6 +4856,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           {designPreview ? (
             <div className="qd-design-canvas">
               <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
+              <div className="qd-home-quests-row">
+                <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} />
+              </div>
             </div>
           ) : (
             <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
@@ -4970,7 +5001,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                     getTaskFlexibility(task) === "fixed";
                   return (
                   <div
-                    key={task.id}
+                    key={`${task.domainId}:${task.id}`}
                     className={
                       "qd-today-task" +
                       (task.done ? " done" : "") +
