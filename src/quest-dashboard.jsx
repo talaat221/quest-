@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import GardenScene from "./GardenScene";
+import DailyAnchors, { PixelAnchorSymbol } from "./DailyAnchors";
 
 // ======================================================
 // HELPERS
@@ -3205,13 +3206,32 @@ export default function QuestDashboard() {
   const [pendingTimeLog, setPendingTimeLog] = useState(null);
   const [showVoyageAdjustment, setShowVoyageAdjustment] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
+  const [showAnchorPage, setShowAnchorPage] = useState(
+    () => typeof window !== "undefined" && window.location.hash === "#anchors"
+  );
 
   const rewardDetectionReady = useRef(false);
+
+  // The anchor manager is its own view; the home timeline only shows progress.
+  // Listen to the URL so bottom tabs, View All, reloads and browser Back agree.
+  useEffect(() => {
+    const syncAnchorPage = () => setShowAnchorPage(window.location.hash === "#anchors");
+    syncAnchorPage();
+    window.addEventListener("hashchange", syncAnchorPage);
+    return () => window.removeEventListener("hashchange", syncAnchorPage);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const target = showAnchorPage ? "anchors" : window.location.hash.slice(1) || "home";
+    document.getElementById(target)?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [showAnchorPage, loaded]);
 
   // Keep the compact voyage navigator aware of the section currently nearest
   // the top of the viewport. The bar itself is fixed, so it follows the user
   // without ever becoming a second scrollable panel.
   useEffect(() => {
+    if (showAnchorPage) return;
     const ids = ["home", "voyage", "anchors", "rewards", "quests"];
     const updateActiveNav = () => {
       const marker = 150;
@@ -3238,7 +3258,7 @@ export default function QuestDashboard() {
       window.removeEventListener("scroll", updateActiveNav);
       window.removeEventListener("resize", updateActiveNav);
     };
-  }, [state]);
+  }, [state, showAnchorPage]);
 
   // ====================================================
   // CLOCK
@@ -4566,6 +4586,18 @@ export default function QuestDashboard() {
     Math.max(1, Math.floor(voyagePct * (STAGES.length - 1)) + 1)
   );
 
+  const todayActiveAnchorIds = getSafeHarborActiveAnchorIds(state, todayAdjustment);
+  const todayTimelineAnchors = state.anchors
+    .filter((anchor) => isAnchorScheduledOn(anchor, todayStr) || anchor.history?.[todayStr])
+    .map((anchor) => ({
+      id: anchor.id,
+      name: anchor.name,
+      emoji: anchor.emoji,
+      hour: anchor.hour,
+      done: !!anchor.history?.[todayStr],
+      paused: todayAdjustment?.mode === "harbor" && !todayActiveAnchorIds.includes(anchor.id),
+    }));
+
   const todayQuestTasks = viewTasks;
   const todayRemainingIncompleteTasks = allTasks().filter(
     (task) => !task.done && task.day === todayStr
@@ -4636,6 +4668,8 @@ export default function QuestDashboard() {
     ) + 1
   );
 
+  const currentNav = showAnchorPage ? "anchors" : activeNav;
+
   return (
     <div
       className={
@@ -4683,11 +4717,11 @@ export default function QuestDashboard() {
           </div>
 
           <nav className="qd-nav" aria-label="Quick navigation">
-            <a className={activeNav === "home" ? "active" : ""} href="#home" title="Home" aria-label="Home" onClick={() => setActiveNav("home")}><span className="qd-nav-icon">⌂</span><span>Home</span></a>
-            <a className={activeNav === "quests" ? "active" : ""} href="#quests" title="Quests" aria-label="Quests" onClick={() => setActiveNav("quests")}><span className="qd-nav-icon">▣</span><span>Quests</span></a>
-            <a className={activeNav === "anchors" ? "active" : ""} href="#anchors" title="Anchors" aria-label="Anchors" onClick={() => setActiveNav("anchors")}><span className="qd-nav-icon">⚓</span><span>Anchors</span></a>
-            <a className={activeNav === "voyage" ? "active" : ""} href="#voyage" title="Stats" aria-label="Stats" onClick={() => setActiveNav("voyage")}><span className="qd-nav-icon">▥</span><span>Stats</span></a>
-            <a className={activeNav === "rewards" ? "active" : ""} href="#rewards" title="More" aria-label="More" onClick={() => setActiveNav("rewards")}><span className="qd-nav-icon">•••</span><span>More</span></a>
+            <a className={currentNav === "home" ? "active" : ""} href="#home" title="Home" aria-label="Home" onClick={() => setActiveNav("home")}><span className="qd-nav-icon">⌂</span><span>Home</span></a>
+            <a className={currentNav === "quests" ? "active" : ""} href="#quests" title="Quests" aria-label="Quests" onClick={() => setActiveNav("quests")}><span className="qd-nav-icon">▣</span><span>Quests</span></a>
+            <a className={currentNav === "anchors" ? "active" : ""} href="#anchors" title="Anchors" aria-label="Anchors" onClick={() => setActiveNav("anchors")}><span className="qd-nav-icon">⚓</span><span>Anchors</span></a>
+            <a className={currentNav === "voyage" ? "active" : ""} href="#voyage" title="Stats" aria-label="Stats" onClick={() => setActiveNav("voyage")}><span className="qd-nav-icon">▥</span><span>Stats</span></a>
+            <a className={currentNav === "rewards" ? "active" : ""} href="#rewards" title="More" aria-label="More" onClick={() => setActiveNav("rewards")}><span className="qd-nav-icon">•••</span><span>More</span></a>
           </nav>
 
           <div className="qd-sidebar-quote">
@@ -4709,7 +4743,47 @@ export default function QuestDashboard() {
           </button>
         </aside>
 
-        <main className="qd-main" id="home">
+        <main className={"qd-main" + (showAnchorPage ? " qd-main-anchors" : "")} id={showAnchorPage ? "anchors" : "home"}>
+          {showAnchorPage ? (
+            <>
+              <header className="qd-anchor-page-heading">
+                <a href="#home">‹ Back to Home</a>
+                <h1><PixelAnchorSymbol /> Daily Anchors</h1>
+                <p>Your routines, your rhythm. Make a little progress each day.</p>
+              </header>
+              <section className="qd-panel qd-anchor-panel" aria-label="Manage daily anchors">
+                <div className="qd-panel-head">
+                  <div>
+                    <div className="qd-panel-title">YOUR WEEK</div>
+                    <div className="qd-panel-sub">Check off your anchors, set their times, and choose their days.</div>
+                  </div>
+                </div>
+                <div className="qd-anchors">
+                  {state.anchors.map((anchor) => (
+                    <AnchorCard
+                      key={anchor.id}
+                      anchor={anchor}
+                      weekDates={wDates}
+                      onToggle={toggleAnchor}
+                      onUpdate={updateAnchor}
+                      onDelete={deleteAnchor}
+                      voyageAdjustments={state.voyageAdjustments || {}}
+                    />
+                  ))}
+                </div>
+                {showAddAnchor ? (
+                  <div style={{ padding: "0 16px 12px" }}>
+                    <AnchorAddForm onAdd={addAnchor} onCancel={() => setShowAddAnchor(false)} />
+                  </div>
+                ) : (
+                  <button type="button" className="qd-add-btn" onClick={() => { playSFX("click"); setShowAddAnchor(true); }}>
+                    + New daily anchor
+                  </button>
+                )}
+              </section>
+            </>
+          ) : (
+          <>
           <header className="qd-scene">
             <GardenScene />
             <div className="qd-topbar">
@@ -4743,6 +4817,8 @@ export default function QuestDashboard() {
               <div className="qd-level-value">{levelXP} / 500 XP</div>
             </div>
           </header>
+
+          <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
 
           <div className="qd-voyage-adjust-bar">
             <div className="qd-voyage-adjust-copy">
@@ -4917,39 +4993,6 @@ export default function QuestDashboard() {
               </div>
             </section>
 
-            <section className="qd-panel qd-anchor-panel" id="anchors">
-              <div className="qd-panel-head">
-                <div>
-                  <div className="qd-panel-title">DAILY ANCHORS</div>
-                  <div className="qd-panel-sub">Your recurring routines — daily or only on the days you choose.</div>
-                </div>
-              </div>
-
-              <div className="qd-anchors">
-                {state.anchors.map((anchor) => (
-                  <AnchorCard
-                    key={anchor.id}
-                    anchor={anchor}
-                    weekDates={wDates}
-                    onToggle={toggleAnchor}
-                    onUpdate={updateAnchor}
-                    onDelete={deleteAnchor}
-                    voyageAdjustments={state.voyageAdjustments || {}}
-                  />
-                ))}
-              </div>
-
-              {showAddAnchor ? (
-                <div style={{ padding: "0 16px 12px" }}>
-                  <AnchorAddForm onAdd={addAnchor} onCancel={() => setShowAddAnchor(false)} />
-                </div>
-              ) : (
-                <button type="button" className="qd-add-btn" onClick={() => { playSFX("click"); setShowAddAnchor(true); }}>
-                  + New daily anchor
-                </button>
-              )}
-            </section>
-
             <div className="qd-side-stack">
               <section className="qd-panel qd-xp-card">
                 <div className="qd-xp-top">
@@ -5098,6 +5141,8 @@ export default function QuestDashboard() {
           </section>
 
           <div className="qd-footer">SMALL STEPS. GREAT JOURNEYS.</div>
+          </>
+          )}
         </main>
       </div>
     </div>
