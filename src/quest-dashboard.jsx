@@ -1463,12 +1463,12 @@ const PIXEL_CSS = `
   .qd-level-value{
     grid-column:auto;
     margin:0;
-    padding:0;
+    padding:0 4px 0 0;
     text-align:right;
     max-width:100%;
     overflow:hidden;
-    font-size:clamp(6px,1.75vw,7px);
-    letter-spacing:-.02em;
+    font-size:6px;
+    letter-spacing:-.03em;
     line-height:1.2;
     white-space:nowrap;
   }
