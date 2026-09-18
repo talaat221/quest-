@@ -3185,7 +3185,7 @@ function RewardMachine({
 // MAIN DASHBOARD
 // ======================================================
 
-export default function QuestDashboard() {
+export default function QuestDashboard({ designPreview = false } = {}) {
   const [state, setState] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
@@ -3209,6 +3209,7 @@ export default function QuestDashboard() {
   const [showAnchorPage, setShowAnchorPage] = useState(
     () => typeof window !== "undefined" && window.location.hash === "#anchors"
   );
+  const anchorPageVisible = showAnchorPage && !designPreview;
 
   const rewardDetectionReady = useRef(false);
 
@@ -3222,16 +3223,16 @@ export default function QuestDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || designPreview) return;
     const target = showAnchorPage ? "anchors" : window.location.hash.slice(1) || "home";
     document.getElementById(target)?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [showAnchorPage, loaded]);
+  }, [showAnchorPage, loaded, designPreview]);
 
   // Keep the compact voyage navigator aware of the section currently nearest
   // the top of the viewport. The bar itself is fixed, so it follows the user
   // without ever becoming a second scrollable panel.
   useEffect(() => {
-    if (showAnchorPage) return;
+    if (showAnchorPage || designPreview) return;
     const ids = ["home", "voyage", "anchors", "rewards", "quests"];
     const updateActiveNav = () => {
       const marker = 150;
@@ -3258,7 +3259,7 @@ export default function QuestDashboard() {
       window.removeEventListener("scroll", updateActiveNav);
       window.removeEventListener("resize", updateActiveNav);
     };
-  }, [state, showAnchorPage]);
+  }, [state, showAnchorPage, designPreview]);
 
   // ====================================================
   // CLOCK
@@ -4668,7 +4669,7 @@ export default function QuestDashboard() {
     ) + 1
   );
 
-  const currentNav = showAnchorPage ? "anchors" : activeNav;
+  const currentNav = anchorPageVisible ? "anchors" : activeNav;
 
   return (
     <div
@@ -4680,6 +4681,7 @@ export default function QuestDashboard() {
       <style>{CSS}</style>
       <style>{PIXEL_CSS}</style>
 
+      <div className="qd-legacy-overlays">
       {celebration && (
         <CelebrationModal
           kind={celebration}
@@ -4705,6 +4707,7 @@ export default function QuestDashboard() {
           onCancel={() => setShowVoyageAdjustment(false)}
         />
       )}
+      </div>
 
       <div className="qd-shell">
         <aside className="qd-sidebar">
@@ -4743,8 +4746,8 @@ export default function QuestDashboard() {
           </button>
         </aside>
 
-        <main className={"qd-main" + (showAnchorPage ? " qd-main-anchors" : "")} id={showAnchorPage ? "anchors" : "home"}>
-          {showAnchorPage ? (
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : "")} id={anchorPageVisible ? "anchors" : "home"}>
+          {anchorPageVisible ? (
             <>
               <header className="qd-anchor-page-heading">
                 <a href="#home">‹ Back to Home</a>
@@ -4817,6 +4820,8 @@ export default function QuestDashboard() {
               <div className="qd-level-value">{levelXP} / 500 XP</div>
             </div>
           </header>
+
+          {designPreview && <div className="qd-design-canvas" />}
 
           <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
 

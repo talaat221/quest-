@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import QuestDashboard from './quest-dashboard';
+import './design-preview.css';
 import {
   flushQuestSync,
   getQuestSyncSnapshot,
@@ -200,11 +201,15 @@ function SyncIndicator() {
   );
 }
 
+// Temporary presentation-only switch while the new home screen is built.
+// Set to false to reveal the retained dashboard and its controls again.
+const DESIGN_PREVIEW = true;
+
 function App() {
   return (
-    <div className="w-full min-h-screen">
-      <QuestDashboard />
-      <SyncIndicator />
+    <div className={`w-full min-h-screen${DESIGN_PREVIEW ? ' qd-design-preview' : ''}`}>
+      <QuestDashboard designPreview={DESIGN_PREVIEW} />
+      <div className="qd-sync-ui"><SyncIndicator /></div>
     </div>
   )
 }
