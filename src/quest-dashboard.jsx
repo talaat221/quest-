@@ -1241,6 +1241,11 @@ const PIXEL_CSS = `
 .qd-main{margin-left:0;padding:24px 0 74px;display:flex;flex-direction:column;gap:18px}
 
 .qd-scene{min-height:420px;position:relative;overflow:hidden;border:4px solid #132a38;outline:2px solid #55788d;box-shadow:0 0 0 5px #071927,0 20px 45px rgba(0,0,0,.38);background-image:linear-gradient(180deg,rgba(2,18,36,.12) 0%,rgba(2,20,30,.05) 53%,rgba(4,24,30,.62) 100%),url('/pixel-garden-hero.webp');background-position:center;background-size:cover;image-rendering:pixelated}
+.qd-sky-motion{display:none}
+@keyframes qd-cloud-drift{
+  from{transform:translate3d(-140px,0,0) scaleX(var(--cloud-flip,1))}
+  to{transform:translate3d(calc(100vw + 140px),0,0) scaleX(var(--cloud-flip,1))}
+}
 .qd-scene::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 70px rgba(1,9,18,.42)}
 .qd-topbar{position:relative;z-index:2;margin:0;padding:34px 38px;align-items:flex-start}
 .qd-scene-copy{padding:16px 18px;background:linear-gradient(90deg,rgba(3,20,36,.84),rgba(3,20,36,.25),transparent);text-shadow:3px 3px 0 #061522}
@@ -1384,6 +1389,44 @@ const PIXEL_CSS = `
       linear-gradient(180deg,rgba(1,16,34,.16) 0%,transparent 42%,rgba(2,21,27,.08) 76%,rgba(4,24,29,.24) 100%);
     box-shadow:none;
   }
+  .qd-sky-motion{
+    display:block;
+    position:absolute;
+    z-index:0;
+    inset:0;
+    overflow:hidden;
+    pointer-events:none;
+  }
+  .qd-cloud{
+    position:absolute;
+    left:0;
+    display:block;
+    aspect-ratio:256 / 73;
+    background:url('/pixel-cloud-mobile.png') center / contain no-repeat;
+    image-rendering:pixelated;
+    will-change:transform;
+    animation-name:qd-cloud-drift;
+    animation-timing-function:linear;
+    animation-iteration-count:infinite;
+    filter:saturate(.72) brightness(.72);
+  }
+  .qd-cloud-a{
+    top:15%;
+    width:88px;
+    opacity:.40;
+    animation-duration:84s;
+    animation-delay:-38s;
+    filter:saturate(.70) brightness(.80);
+  }
+  .qd-cloud-b{
+    --cloud-flip:-1;
+    top:28%;
+    width:62px;
+    opacity:.26;
+    animation-duration:118s;
+    animation-delay:-24s;
+    filter:saturate(.64) brightness(.70);
+  }
   .qd-topbar{position:absolute;inset:0;display:block;margin:0;padding:0}
   .qd-scene-copy{
     position:absolute;
@@ -1477,6 +1520,9 @@ const PIXEL_CSS = `
     line-height:1.2;
     white-space:nowrap;
   }
+}
+@media(prefers-reduced-motion:reduce){
+  .qd-cloud{display:none;animation:none}
 }
 `;
 
@@ -4699,6 +4745,10 @@ export default function QuestDashboard() {
 
         <main className="qd-main" id="home">
           <header className="qd-scene">
+            <div className="qd-sky-motion" aria-hidden="true">
+              <span className="qd-cloud qd-cloud-a" />
+              <span className="qd-cloud qd-cloud-b" />
+            </div>
             <div className="qd-topbar">
               <div className="qd-scene-copy">
                 <div className="qd-greeting-kicker">{greeting},</div>

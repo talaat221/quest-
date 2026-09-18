@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v9-preview';
+const CACHE_NAME = 'quest-shell-v10-preview';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   '/odyssey-sea.jpg',
   '/pixel-garden-hero.webp',
   '/pixel-garden-mobile.webp',
+  '/pixel-cloud-mobile.png',
   '/xp-frame-mobile.png'
 ];
 
