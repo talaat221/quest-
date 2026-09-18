@@ -1,0 +1,300 @@
+{
+  "canvas": {
+    "width": 960,
+    "height": 804
+  },
+  "layers": [
+    {
+      "id": "00-static-background",
+      "src": "/garden-scene/v1/00-static-background.webp",
+      "x": 0,
+      "y": 0,
+      "width": 960,
+      "height": 804
+    },
+    {
+      "id": "01-moon",
+      "src": "/garden-scene/v1/01-moon.webp",
+      "x": 617,
+      "y": 141,
+      "width": 73,
+      "height": 74,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "02-cloud-upper-left",
+      "src": "/garden-scene/v1/02-cloud-upper-left.webp",
+      "x": -100,
+      "y": 89,
+      "width": 218,
+      "height": 84,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "03-cloud-lower-left",
+      "src": "/garden-scene/v1/03-cloud-lower-left.webp",
+      "x": -184,
+      "y": 238,
+      "width": 314,
+      "height": 87,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "04-cloud-center",
+      "src": "/garden-scene/v1/04-cloud-center.webp",
+      "x": 452,
+      "y": 270,
+      "width": 179,
+      "height": 65,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "05-cloud-right",
+      "src": "/garden-scene/v1/05-cloud-right.webp",
+      "x": 687,
+      "y": 217,
+      "width": 397,
+      "height": 111,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "06-tree-trunk",
+      "src": "/garden-scene/v1/06-tree-trunk.webp",
+      "x": 12,
+      "y": 310,
+      "width": 301,
+      "height": 365,
+      "pivot": [
+        0.5,
+        0.96
+      ]
+    },
+    {
+      "id": "07-house",
+      "src": "/garden-scene/v1/07-house.webp",
+      "x": 219,
+      "y": 379,
+      "width": 330,
+      "height": 287,
+      "pivot": [
+        0.5,
+        1
+      ]
+    },
+    {
+      "id": "08-tree-canopy",
+      "src": "/garden-scene/v1/08-tree-canopy.webp",
+      "x": 12,
+      "y": 310,
+      "width": 301,
+      "height": 365,
+      "pivot": [
+        0.5,
+        0.48
+      ]
+    },
+    {
+      "id": "09-chimney-smoke",
+      "src": "/garden-scene/v1/09-chimney-smoke.webp",
+      "x": 388,
+      "y": 305,
+      "width": 61,
+      "height": 77,
+      "pivot": [
+        0.1,
+        1
+      ]
+    },
+    {
+      "id": "10-lantern",
+      "src": "/garden-scene/v1/10-lantern.webp",
+      "x": 238,
+      "y": 523,
+      "width": 31,
+      "height": 46,
+      "pivot": [
+        0.13,
+        0.04
+      ]
+    },
+    {
+      "id": "10a-foundation-bush-left",
+      "src": "/garden-scene/v1/10a-foundation-bush-left.webp",
+      "x": 207,
+      "y": 623,
+      "width": 71,
+      "height": 53,
+      "pivot": [
+        0.5,
+        1
+      ]
+    },
+    {
+      "id": "10b-foundation-bush-right",
+      "src": "/garden-scene/v1/10b-foundation-bush-right.webp",
+      "x": 369,
+      "y": 625,
+      "width": 84,
+      "height": 54,
+      "pivot": [
+        0.5,
+        1
+      ]
+    },
+    {
+      "id": "11-cat",
+      "src": "/garden-scene/v1/11-cat.webp",
+      "x": 171,
+      "y": 662,
+      "width": 59,
+      "height": 57,
+      "pivot": [
+        0.5,
+        1
+      ]
+    },
+    {
+      "id": "12-crop-1-mature",
+      "src": "/garden-scene/v1/12-crop-1-mature.webp",
+      "x": 471,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.509375,
+        0.9218559218559218
+      ]
+    },
+    {
+      "id": "12-crop-2-mature",
+      "src": "/garden-scene/v1/12-crop-2-mature.webp",
+      "x": 559,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.5,
+        0.9218559218559218
+      ]
+    },
+    {
+      "id": "12-crop-3-mature",
+      "src": "/garden-scene/v1/12-crop-3-mature.webp",
+      "x": 649,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.5234375,
+        0.9218559218559218
+      ]
+    },
+    {
+      "id": "13-wind-leaves",
+      "src": "/garden-scene/v1/13-wind-leaves.webp",
+      "x": 410,
+      "y": 742,
+      "width": 117,
+      "height": 31,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "id": "12-crop-1-sprouts",
+      "src": "/garden-scene/v1/12-crop-1-sprouts.webp",
+      "x": 471,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.509375,
+        0.9218559218559218
+      ],
+      "variant": "sprouts"
+    },
+    {
+      "id": "12-crop-2-sprouts",
+      "src": "/garden-scene/v1/12-crop-2-sprouts.webp",
+      "x": 559,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.5,
+        0.9218559218559218
+      ],
+      "variant": "sprouts"
+    },
+    {
+      "id": "12-crop-3-sprouts",
+      "src": "/garden-scene/v1/12-crop-3-sprouts.webp",
+      "x": 649,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.5234375,
+        0.9218559218559218
+      ],
+      "variant": "sprouts"
+    },
+    {
+      "id": "12-crop-1-leafy",
+      "src": "/garden-scene/v1/12-crop-1-leafy.webp",
+      "x": 471,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.509375,
+        0.9218559218559218
+      ],
+      "variant": "leafy"
+    },
+    {
+      "id": "12-crop-2-leafy",
+      "src": "/garden-scene/v1/12-crop-2-leafy.webp",
+      "x": 559,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.5,
+        0.9218559218559218
+      ],
+      "variant": "leafy"
+    },
+    {
+      "id": "12-crop-3-leafy",
+      "src": "/garden-scene/v1/12-crop-3-leafy.webp",
+      "x": 649,
+      "y": 577,
+      "width": 90,
+      "height": 115,
+      "pivot": [
+        0.5234375,
+        0.9218559218559218
+      ],
+      "variant": "leafy"
+    }
+  ]
+}

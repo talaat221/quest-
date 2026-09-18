@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v10-preview';
+const CACHE_NAME = 'quest-shell-v11-preview';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -8,9 +8,25 @@ const APP_SHELL = [
   '/icon-maskable-512.png',
   '/odyssey-sea.jpg',
   '/pixel-garden-hero.webp',
-  '/pixel-garden-mobile.webp',
-  '/pixel-cloud-mobile.png',
-  '/xp-frame-mobile.png'
+  '/xp-frame-mobile.png',
+  '/garden-scene/v1/00-static-background.webp',
+  '/garden-scene/v1/01-moon.webp',
+  '/garden-scene/v1/02-cloud-upper-left.webp',
+  '/garden-scene/v1/03-cloud-lower-left.webp',
+  '/garden-scene/v1/04-cloud-center.webp',
+  '/garden-scene/v1/05-cloud-right.webp',
+  '/garden-scene/v1/06-tree-trunk.webp',
+  '/garden-scene/v1/07-house.webp',
+  '/garden-scene/v1/08-tree-canopy.webp',
+  '/garden-scene/v1/09-chimney-smoke.webp',
+  '/garden-scene/v1/10-lantern.webp',
+  '/garden-scene/v1/10a-foundation-bush-left.webp',
+  '/garden-scene/v1/10b-foundation-bush-right.webp',
+  '/garden-scene/v1/11-cat.webp',
+  '/garden-scene/v1/12-crop-1-mature.webp',
+  '/garden-scene/v1/12-crop-2-mature.webp',
+  '/garden-scene/v1/12-crop-3-mature.webp',
+  '/garden-scene/v1/13-wind-leaves.webp'
 ];
 
 self.addEventListener('install', (event) => {
