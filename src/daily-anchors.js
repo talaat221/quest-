@@ -6,14 +6,18 @@ export function getAnchorTime(hour) {
     : null;
 }
 
-export function getDailyAnchorTimeline(anchors, resetHour = 0) {
+export function getDailyAnchorTimeline(anchors, resetHour = 0, now = new Date()) {
   const resetMinutes = Math.min(23, Math.max(0, Number(resetHour) || 0)) * 60;
+  // Anchor times belong to the current quest day, including its hours after
+  // midnight when the user has chosen a later daily reset.
+  const sinceReset = (minutes) => (minutes - resetMinutes + 1440) % 1440;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const elapsedMinutes = sinceReset(currentMinutes);
   const order = (anchor) => {
     const minutes = getAnchorTime(anchor.hour);
-    return minutes === null ? Infinity : (minutes - resetMinutes + 1440) % 1440;
+    return minutes === null ? Infinity : sinceReset(minutes);
   };
   const sorted = [...anchors].sort((a, b) => order(a) - order(b));
-  const next = sorted.find((anchor) => !anchor.done && !anchor.paused);
 
   return sorted.map((anchor) => {
     const minutes = getAnchorTime(anchor.hour);
@@ -22,7 +26,8 @@ export function getDailyAnchorTimeline(anchors, resetHour = 0) {
       timeLabel: minutes === null
         ? "Anytime"
         : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`,
-      status: anchor.done ? "done" : anchor.paused ? "paused" : anchor === next ? "next" : "pending",
+      status: anchor.done ? "done" : anchor.paused ? "paused"
+        : minutes !== null && sinceReset(minutes) <= elapsedMinutes ? "due" : "pending",
     };
   });
 }

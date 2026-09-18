@@ -7,7 +7,8 @@ The home panel uses generated raster artwork for the frame, navy texture, gold a
 - Original generated PNG retained in the generating conversation.
 - The component crops the transparent outer margins with nested SVG image viewports. These put the header in the first 65 units of the 795 × 287 reference card; the rest is the live timeline.
 - At a 390 px phone width, existing 13 px page gutters give a 364 × 131.4 px panel. The panel's top sits 2 px below the garden section.
-- The artwork contains no task data or completion state. Two, six or more anchors keep the same panel footprint. More than six scroll within it.
+- The artwork contains no task data or completion state. All anchors share the same panel width, so adding or removing one automatically resizes the columns. Above six anchors, icons and text scale down to fit.
+- Tap an anchor to toggle today's completion using the existing XP and persistence flow. Dots stay unfilled before the scheduled local time, become orange when due, and turn green on completion. Untimed anchors stay unfilled until completed. Timing respects the configured daily reset.
 - View All opens the retained anchors manager; the rest of the old home interface stays hidden.
 - No Supabase schema or stored data changes.
 

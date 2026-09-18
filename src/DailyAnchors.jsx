@@ -85,7 +85,7 @@ function PixelTaskIcon({ anchor }) {
   return <svg className="qd-daily-anchor-art" viewBox="0 0 32 32" aria-hidden="true" focusable="false" shapeRendering="crispEdges">{artwork}</svg>;
 }
 
-const statusLabels = { done: "Completed", paused: "Paused today", next: "Next up", pending: "Not completed" };
+const statusLabels = { done: "Completed", paused: "Paused today", due: "Due now", pending: "Not completed" };
 
 // Two viewports place the generated artwork at the reference's exact card
 // proportions. The header ends at 65/287; the body remains free for live data.
@@ -99,9 +99,9 @@ function AnchorsPanelArtwork() {
   );
 }
 
-export default function DailyAnchors({ anchors, resetHour = 0 }) {
+export default function DailyAnchors({ anchors, resetHour = 0, now = new Date(), onToggle }) {
   const headingId = useId();
-  const items = getDailyAnchorTimeline(anchors, resetHour);
+  const items = getDailyAnchorTimeline(anchors, resetHour, now);
   return (
     <section className="qd-daily-anchors" aria-labelledby={headingId}>
       <AnchorsPanelArtwork />
@@ -110,21 +110,30 @@ export default function DailyAnchors({ anchors, resetHour = 0 }) {
         <span className="qd-anchor-sr-only">View All</span>
       </a>
       {items.length ? (
-        <div className="qd-daily-anchors-scroll" tabIndex={items.length > 6 ? 0 : undefined} role={items.length > 6 ? "region" : undefined} aria-label={items.length > 6 ? "Today's anchors, scroll horizontally for more" : undefined}>
-          <ol className="qd-daily-anchors-timeline" style={{ "--visible-anchors": Math.min(items.length, 6) }}>
+        <div className="qd-daily-anchors-scroll">
+          <ol className="qd-daily-anchors-timeline" style={{ "--anchor-count": items.length, "--anchor-scale": Math.min(1, 6 / items.length) }}>
             {items.map((anchor) => (
               <li className={`qd-daily-anchor is-${anchor.status}`} key={anchor.id}>
-                <span className="qd-daily-anchor-time">{anchor.timeLabel}</span>
-                <PixelTaskIcon anchor={anchor} />
-                <span className="qd-daily-anchor-line" aria-hidden="true"><span className="qd-daily-anchor-node" /></span>
-                <span className="qd-daily-anchor-name" title={anchor.name}>{anchor.name}</span>
-                <span className="qd-daily-anchor-status" role="img" aria-label={statusLabels[anchor.status]} title={statusLabels[anchor.status]}>
-                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <circle cx="10" cy="10" r="8" />
-                    {anchor.status === "done" && <path d="M5.5 10L8.5 13L14.5 6.5" />}
-                    {anchor.status === "paused" && <path d="M7.5 6.5V13.5M12.5 6.5V13.5" />}
-                  </svg>
-                </span>
+                <button
+                  type="button"
+                  className="qd-daily-anchor-toggle"
+                  aria-label={`${anchor.name}, ${anchor.timeLabel}. ${anchor.done ? "Mark incomplete" : "Mark complete"}`}
+                  aria-pressed={!!anchor.done}
+                  disabled={!onToggle}
+                  onClick={() => onToggle(anchor.id)}
+                >
+                  <span className="qd-daily-anchor-time">{anchor.timeLabel}</span>
+                  <PixelTaskIcon anchor={anchor} />
+                  <span className="qd-daily-anchor-line" aria-hidden="true"><span className="qd-daily-anchor-node" /></span>
+                  <span className="qd-daily-anchor-name" title={anchor.name}>{anchor.name}</span>
+                  <span className="qd-daily-anchor-status" role="img" aria-label={statusLabels[anchor.status]} title={statusLabels[anchor.status]}>
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <circle cx="10" cy="10" r="8" />
+                      {anchor.status === "done" && <path d="M5.5 10L8.5 13L14.5 6.5" />}
+                      {anchor.status === "paused" && <path d="M7.5 6.5V13.5M12.5 6.5V13.5" />}
+                    </svg>
+                  </span>
+                </button>
               </li>
             ))}
           </ol>

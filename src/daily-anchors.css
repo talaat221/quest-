@@ -47,7 +47,7 @@
 .qd-root a.qd-daily-anchors-view-all {
   position: absolute;
   z-index: 2;
-  top: 0;
+  bottom: 77%;
   right: 2.5%;
   width: 22%;
   height: 23%;
@@ -59,7 +59,7 @@
 }
 
 .qd-daily-anchors-view-all:focus-visible,
-.qd-daily-anchors-scroll:focus-visible {
+.qd-daily-anchor-toggle:focus-visible {
   outline: 2px solid #f7c36a;
   outline-offset: -3px;
 }
@@ -67,19 +67,12 @@
 .qd-daily-anchors-scroll {
   position: absolute;
   inset: 28% 1.25% 10%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
+  overflow: hidden;
 }
-
-.qd-daily-anchors-scroll::-webkit-scrollbar { display: none; }
 
 .qd-daily-anchors-timeline {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: calc(100% / var(--visible-anchors));
+  grid-template-columns: repeat(var(--anchor-count), minmax(0, 1fr));
   width: 100%;
   height: 100%;
   margin: 0;
@@ -89,22 +82,43 @@
 
 .qd-daily-anchor {
   position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.qd-root .qd-daily-anchor-toggle {
   display: grid;
   grid-template-rows: 14% 36% 12% 24% 14%;
   align-items: center;
   justify-items: center;
   min-width: 0;
   min-height: 0;
+  width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
-  font-size: 3.3cqw;
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: calc(3.3cqw * var(--anchor-scale));
+  line-height: 1;
+  letter-spacing: inherit;
   text-align: center;
-  scroll-snap-align: start;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .qd-daily-anchor + .qd-daily-anchor::before {
   content: '';
+  pointer-events: none;
   position: absolute;
   top: 5%;
   bottom: 0;
@@ -114,10 +128,9 @@
   opacity: .8;
 }
 
-.qd-daily-anchor.is-next::before { background: linear-gradient(#83b8da, #39627c); }
 .qd-daily-anchor-time { color: var(--anchor-dim); white-space: nowrap; }
-.qd-daily-anchor-art { display: block; width: 8.4cqw; height: 100%; max-height: 100%; image-rendering: pixelated; }
-.qd-daily-anchor-custom-icon { font-size: 6cqw; line-height: 1; }
+.qd-daily-anchor-art { display: block; width: calc(8.4cqw * var(--anchor-scale)); height: 100%; max-height: 100%; image-rendering: pixelated; }
+.qd-daily-anchor-custom-icon { font-size: calc(6cqw * var(--anchor-scale)); line-height: 1; }
 
 .qd-daily-anchor-line {
   position: relative;
@@ -141,9 +154,9 @@
 .qd-daily-anchor:first-child .qd-daily-anchor-line::before { left: 38%; }
 .qd-daily-anchor:last-child .qd-daily-anchor-line::before { right: 38%; }
 .qd-daily-anchor:only-child .qd-daily-anchor-line::before { left: 20%; right: 20%; }
-.qd-daily-anchor-node { z-index: 1; width: 1.6cqw; height: 1.6cqw; border: 1px solid #7495ad; border-radius: 50%; background: #0a2034; }
+.qd-daily-anchor-node { z-index: 1; width: calc(1.6cqw * var(--anchor-scale)); height: calc(1.6cqw * var(--anchor-scale)); border: 1px solid #7495ad; border-radius: 50%; background: #0a2034; }
 .is-done .qd-daily-anchor-node { border-color: #77b37c; background: #77b37c; }
-.is-next .qd-daily-anchor-node { border-color: #ffe4a0; background: #ffbe58; }
+.is-due .qd-daily-anchor-node { border-color: #ffe4a0; background: #ffbe58; }
 .is-paused .qd-daily-anchor-node { border-color: #667381; }
 
 .qd-daily-anchor-name {
@@ -155,18 +168,18 @@
   padding: 0 3px;
   overflow: hidden;
   overflow-wrap: anywhere;
-  font-size: 3.1cqw;
+  font-size: calc(3.1cqw * var(--anchor-scale));
   line-height: .86;
   text-wrap: balance;
   color: var(--anchor-ink);
 }
 
-.qd-daily-anchor-status { display: block; width: 3.4cqw; height: 3.4cqw; }
+.qd-daily-anchor-status { display: block; width: calc(3.4cqw * var(--anchor-scale)); height: calc(3.4cqw * var(--anchor-scale)); }
 .qd-daily-anchor-status svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .qd-daily-anchor-status circle { fill: #092137; stroke: #759bb5; stroke-width: 1.25; }
 .qd-daily-anchor-status path { fill: none; stroke: #102e2d; stroke-width: 2.1; stroke-linecap: square; stroke-linejoin: miter; }
 .is-done .qd-daily-anchor-status circle { fill: #73b653; stroke: #b1de7b; }
-.is-next .qd-daily-anchor-status circle { stroke: #98cfff; }
+.is-due .qd-daily-anchor-status circle { stroke: #ffce79; }
 .is-paused .qd-daily-anchor-status circle { stroke: #667381; }
 .is-paused .qd-daily-anchor-status path { stroke: #95a2ad; stroke-width: 1.5; }
 .is-paused .qd-daily-anchor-art, .is-paused .qd-daily-anchor-custom-icon { opacity: .55; }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v17-preview';
+const CACHE_NAME = 'quest-shell-v18-preview';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',

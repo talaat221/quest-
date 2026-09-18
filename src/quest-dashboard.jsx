@@ -3213,7 +3213,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const rewardDetectionReady = useRef(false);
 
-  // The anchor manager is its own view; the home timeline only shows progress.
+  // The anchor manager handles editing; the home timeline supports completion.
   // Listen to the URL so bottom tabs, View All, reloads and browser Back agree.
   useEffect(() => {
     const syncAnchorPage = () => setShowAnchorPage(window.location.hash === "#anchors");
@@ -4827,10 +4827,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
           {designPreview ? (
             <div className="qd-design-canvas">
-              <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
+              <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
             </div>
           ) : (
-            <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} />
+            <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
           )}
 
           <div className="qd-voyage-adjust-bar">
