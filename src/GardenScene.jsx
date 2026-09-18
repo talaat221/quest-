@@ -1,13 +1,21 @@
+import { useEffect, useRef } from 'react';
 import scene from './garden-scene-layers.json';
+import { observeGardenVisibility } from './garden-scene-motion.js';
+import './garden-scene-motion.css';
 
 /**
  * All artwork shares one coordinate system, including the partly off-canvas
  * clouds. Scale/crop the whole scene once, never individual sprite layers.
- * Layer IDs and pivots are retained for a later animation pass; nothing moves.
+ * Only the separate cloud and moon layers move. Their original coordinates,
+ * artwork and stacking order stay intact; all foreground layers remain still.
  */
 export default function GardenScene() {
+  const sceneRef = useRef(null);
+  useEffect(() => observeGardenVisibility(sceneRef.current), []);
+
   return (
     <svg
+      ref={sceneRef}
       className="qd-garden-scene"
       viewBox={`0 0 ${scene.canvas.width} ${scene.canvas.height}`}
       preserveAspectRatio="xMidYMin slice"

@@ -1,0 +1,47 @@
+/* Distances use the shared SVG coordinate space, scaling with the whole scene.
+ * Every loop starts/ends at the approved position: no jumps or extra clouds.
+ */
+@keyframes qd-garden-cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(var(--cloud-drift)); }
+}
+
+@keyframes qd-garden-moon-float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-6px, -8px); }
+}
+
+/* Static is the default, including desktop and reduced-motion devices. */
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .qd-garden-scene [data-scene-layer="02-cloud-upper-left"] {
+    --cloud-drift: 76px;
+    --cloud-duration: 44s;
+  }
+
+  .qd-garden-scene [data-scene-layer="03-cloud-lower-left"] {
+    --cloud-drift: 54px;
+    --cloud-duration: 56s;
+  }
+
+  .qd-garden-scene [data-scene-layer="04-cloud-center"] {
+    --cloud-drift: 48px;
+    --cloud-duration: 48s;
+  }
+
+  .qd-garden-scene [data-scene-layer="05-cloud-right"] {
+    --cloud-drift: 62px;
+    --cloud-duration: 62s;
+  }
+
+  .qd-garden-scene [data-scene-layer*="-cloud-"] {
+    transform-box: view-box;
+    animation: qd-garden-cloud-drift var(--cloud-duration) ease-in-out infinite;
+    animation-play-state: var(--garden-motion-state, paused);
+  }
+
+  .qd-garden-scene [data-scene-layer="01-moon"] {
+    transform-box: view-box;
+    animation: qd-garden-moon-float 18s ease-in-out infinite;
+    animation-play-state: var(--garden-motion-state, paused);
+  }
+}
