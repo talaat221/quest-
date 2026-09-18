@@ -6,8 +6,8 @@ import './garden-scene-motion.css';
 /**
  * All artwork shares one coordinate system, including the partly off-canvas
  * clouds. Scale/crop the whole scene once, never individual sprite layers.
- * Only the separate cloud and moon layers move. Their original coordinates,
- * artwork and stacking order stay intact; all foreground layers remain still.
+ * Only the separate clouds, moon and wind-leaf sprite move. The artwork and
+ * stacking order stay intact; the tree, crops and other scenery remain still.
  */
 export default function GardenScene() {
   const sceneRef = useRef(null);

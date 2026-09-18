@@ -1,5 +1,5 @@
 /* Distances use the shared SVG coordinate space, scaling with the whole scene.
- * Every loop starts/ends at the approved position: no jumps or extra clouds.
+ * Sky loops return to their original positions. The breeze resets while hidden.
  */
 @keyframes qd-garden-cloud-drift {
   0%, 100% { transform: translateX(0); }
@@ -8,11 +8,45 @@
 
 @keyframes qd-garden-moon-float {
   0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-6px, -8px); }
+  25% { transform: translate(-20px, 4px); }
+  50% { transform: translate(-40px, 20px); }
+  75% { transform: translate(-20px, 24px); }
+}
+
+/* Reuse the two tiny pixel leaves and wind flecks from the original artwork.
+ * A short gust travels from the tree toward the crops, then rests before looping.
+ */
+@keyframes qd-garden-breeze {
+  0%, 8% {
+    transform: translate(-200px, -220px);
+    opacity: 0;
+  }
+  18% {
+    transform: translate(-150px, -204px);
+    opacity: .75;
+  }
+  38% {
+    transform: translate(20px, -188px);
+    opacity: .65;
+  }
+  56% {
+    transform: translate(200px, -202px);
+    opacity: .8;
+  }
+  76%, 100% {
+    transform: translate(370px, -182px);
+    opacity: 0;
+  }
 }
 
 /* Static is the default, including desktop and reduced-motion devices. */
 @media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .qd-garden-scene {
+    /* Shared gust timing, ready for branch/crop sway in a later update. */
+    --garden-breeze-duration: 14s;
+    --garden-breeze-delay: -3.5s;
+  }
+
   .qd-garden-scene [data-scene-layer="02-cloud-upper-left"] {
     --cloud-drift: 76px;
     --cloud-duration: 44s;
@@ -41,7 +75,15 @@
 
   .qd-garden-scene [data-scene-layer="01-moon"] {
     transform-box: view-box;
-    animation: qd-garden-moon-float 18s ease-in-out infinite;
+    animation: qd-garden-moon-float 24s ease-in-out infinite;
+    animation-delay: -4s;
+    animation-play-state: var(--garden-motion-state, paused);
+  }
+
+  .qd-garden-scene [data-scene-layer="13-wind-leaves"] {
+    transform-box: view-box;
+    animation: qd-garden-breeze var(--garden-breeze-duration) linear infinite;
+    animation-delay: var(--garden-breeze-delay);
     animation-play-state: var(--garden-motion-state, paused);
   }
 }
