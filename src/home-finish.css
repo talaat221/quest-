@@ -1,0 +1,48 @@
+/* The artwork owns the frames; text, numbers, buttons and tabs stay live.
+   Reference right column: 275 × 470, beside the 510 × 470 quest card. */
+.qd-home-art { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; image-rendering: pixelated; }
+.qd-farm-streak { display: grid; grid-template-rows: 317fr 139fr; row-gap: 2.97872%; aspect-ratio: 275 / 470; min-width: 0; container-type: inline-size; }
+.qd-farm-status, .qd-root a.qd-streak-card { position: relative; min-width: 0; padding: 0; border: 0; border-radius: 0; margin: 0; background: none; box-shadow: none; }
+.qd-root .qd-farm-caption { position: absolute; top: 73%; left: 8.36364%; right: 6%; margin: 0; color: #a8c6dd; font: 400 7.27273cqw/1.13 'VT323', monospace; letter-spacing: .015em; }
+.qd-root a.qd-streak-card { display: block; color: #ebf3fc; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.qd-streak-value { position: absolute; left: 8.36364%; top: 50%; max-width: 78%; font: 400 12.36364cqw/1 'VT323', monospace; color: #ffbd65; white-space: nowrap; }
+.qd-streak-caption { position: absolute; left: 8.36364%; top: 78%; font: 400 7.27273cqw/1 'VT323', monospace; color: #a8c6dd; }
+.qd-streak-chevron { position: absolute; right: 10%; top: 60%; width: 4.36364%; height: 15%; }
+
+.qd-stop-day-wrap { position: relative; container-type: inline-size; width: 81.76101%; max-width: 650px; margin: min(3.27044%, 26px) auto min(4.5283%, 36px); }
+.qd-root button.qd-stop-day { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.53846cqw; width: 100%; aspect-ratio: 650 / 107; min-height: 48px; padding: 1.53846cqw 3.07692cqw; border: 0; border-radius: 0; background: none; box-shadow: none; color: #fff5ed; cursor: pointer; appearance: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.qd-stop-day-title, .qd-stop-day-caption { position: relative; z-index: 1; }
+.qd-stop-day-title { display: flex; align-items: center; justify-content: center; gap: 2.46154cqw; font: 400 5.53846cqw/1 'VT323', monospace; letter-spacing: .06em; white-space: nowrap; }
+.qd-stop-square { display: inline-block; width: 4cqw; height: 4cqw; background: #fff5ed; clip-path: polygon(6% 0,94% 0,100% 6%,100% 94%,94% 100%,6% 100%,0 94%,0 6%); }
+.qd-stop-day-caption { font: 400 3.38462cqw/1 'VT323', monospace; letter-spacing: .01em; text-align: center; }
+.qd-root button.qd-stop-day:disabled { cursor: wait; opacity: .8; }
+.qd-root button.qd-stop-day:active:not(:disabled) { filter: brightness(1.12); }
+
+/* A single fixed dock, with space reserved below all pages and for iOS chrome. */
+.qd-bottom-dock { position: fixed; z-index: 110; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); background: linear-gradient(180deg,transparent 15%,#081c2d 80%); }
+.qd-bottom-navigation { position: relative; isolation: isolate; container-type: inline-size; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: min(100%, 853px); height: clamp(64px, 15.24033vw, 130px); padding: .5% .6%; }
+.qd-root .qd-bottom-navigation a { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.17233cqw; min-width: 0; min-height: 44px; margin: 0; padding: .93787cqw 0; color: #7597b2; font: 400 clamp(12px,2.57913cqw,22px)/1 'VT323', monospace; text-decoration: none; letter-spacing: .02em; background: none; border: 0; border-radius: 0; -webkit-tap-highlight-color: transparent; }
+.qd-bottom-navigation a svg { width: 4.9238cqw; height: 4.9238cqw; min-width: 23px; min-height: 23px; max-width: 42px; max-height: 42px; }
+.qd-root .qd-bottom-navigation a.is-active { color: #a1eb89; background: linear-gradient(180deg,rgba(86,174,93,.12),rgba(88,185,89,.06)); }
+.qd-bottom-navigation a.is-active::before, .qd-bottom-navigation a.is-active::after { content: ''; position: absolute; left: 12%; right: 12%; height: max(2px,.3517cqw); background: #83ce73; box-shadow: 0 0 5px #78d06b40; }
+.qd-bottom-navigation a.is-active::before { top: 0; }
+.qd-bottom-navigation a.is-active::after { bottom: 0; opacity: .6; }
+.qd-root .qd-streak-card:focus-visible, .qd-stop-day:focus-visible, .qd-bottom-navigation a:focus-visible { outline: 2px solid #ffd17c; outline-offset: -4px; }
+
+/* Secondary destinations reuse the existing task/anchor actions. */
+.qd-root .qd-main-page { padding-top: 24px !important; gap: 20px; }
+.qd-home-page-heading, .qd-stats-summary, .qd-streak-explanation, .qd-home-settings-card, .qd-home-page-link, .qd-more-sign-out { width: 100%; max-width: 795px; margin-left: auto; margin-right: auto; }
+.qd-home-page-heading a, .qd-home-page-link { display: flex; align-items: center; min-height: 44px; color: #abcade; text-decoration: none; }
+.qd-root .qd-home-page-heading h1 { margin: 12px 0 8px; font: 32px/1.1 'VT323', monospace; color: #f0f5fa; }
+.qd-home-page-heading p, .qd-streak-explanation { margin-top: 0; margin-bottom: 0; font: 20px/1.25 'VT323', monospace; color: #a8c6dd; }
+.qd-stats-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 0; margin-bottom: 0; }
+.qd-stats-summary > div, .qd-home-settings-card { padding: 18px; border: 2px solid #446b83; background: #091f32; box-shadow: inset 0 0 0 3px #061723; }
+.qd-stats-summary dt { font: 19px/1.15 'VT323', monospace; color: #a8c6dd; }
+.qd-stats-summary dd { margin: 6px 0 0; font: 32px/1 'VT323', monospace; color: #ffbe68; overflow-wrap: anywhere; }
+.qd-root .qd-home-settings-card h2 { margin: 0 0 8px; font: 26px/1.1 'VT323', monospace; color: #eef4fc; }
+.qd-home-settings-card p { font: 19px/1.3 'VT323', monospace; color: #a8c6dd; margin: 0 0 12px; }
+.qd-root .qd-home-settings-card select, .qd-root .qd-home-settings-card button, .qd-root .qd-more-sign-out { min-height: 44px; border: 1px solid #53788d; padding: 8px 14px; color: #e9f1fc; background: #102d41; cursor: pointer; }
+.qd-home-settings-card button + button { margin-left: 10px; }
+.qd-root .qd-more-sign-out { max-width: 795px; color: #eeb09f; border-color: #76594f; background: #201f2a; }
+.qd-home-settings-card button:disabled, .qd-more-sign-out:disabled { opacity: .6; cursor: wait; }
+@media (prefers-reduced-motion: no-preference) { .qd-bottom-navigation a { transition: color .15s ease, background-color .15s ease; } }

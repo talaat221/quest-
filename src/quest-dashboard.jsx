@@ -7,6 +7,8 @@ import GardenScene from "./GardenScene";
 import DailyAnchors, { PixelAnchorSymbol } from "./DailyAnchors";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
+import { FarmAndStreak, StopDay, BottomNavigation, HomePageHeading, StatsPage, MorePage } from "./HomeFinish";
+import { getCurrentStreak, getHomePage } from "./home-finish.js";
 
 // ======================================================
 // HELPERS
@@ -3208,13 +3210,13 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [pendingTimeLog, setPendingTimeLog] = useState(null);
   const [showVoyageAdjustment, setShowVoyageAdjustment] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
-  const [showAnchorPage, setShowAnchorPage] = useState(
-    () => typeof window !== "undefined" && window.location.hash === "#anchors"
+  const [page, setPage] = useState(
+    () => getHomePage(typeof window === "undefined" ? "" : window.location.hash)
   );
-  const [showTodayQuestsPage, setShowTodayQuestsPage] = useState(
-    () => typeof window !== "undefined" && window.location.hash === "#today-quests"
-  );
+  const showAnchorPage = page === "anchors";
+  const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
+  const previewSubPage = designPreview && ["quests", "stats", "more"].includes(page);
 
   const rewardDetectionReady = useRef(false);
 
@@ -3222,8 +3224,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   // Listen to the URL so bottom tabs, View All, reloads and browser Back agree.
   useEffect(() => {
     const syncAnchorPage = () => {
-      setShowAnchorPage(window.location.hash === "#anchors");
-      setShowTodayQuestsPage(window.location.hash === "#today-quests");
+      setPage(getHomePage(window.location.hash));
     };
     syncAnchorPage();
     window.addEventListener("hashchange", syncAnchorPage);
@@ -3238,7 +3239,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     }
     const target = showAnchorPage ? "anchors" : showTodayQuestsPage ? "today-quests" : window.location.hash.slice(1) || "home";
     document.getElementById(target)?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [showAnchorPage, showTodayQuestsPage, loaded, designPreview]);
+  }, [page, showAnchorPage, showTodayQuestsPage, loaded, designPreview]);
 
   // Keep the compact voyage navigator aware of the section currently nearest
   // the top of the viewport. The bar itself is fixed, so it follows the user
@@ -4692,7 +4693,49 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     ) + 1
   );
 
-  const currentNav = anchorPageVisible ? "anchors" : showTodayQuestsPage ? "quests" : activeNav;
+  const streak = getCurrentStreak({ anchors: state.anchors, tasks: allTasks(), todayStr, resetHour });
+  const questLogSection = (
+    <section className="qd-section" id={designPreview ? "quest-log" : "quests"}>
+            <div className="qd-section-heading">
+              <div>
+                <h2>QUEST LOG</h2>
+                <div className="qd-section-tag">Every task is another mile toward Ithaca.</div>
+              </div>
+            </div>
+
+            <div className="qd-quest-grid">
+              {state.domains.map((domain) => (
+                <QuestCard
+                  key={domain.id}
+                  domain={domain}
+                  today={today}
+                  todayStr={todayStr}
+                  onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
+                  onAddTask={(payload) => addTask(domain.id, payload)}
+                  onUpdateTask={(taskId, changes) => updateTask(domain.id, taskId, changes)}
+                  onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
+                  onTargetChange={(value) => updateTarget(domain.id, value)}
+                  onDeleteDomain={deleteDomain}
+                />
+              ))}
+            </div>
+
+            {showAddDomain ? (
+              <div className="qd-add-task">
+                <input type="text" placeholder="Quest name" value={newDomainName} onChange={(e) => setNewDomainName(e.target.value)} />
+                <input type="text" placeholder="Emoji" value={newDomainEmoji} onChange={(e) => setNewDomainEmoji(e.target.value)} style={{ width: 55 }} />
+                <input type="number" min="1" placeholder="Monthly target" value={newDomainTarget} onChange={(e) => setNewDomainTarget(e.target.value)} style={{ width: 90 }} />
+                <button type="button" onClick={addDomain}>Add</button>
+                <button type="button" className="qd-cancel" onClick={() => setShowAddDomain(false)}>Cancel</button>
+              </div>
+            ) : (
+              <button type="button" className="qd-add-btn" style={{ marginLeft: 0, width: "auto" }} onClick={() => { playSFX("click"); setShowAddDomain(true); }}>
+                + New quest
+              </button>
+            )}
+          </section>
+  );
+  const currentNav = designPreview ? (showTodayQuestsPage ? "quests" : page) : anchorPageVisible ? "anchors" : showTodayQuestsPage ? "quests" : activeNav;
 
   return (
     <div
@@ -4769,7 +4812,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : "")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
             <>
               <header className="qd-anchor-page-heading">
@@ -4817,6 +4860,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               </header>
               <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
             </>
+          ) : previewSubPage && page === "quests" ? (
+            <><HomePageHeading title="Quests"><p>Plan your tasks and keep making progress.</p></HomePageHeading>{questLogSection}</>
+          ) : previewSubPage && page === "stats" ? (
+            <StatsPage streak={streak} completed={homeQuestItems.filter((item) => item.done).length} total={homeQuestItems.length} todayXP={dToday} weekXP={wXP} lifetimeXP={lifetimeXP} level={level} />
+          ) : previewSubPage && page === "more" ? (
+            <MorePage resetHour={resetHour} onResetHour={setResetHour} />
           ) : (
           <>
           <header className="qd-scene">
@@ -4858,7 +4907,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
               <div className="qd-home-quests-row">
                 <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} />
+                <FarmAndStreak streak={streak} />
               </div>
+              <StopDay state={state} userId={session.user.id} day={todayStr} />
             </div>
           ) : (
             <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
@@ -5130,45 +5181,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             </div>
           </div>
 
-          <section className="qd-section" id="quests">
-            <div className="qd-section-heading">
-              <div>
-                <h2>QUEST LOG</h2>
-                <div className="qd-section-tag">Every task is another mile toward Ithaca.</div>
-              </div>
-            </div>
-
-            <div className="qd-quest-grid">
-              {state.domains.map((domain) => (
-                <QuestCard
-                  key={domain.id}
-                  domain={domain}
-                  today={today}
-                  todayStr={todayStr}
-                  onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
-                  onAddTask={(payload) => addTask(domain.id, payload)}
-                  onUpdateTask={(taskId, changes) => updateTask(domain.id, taskId, changes)}
-                  onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
-                  onTargetChange={(value) => updateTarget(domain.id, value)}
-                  onDeleteDomain={deleteDomain}
-                />
-              ))}
-            </div>
-
-            {showAddDomain ? (
-              <div className="qd-add-task">
-                <input type="text" placeholder="Quest name" value={newDomainName} onChange={(e) => setNewDomainName(e.target.value)} />
-                <input type="text" placeholder="Emoji" value={newDomainEmoji} onChange={(e) => setNewDomainEmoji(e.target.value)} style={{ width: 55 }} />
-                <input type="number" min="1" placeholder="Monthly target" value={newDomainTarget} onChange={(e) => setNewDomainTarget(e.target.value)} style={{ width: 90 }} />
-                <button type="button" onClick={addDomain}>Add</button>
-                <button type="button" className="qd-cancel" onClick={() => setShowAddDomain(false)}>Cancel</button>
-              </div>
-            ) : (
-              <button type="button" className="qd-add-btn" style={{ marginLeft: 0, width: "auto" }} onClick={() => { playSFX("click"); setShowAddDomain(true); }}>
-                + New quest
-              </button>
-            )}
-          </section>
+          {questLogSection}
 
           <section className="qd-panel qd-reset-card">
             <div>
@@ -5189,6 +5202,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           )}
         </main>
       </div>
+      {designPreview && <BottomNavigation page={page} />}
     </div>
   );
 }

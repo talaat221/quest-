@@ -8,24 +8,27 @@
 .qd-design-preview .qd-sidebar,
 .qd-design-preview .qd-sync-ui,
 .qd-design-preview .qd-legacy-overlays,
-.qd-design-preview .qd-main:not(.qd-main-anchors):not(.qd-main-today-quests) > :not(.qd-scene):not(.qd-design-canvas) {
+.qd-design-preview .qd-main-home > :not(.qd-scene):not(.qd-design-canvas) {
   display: none !important;
 }
 
-/* Remove space reserved for the old fixed navigation and card grid. */
+/* Reserve one dock's height, including the iPhone home-indicator safe area. */
 .qd-design-preview .qd-root {
   min-height: 100svh !important;
-  padding-bottom: 0 !important;
+  padding-bottom: calc(clamp(64px, 15.24033vw, 130px) + env(safe-area-inset-bottom, 0px) + 12px) !important;
 }
 
 .qd-design-preview .qd-shell {
+  min-height: 0 !important;
   padding-bottom: 0 !important;
 }
 
-.qd-design-preview .qd-main:not(.qd-main-anchors):not(.qd-main-today-quests) {
-  min-height: 100svh;
+.qd-design-preview .qd-main {
+  padding-bottom: 0 !important;
+}
+
+.qd-design-preview .qd-main-home {
   gap: 0 !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
 
 /* New sections can be built inside this space without reviving the old UI. */
@@ -33,7 +36,7 @@
   display: block;
   flex: 1 0 auto;
   width: 100%;
-  min-height: clamp(220px, 40svh, 440px);
+  min-height: 0;
   padding-top: 2px;
 }
 
