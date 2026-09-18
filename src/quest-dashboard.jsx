@@ -1440,12 +1440,17 @@ const PIXEL_CSS = `
   .qd-level-card::before{display:none}
   .qd-level-card>*{position:relative;z-index:1}
   .qd-level-badge{
+    display:flex;
+    align-items:center;
+    justify-content:center;
     height:22px;
-    padding:5px 3px;
+    padding:1px 2px 0;
     border:2px solid #171519;
     background:#24232b;
     box-shadow:inset 0 2px 0 rgba(255,255,255,.035);
-    font-size:8px;
+    overflow:hidden;
+    font-size:7px;
+    line-height:1;
     text-align:center;
   }
   .qd-level-track{
