@@ -125,13 +125,13 @@ export default function DailyAnchors({ anchors, resetHour = 0, now = new Date(),
         <div className="qd-daily-anchors-scroll">
           <ol className="qd-daily-anchors-timeline" style={{ "--anchor-count": items.length, "--anchor-scale": Math.min(1, 6 / items.length) }}>
             {items.map((anchor) => (
-              <li className={`qd-daily-anchor is-${anchor.status}`} key={anchor.id}>
+              <li className={`qd-daily-anchor is-${anchor.status}${anchor.safeActive ? " is-safe-active" : ""}${anchor.protected ? " is-protected" : ""}`} key={anchor.id}>
                 <button
                   type="button"
                   className="qd-daily-anchor-toggle"
-                  aria-label={`${anchor.name}, ${anchor.timeLabel}. ${anchor.done ? "Mark incomplete" : "Mark complete"}`}
+                  aria-label={`${anchor.protected ? "Important task: " : ""}${anchor.name}, ${anchor.timeLabel}. ${anchor.paused && !anchor.done ? "Paused today" : anchor.done ? "Mark incomplete" : "Mark complete"}`}
                   aria-pressed={!!anchor.done}
-                  disabled={!onToggle}
+                  disabled={!onToggle || (anchor.paused && !anchor.done)}
                   onClick={() => onToggle(anchor.id)}
                 >
                   <span className="qd-daily-anchor-time">{anchor.timeLabel}</span>

@@ -1,4 +1,5 @@
 import { getAnchorTime } from "./daily-anchors.js";
+import { isSafeHarborTask } from "./day-pause.js";
 
 function completionDate(doneAt, resetHour) {
   if (!doneAt) return null;
@@ -19,7 +20,7 @@ function durationLabel(minutes) {
 
 // These are views of the existing records, never a second copy of task state.
 // Anchors have already been filtered to this quest day by the dashboard.
-export function getTodayQuestItems({ anchors = [], tasks = [], todayStr, resetHour = 0 }) {
+export function getTodayQuestItems({ anchors = [], tasks = [], todayStr, resetHour = 0, adjustment = null }) {
   const items = anchors.map((anchor) => ({
     ...anchor,
     key: `anchor:${anchor.id}`,
@@ -39,6 +40,8 @@ export function getTodayQuestItems({ anchors = [], tasks = [], todayStr, resetHo
       emoji: task.emoji || task.domainEmoji,
       xp: Number(task.xp) || 0,
       detail: duration || (task.done ? "Completed" : task.domainName || "Quest task"),
+      safeActive: isSafeHarborTask(task, task.domainId, adjustment, todayStr),
+      protected: adjustment?.protectedKey === `task:${task.domainId}:${task.id}`,
     });
   }
 
@@ -49,5 +52,14 @@ export function getTodayQuestItems({ anchors = [], tasks = [], todayStr, resetHo
     const time = item.source === "task" && item.day !== todayStr ? null : getAnchorTime(item.hour);
     return time === null ? Infinity : (time - resetMinutes + 1440) % 1440;
   };
-  return items.sort((a, b) => order(a) - order(b));
+  // Keep the important work visible even when completed or paused routines
+  // fill the compact home card. Ordinary days retain their existing order.
+  return items.sort((a, b) => {
+    if (adjustment?.mode === "harbor") {
+      const priority = item => item.protected ? 2 : item.safeActive ? 1 : 0;
+      const difference = priority(b) - priority(a);
+      if (difference) return difference;
+    }
+    return order(a) - order(b);
+  });
 }

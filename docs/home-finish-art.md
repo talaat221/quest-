@@ -20,7 +20,7 @@ The original generation outputs are retained separately. WebP encoding is format
 
 - Farm Status is a static illustration, without a pretend watering or growth action.
 - Streak is derived from distinct quest days with a completed anchor or task, using the configured local reset hour. A streak ending yesterday remains active during today. Missing a day breaks it.
-- Stop Day stages the current progress immediately through the existing local-first save adapter and requests a sync. It reports success only when the sync snapshot says synced with no pending changes. Pending, conflict and error states do not masquerade as a completed cloud save. It does not mark unfinished work complete or move the daily reset. Further edits return the button to Stop Day.
+- Stop Day now opens the original Safe Harbor flow, with reason/note, a protected task or anchor, all/some/none anchor choices, and a preview of rescheduled work. Confirming pauses the day, saves the adjustment immediately, and turns the design grayscale except for retained important work. Resume Day restores the plan without overwriting completed work or manual scheduling edits. The original Reduced Sail option is also available. See `docs/stop-day-behavior.md`.
 - Navigation opens Home, the retained quest editor, the retained anchor manager, real Stats, and More (reset hour, existing sync/conflict controls, and logout).
 - Safe-area padding reserves the dock height on every destination.
 - The legacy dashboard and its functions remain in source. This presentation is behind the existing design preview flag.

@@ -1,0 +1,75 @@
+/* Filter artwork and ordinary rows separately. Filtering a parent would also
+   drain the protected task's color, which a child cannot bring back. */
+.qd-design-preview .qd-root.qd-safe-harbor {
+  background: #141618 !important;
+}
+.qd-design-preview .qd-root.qd-safe-harbor .qd-scene,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-daily-anchors-frame,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-today-quests-frame,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-farm-streak,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-stop-day-wrap,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-day-pause-notice,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-bottom-dock,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-daily-anchor:not(.is-safe-active),
+.qd-design-preview .qd-root.qd-safe-harbor .qd-quest-row:not(.is-safe-active),
+.qd-design-preview .qd-root.qd-safe-harbor .qd-daily-anchors-empty,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-today-quests-empty,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-home-page-heading,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-anchor-page-heading,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-today-quests-page-heading,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-stats-summary,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-streak-explanation,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-home-settings-card,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-home-page-link,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-more-sign-out {
+  filter: grayscale(1);
+}
+.qd-design-preview .qd-root.qd-safe-harbor .qd-garden-scene * {
+  animation-play-state: paused !important;
+}
+
+.qd-design-preview .qd-root.qd-safe-harbor .qd-quest-row.is-safe-active {
+  filter: none;
+  box-shadow: inset 0 0 0 1px #ffcf7a;
+}
+.qd-design-preview .qd-root.qd-safe-harbor .qd-quest-row.is-protected {
+  box-shadow: inset 3px 0 #ffcf7a, inset 0 0 0 1px #ffcf7a;
+}
+.qd-design-preview .qd-root.qd-safe-harbor .qd-daily-anchor.is-safe-active {
+  filter: none;
+  background: linear-gradient(180deg, transparent, #ffbc5910);
+}
+.qd-design-preview .qd-root.qd-safe-harbor .qd-daily-anchor.is-protected .qd-daily-anchor-name {
+  color: #ffe0a4;
+}
+.qd-root .qd-daily-anchor-toggle:disabled,
+.qd-root .qd-quest-row-toggle:disabled { cursor: default; }
+.qd-root .qd-quest-row-toggle:disabled:active { filter: none; }
+
+/* Keep the same exceptions when opening either of the retained editors. */
+.qd-design-preview .qd-root.qd-safe-harbor .qd-main-quests .qd-section,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-anchor-panel { filter: none; }
+.qd-design-preview .qd-root.qd-safe-harbor .qd-quest,
+.qd-design-preview .qd-root.qd-safe-harbor .qd-anchor-panel {
+  background: #171a1d !important;
+  border-color: #43474a !important;
+  outline-color: #666b70 !important;
+  box-shadow: 3px 5px #08090b !important;
+}
+.qd-design-preview .qd-root.qd-safe-harbor .qd-section > :not(.qd-quest-grid),
+.qd-design-preview .qd-root.qd-safe-harbor .qd-quest > :not(.qd-tasklist),
+.qd-design-preview .qd-root.qd-safe-harbor .qd-tasklist > :not(.is-safe-active),
+.qd-design-preview .qd-root.qd-safe-harbor .qd-anchor-panel > :not(.qd-anchors),
+.qd-design-preview .qd-root.qd-safe-harbor .qd-anchor:not(.is-safe-active) { filter: grayscale(1); }
+.qd-design-preview .qd-root.qd-safe-harbor .qd-quest::before { filter: grayscale(1); }
+.qd-design-preview .qd-root.qd-safe-harbor .qd-task.is-safe-active {
+  border-left: 2px solid #ffcf7a;
+  background: #ffbc5910;
+  padding-left: 8px !important;
+}
+
+.qd-day-pause-notice { max-width: 795px; margin: 14px auto 0; padding: 10px 12px; background: #101b25; border: 1px solid #6f879b; color: #c4d7e7; font: 18px/1.2 'VT323', monospace; }
+.qd-day-pause-notice div { display: grid; gap: 4px; }
+.qd-day-pause-notice strong { color: #edf3fa; font-weight: 400; letter-spacing: .05em; }
+.qd-day-pause-notice a { display: flex; align-items: center; min-height: 44px; color: #d0e8fb; }
+.qd-resume-triangle { width: 4cqw; height: 4cqw; background: #fff5ed; clip-path: polygon(12% 0,100% 50%,12% 100%); }

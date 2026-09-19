@@ -27,14 +27,15 @@ export default function TodayQuests({ items, onToggle, expanded = false }) {
         {items.length ? (
           <ul className="qd-today-quests-list">
             {items.map((item) => (
-              <li className={`qd-quest-row${item.done ? " is-complete" : ""}${item.paused && !item.done ? " is-paused" : ""}`} key={item.key}>
+              <li className={`qd-quest-row${item.done ? " is-complete" : ""}${item.paused && !item.done ? " is-paused" : ""}${item.safeActive ? " is-safe-active" : ""}${item.protected ? " is-protected" : ""}`} key={item.key}>
                 <button
                   className="qd-quest-row-toggle"
                   type="button"
                   aria-pressed={!!item.done}
-                  aria-label={`${item.name}, ${item.detail}, ${item.xp} XP. ${item.done ? "Mark incomplete" : "Mark complete"}`}
+                  aria-label={`${item.protected ? "Important task: " : ""}${item.name}, ${item.detail}, ${item.xp} XP. ${item.paused && !item.done ? "Paused today" : item.done ? "Mark incomplete" : "Mark complete"}`}
                   title={`${item.name} · ${item.detail} · +${item.xp} XP`}
                   onClick={() => onToggle(item)}
+                  disabled={!onToggle || (item.paused && !item.done)}
                 >
                   <svg className="qd-quest-row-check" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
                     <path className="qd-quest-check-box" d="M3 1H27L29 3V27L27 29H3L1 27V3Z" />

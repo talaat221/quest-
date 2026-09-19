@@ -1,7 +1,7 @@
-import { useId, useRef, useState, useEffect } from "react";
+import { useId, useState, useEffect } from "react";
 import { supabase, flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync, resolveQuestConflict } from "./supabaseClient";
-import { getDaySaveStatus } from "./home-finish.js";
 import "./home-finish.css";
+import "./day-pause.css";
 
 const farmPicture = <image href="/home-finish/farm-streak-v1.webp" width="959" height="1640" />;
 
@@ -27,52 +27,38 @@ export function FarmAndStreak({ streak }) {
   );
 }
 
-const saveCopy = {
-  idle: ["STOP DAY", "End today and save your progress"],
-  saving: ["SAVING…", "Saving your progress"],
-  saved: ["DAY SAVED", "Progress saved. Rest well."],
-  pending: ["SAVE PENDING", "Cloud save waiting. Check More."],
-  conflict: ["CHECK SYNC", "Sync needs attention. Open More."],
-  error: ["TRY AGAIN", "Couldn’t save. Tap to retry."],
-};
-
-export function StopDay({ state, userId, day }) {
-  const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState(null);
-  const inFlight = useRef(false);
-  const status = saving ? "saving" : result?.state === state && result?.day === day ? result.status : "idle";
-  const [title, caption] = saveCopy[status];
-  const saveDay = async () => {
-    if (inFlight.current || !userId) return;
-    inFlight.current = true;
-    setSaving(true);
-    try {
-      // Stage this exact render immediately, including edits inside the normal
-      // 500ms autosave delay, through the existing local-first adapter.
-      const { error } = await supabase.from("quest_data").upsert(
-        { user_id: userId, data: state, updated_at: new Date().toISOString() },
-        { onConflict: "user_id" }
-      );
-      if (error) throw error;
-      await flushQuestSync();
-      setResult({ state, day, status: getDaySaveStatus(getQuestSyncSnapshot()) });
-    } catch {
-      setResult({ state, day, status: "error" });
-    } finally {
-      inFlight.current = false;
-      setSaving(false);
-    }
-  };
+export function StopDay({ adjustment, onStop, onRestore }) {
+  const paused = adjustment?.mode === "harbor";
+  const title = adjustment ? (paused ? "RESUME DAY" : "RESTORE DAY") : "STOP DAY";
+  const caption = adjustment ? "Return to your normal plan when you’re ready" : "Pause today and protect what matters";
   return (
     <div className="qd-stop-day-wrap">
-      <button type="button" className="qd-stop-day" onClick={saveDay} disabled={saving || !userId} aria-label={`${title}. ${caption}`} aria-busy={saving}>
+      <button type="button" className="qd-stop-day" onClick={adjustment ? onRestore : onStop} aria-label={`${title}. ${caption}`}>
         <svg className="qd-home-art" viewBox="14 175 2096 396" preserveAspectRatio="none" aria-hidden="true" focusable="false">
           <image href="/home-finish/stop-day-v1.webp" width="2125" height="740" />
         </svg>
-        <span className="qd-stop-day-title"><span className="qd-stop-square" aria-hidden="true" />{title}</span>
-        <span className="qd-stop-day-caption" aria-live="polite">{caption}</span>
+        <span className="qd-stop-day-title"><span className={adjustment ? "qd-resume-triangle" : "qd-stop-square"} aria-hidden="true" />{title}</span>
+        <span className="qd-stop-day-caption">{caption}</span>
       </button>
     </div>
+  );
+}
+
+export function DayPauseNotice({ adjustment, importantName }) {
+  const [sync, setSync] = useState(getQuestSyncSnapshot);
+  useEffect(() => subscribeQuestSync(setSync), []);
+  const paused = adjustment.mode === "harbor";
+  const moved = adjustment.movedTasks?.length || 0;
+  return (
+    <aside className="qd-day-pause-notice" aria-label={paused ? "Day paused" : "Lighter day"}>
+      <div role="status">
+        <strong>{paused ? "DAY PAUSED" : `LIGHTER DAY · ${adjustment.capacityPct}%`}</strong>
+        <span>{adjustment.reason}{adjustment.note ? ` · ${adjustment.note}` : ""}</span>
+        {importantName && <span>Important: {importantName}</span>}
+        <span>{moved ? `${moved} flexible ${moved === 1 ? "task rescheduled" : "tasks rescheduled"}. ` : ""}Completed work and XP are kept.{paused ? " Daily treasure is paused." : ""}</span>
+      </div>
+      {sync.state !== "synced" && <a href="#more">{sync.state === "conflict" ? "Sync needs attention — open More" : sync.state === "offline" ? "Offline — cloud sync waiting" : "Saving changes… Check sync"}</a>}
+    </aside>
   );
 }
 

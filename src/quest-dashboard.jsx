@@ -7,8 +7,9 @@ import GardenScene from "./GardenScene";
 import DailyAnchors, { PixelAnchorSymbol } from "./DailyAnchors";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
-import { FarmAndStreak, StopDay, BottomNavigation, HomePageHeading, StatsPage, MorePage } from "./HomeFinish";
+import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, StatsPage, MorePage } from "./HomeFinish";
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
+import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 
 // ======================================================
 // HELPERS
@@ -193,26 +194,6 @@ const getTaskPlanningMinutes = (task) => {
 
 const getVoyageAdjustment = (state, dateStr) =>
   state?.voyageAdjustments?.[dateStr] || null;
-
-// Safe Harbor can keep all, some, or none of the daily anchors active.
-// Older saves only knew about one protected anchor, so keep that behavior
-// as a backward-compatible fallback.
-const getSafeHarborActiveAnchorIds = (state, adjustment) => {
-  if (adjustment?.mode !== "harbor") return [];
-
-  if (Array.isArray(adjustment.activeAnchorIds)) {
-    return adjustment.activeAnchorIds.filter((id) =>
-      state?.anchors?.some((anchor) => anchor.id === id)
-    );
-  }
-
-  const protectedKey = String(adjustment?.protectedKey || "");
-  if (protectedKey.startsWith("anchor:")) {
-    return [protectedKey.slice("anchor:".length)];
-  }
-
-  return [];
-};
 
 const buildVoyageAdjustmentPlan = (
   state,
@@ -1744,6 +1725,7 @@ function AnchorCard({
   onUpdate,
   onDelete,
   voyageAdjustments = {},
+  safeActive = false,
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -1786,7 +1768,7 @@ function AnchorCard({
   };
 
   return (
-    <div className="qd-anchor">
+    <div className={`qd-anchor${safeActive ? " is-safe-active" : ""}`}>
       {!editing ? (
         <>
           <div className="qd-anchor-head">
@@ -2123,6 +2105,7 @@ function QuestCard({
   onDeleteTask,
   onTargetChange,
   onDeleteDomain,
+  todayAdjustment,
 }) {
   const [showAdd, setShowAdd] = useState(false);
 
@@ -2369,7 +2352,7 @@ function QuestCard({
               </div>
             </div>
           ) : (
-            <div key={t.id} className={"qd-task" + (t.done ? " done" : "")}>
+            <div key={t.id} className={"qd-task" + (t.done ? " done" : "") + (isSafeHarborTask(t, domain.id, todayAdjustment, todayStr) ? " is-safe-active" : "")}>
               <input
                 type="checkbox"
                 checked={!!t.done}
@@ -2601,8 +2584,10 @@ function VoyageAdjustmentModal({
   dateStr,
   onApply,
   onCancel,
+  initialMode = "reduced",
+  initialAnchorPlan = "all",
 }) {
-  const [mode, setMode] = useState("reduced");
+  const [mode, setMode] = useState(initialMode);
   const [capacityPct, setCapacityPct] = useState(50);
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -2610,10 +2595,38 @@ function VoyageAdjustmentModal({
   const scheduledAnchors = (state?.anchors || []).filter((anchor) =>
     isAnchorScheduledOn(anchor, dateStr)
   );
-  const [anchorPlan, setAnchorPlan] = useState("all");
+  const [anchorPlan, setAnchorPlan] = useState(initialAnchorPlan);
   const [selectedAnchorIds, setSelectedAnchorIds] = useState(() =>
-    scheduledAnchors.map((anchor) => anchor.id)
+    initialAnchorPlan === "none" ? [] : scheduledAnchors.map((anchor) => anchor.id)
   );
+  const modalRef = useRef(null);
+  const cancelRef = useRef(onCancel);
+  useEffect(() => { cancelRef.current = onCancel; }, [onCancel]);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    modalRef.current?.focus({ preventScroll: true });
+    const handleKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); cancelRef.current(); return; }
+      if (event.key !== "Tab") return;
+      const controls = [...(modalRef.current?.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]') || [])];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === modalRef.current)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === modalRef.current)) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKey);
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, []);
 
   const incompleteTasks = (state?.domains || []).flatMap((domain) =>
     (domain.tasks || [])
@@ -2658,25 +2671,23 @@ function VoyageAdjustmentModal({
       ? parseISODateLocal(ds).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
       : "Unscheduled backlog";
 
-  const activeAnchorIds =
-    mode !== "harbor"
-      ? []
-      : anchorPlan === "all"
-      ? scheduledAnchors.map((anchor) => anchor.id)
-      : anchorPlan === "some"
-      ? selectedAnchorIds
-      : [];
+  const chosenAnchorIds = anchorPlan === "all"
+    ? scheduledAnchors.map((anchor) => anchor.id)
+    : anchorPlan === "some" ? selectedAnchorIds : [];
+  const activeAnchorIds = getSafeHarborActiveAnchorIds(state, {
+    mode, protectedKey, activeAnchorIds: chosenAnchorIds,
+  });
 
   const canApply =
     !!reason &&
     (mode !== "harbor" || anchorPlan !== "some" || activeAnchorIds.length > 0);
 
   return (
-    <div className="qd-voyage-modal-backdrop" role="dialog" aria-modal="true">
-      <div className="qd-voyage-modal">
+    <div className="qd-voyage-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qd-voyage-modal-title">
+      <div className="qd-voyage-modal" ref={modalRef} tabIndex={-1}>
         <div className="qd-voyage-modal-head">
-          <div className="qd-voyage-modal-kicker">Voyage adjustment</div>
-          <div className="qd-voyage-modal-title">The plan changed. The voyage did not.</div>
+          <div className="qd-voyage-modal-kicker">{initialMode === "harbor" ? "Stop Day" : "Voyage adjustment"}</div>
+          <div className="qd-voyage-modal-title" id="qd-voyage-modal-title">The plan changed. The voyage did not.</div>
           <div className="qd-voyage-modal-sub">
             Quest will move flexible work rather than pretending today still has the same capacity. Fixed work stays put, and daily anchors never multiply into tomorrow.
           </div>
@@ -2688,11 +2699,11 @@ function VoyageAdjustmentModal({
         <div className="qd-voyage-section">
           <span className="qd-voyage-label">1. What kind of day is this?</span>
           <div className="qd-voyage-mode-grid">
-            <button type="button" className={"qd-voyage-mode" + (mode === "reduced" ? " active" : "")} onClick={() => setMode("reduced")}>
+            <button type="button" className={"qd-voyage-mode" + (mode === "reduced" ? " active" : "")} aria-pressed={mode === "reduced"} onClick={() => setMode("reduced")}>
               <strong>⛵ Reduced Sail</strong>
               <span>You still have some capacity. Quest keeps what fits and redistributes the rest.</span>
             </button>
-            <button type="button" className={"qd-voyage-mode" + (mode === "harbor" ? " active" : "")} onClick={() => setMode("harbor")}>
+            <button type="button" className={"qd-voyage-mode" + (mode === "harbor" ? " active" : "")} aria-pressed={mode === "harbor"} onClick={() => setMode("harbor")}>
               <strong>⚓ Safe Harbor</strong>
               <span>The planned workday is gone. Flexible work moves; fixed or protected work remains visible.</span>
             </button>
@@ -2730,6 +2741,7 @@ function VoyageAdjustmentModal({
               <button
                 type="button"
                 className={"qd-anchor-choice-btn" + (anchorPlan === "all" ? " active" : "")}
+                aria-pressed={anchorPlan === "all"}
                 onClick={() => {
                   setAnchorPlan("all");
                   setSelectedAnchorIds(scheduledAnchors.map((anchor) => anchor.id));
@@ -2740,6 +2752,7 @@ function VoyageAdjustmentModal({
               <button
                 type="button"
                 className={"qd-anchor-choice-btn" + (anchorPlan === "some" ? " active" : "")}
+                aria-pressed={anchorPlan === "some"}
                 onClick={() => {
                   setAnchorPlan("some");
                   if (!selectedAnchorIds.length && scheduledAnchors[0]) {
@@ -2752,6 +2765,7 @@ function VoyageAdjustmentModal({
               <button
                 type="button"
                 className={"qd-anchor-choice-btn" + (anchorPlan === "none" ? " active" : "")}
+                aria-pressed={anchorPlan === "none"}
                 onClick={() => {
                   setAnchorPlan("none");
                   setSelectedAnchorIds([]);
@@ -2794,7 +2808,7 @@ function VoyageAdjustmentModal({
             )}
 
             <div className="qd-anchor-choice-note">
-              Anchors you keep are real commitments for this Safe Harbor day. Timed anchors stay colored on the clock; paused anchors do not become extra work tomorrow.
+              Anchors you keep stay active and colored. Paused anchors do not become extra work tomorrow. If you protect an anchor below, it stays active even when the others are paused.
             </div>
           </div>
         )}
@@ -2804,7 +2818,7 @@ function VoyageAdjustmentModal({
           <select id="qd-voyage-protect" className="qd-voyage-field" value={protectedKey} onChange={(e) => setProtectedKey(e.target.value)}>
             <option value="">Nothing · let Quest rebalance flexible work</option>
             {incompleteTasks.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-            {mode === "reduced" && anchorOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            {anchorOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
           </select>
         </div>
 
@@ -2864,7 +2878,7 @@ function VoyageAdjustmentModal({
               plan,
             })}
           >
-            {mode === "harbor" ? "Take Safe Harbor & rebalance" : "Reduce sail & rebalance"}
+            {mode === "harbor" ? "Stop day & keep important work" : "Reduce sail & rebalance"}
           </button>
         </div>
       </div>
@@ -3219,6 +3233,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const previewSubPage = designPreview && ["quests", "stats", "more"].includes(page);
 
   const rewardDetectionReady = useRef(false);
+  const savedAdjustmentVersion = useRef(null);
 
   // The anchor manager handles editing; the home timeline supports completion.
   // Listen to the URL so bottom tabs, View All, reloads and browser Back agree.
@@ -3392,28 +3407,38 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       return;
     }
 
-    const timeout = setTimeout(async () => {
-      const { error } = await supabase
-        .from("quest_data")
-        .upsert(
-          {
-            user_id: session.user.id,
-            data: state,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "user_id",
-          }
-        );
+    const adjustmentVersion = JSON.stringify(state.voyageAdjustments || {});
+    const saveImmediately = savedAdjustmentVersion.current !== null && savedAdjustmentVersion.current !== adjustmentVersion;
+    savedAdjustmentVersion.current = adjustmentVersion;
+    const save = async () => {
+      try {
+        const { error } = await supabase
+          .from("quest_data")
+          .upsert(
+            {
+              user_id: session.user.id,
+              data: state,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "user_id",
+            }
+          );
 
-      if (error) {
-        console.error(
-          "Failed to save data:",
-          error
-        );
+        if (error) {
+          console.error(
+            "Failed to save data:",
+            error
+          );
+        }
+      } catch (error) {
+        console.error("Failed to save data:", error);
       }
-    }, 500);
-
+    };
+    // Stopping/restoring a day is a deliberate action: stage it immediately
+    // in the existing offline adapter instead of waiting for normal autosave.
+    if (saveImmediately) { void save(); return; }
+    const timeout = setTimeout(() => void save(), 500);
     return () => clearTimeout(timeout);
   }, [state, loaded, session]);
 
@@ -3882,6 +3907,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       if (!anchor.history[ds] && !isAnchorScheduledOn(anchor, ds)) {
         return;
       }
+      const adjustment = getVoyageAdjustment(next, ds);
+      if (!anchor.history[ds] && adjustment?.mode === "harbor" && !getSafeHarborActiveAnchorIds(next, adjustment).includes(id)) return;
 
       if (anchor.history[ds]) {
         delete anchor.history[ds];
@@ -4408,7 +4435,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         // Do not overwrite a manual edit made after the rebalance.
         const currentDay = task.day || null;
         const expectedDay = move.toDay || null;
-        if (currentDay === expectedDay) {
+        if (currentDay === expectedDay && (task.hour === null || task.hour === undefined)) {
           task.day = move.fromDay || null;
           task.hour = move.fromHour ?? null;
         }
@@ -4611,6 +4638,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       xpPerDay: anchor.xpPerDay,
       done: !!anchor.history?.[todayStr],
       paused: todayAdjustment?.mode === "harbor" && !todayActiveAnchorIds.includes(anchor.id),
+      safeActive: todayAdjustment?.mode === "harbor" && todayActiveAnchorIds.includes(anchor.id),
+      protected: todayAdjustment?.protectedKey === `anchor:${anchor.id}`,
     }));
 
   const todayQuestTasks = viewTasks;
@@ -4619,8 +4648,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     tasks: allTasks(),
     todayStr,
     resetHour,
+    adjustment: todayAdjustment,
   });
   const toggleHomeQuest = (item) => {
+    if (item.paused && !item.done) return;
     if (item.source === "anchor") toggleAnchor(item.id, todayStr);
     else toggleTask(item.domainId, item.id);
   };
@@ -4716,6 +4747,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                   onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
                   onTargetChange={(value) => updateTarget(domain.id, value)}
                   onDeleteDomain={deleteDomain}
+                  todayAdjustment={todayAdjustment}
                 />
               ))}
             </div>
@@ -4756,15 +4788,19 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         />
       )}
 
+      </div>
+
       {showVoyageAdjustment && !todayAdjustment && (
         <VoyageAdjustmentModal
+          key={todayStr}
+          initialMode={designPreview ? "harbor" : "reduced"}
+          initialAnchorPlan={designPreview ? "none" : "all"}
           state={state}
           dateStr={todayStr}
           onApply={applyVoyageAdjustment}
           onCancel={() => setShowVoyageAdjustment(false)}
         />
       )}
-      </div>
 
       {pendingTimeLog && (
         <CompletionTimeModal
@@ -4837,6 +4873,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                       onUpdate={updateAnchor}
                       onDelete={deleteAnchor}
                       voyageAdjustments={state.voyageAdjustments || {}}
+                      safeActive={todayAdjustment?.mode === "harbor" && todayActiveAnchorIds.includes(anchor.id)}
                     />
                   ))}
                 </div>
@@ -4909,7 +4946,14 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                 <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} />
                 <FarmAndStreak streak={streak} />
               </div>
-              <StopDay state={state} userId={session.user.id} day={todayStr} />
+              {todayAdjustment && <DayPauseNotice adjustment={todayAdjustment} importantName={homeQuestItems.find((item) => item.protected)?.name} />}
+              <StopDay
+                adjustment={todayAdjustment}
+                onStop={() => { playSFX("click"); setShowVoyageAdjustment(true); }}
+                onRestore={() => {
+                  if (window.confirm("Resume today and move unfinished automatically rescheduled tasks back? Completed work and manual schedule changes will be kept.")) restoreNormalVoyage(todayStr);
+                }}
+              />
             </div>
           ) : (
             <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
