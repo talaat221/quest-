@@ -1478,6 +1478,18 @@ const PIXEL_CSS = `
 }
 `;
 
+const QUEST_REDESIGN_CSS = `
+.qd-main-quests{
+  min-height:calc(100dvh - 90px);
+  padding-top:0!important;
+}
+.qd-quest-redesign-canvas{
+  width:100%;
+  min-height:calc(100dvh - 90px);
+}
+`;
+
+
 
 // ======================================================
 // RING
@@ -4778,6 +4790,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     >
       <style>{CSS}</style>
       <style>{PIXEL_CSS}</style>
+      <style>{QUEST_REDESIGN_CSS}</style>
 
       <div className="qd-legacy-overlays">
       {celebration && (
@@ -4898,7 +4911,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
             </>
           ) : previewSubPage && page === "quests" ? (
-            <><HomePageHeading title="Quests"><p>Plan your tasks and keep making progress.</p></HomePageHeading>{questLogSection}</>
+            <div className="qd-quest-redesign-canvas" aria-hidden="true" />
           ) : previewSubPage && page === "stats" ? (
             <StatsPage streak={streak} completed={homeQuestItems.filter((item) => item.done).length} total={homeQuestItems.length} todayXP={dToday} weekXP={wXP} lifetimeXP={lifetimeXP} level={level} />
           ) : previewSubPage && page === "more" ? (
