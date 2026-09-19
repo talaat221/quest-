@@ -2097,6 +2097,7 @@ function AnchorAddForm({ onAdd, onCancel }) {
 
 function QuestCard({
   domain,
+  index = 0,
   today,
   todayStr,
   onToggleTask,
@@ -2108,6 +2109,7 @@ function QuestCard({
   todayAdjustment,
 }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const [name, setName] = useState("");
   const [xp, setXp] = useState(20);
@@ -2129,6 +2131,30 @@ function QuestCard({
   const status = questStatus(domain, today);
   const learnedEstimate = getLearnedEstimate(domain, name);
   const learnedSamples = getTimingSampleCount(domain, name);
+  const openTasks = domain.tasks.filter((task) => !task.done).length;
+
+  const getTaskScheduleLabel = (task) => {
+    if (!task.day) return "Unscheduled";
+
+    const dateLabel =
+      task.day === todayStr
+        ? "Today"
+        : parseISODateLocal(task.day).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          });
+
+    if (task.hour === null || task.hour === undefined || task.hour === "") {
+      return dateLabel;
+    }
+
+    const numericHour = Number(task.hour);
+    const timeLabel = Number.isFinite(numericHour)
+      ? `${numericHour % 12 || 12}:00 ${numericHour < 12 ? "AM" : "PM"}`
+      : "";
+
+    return timeLabel ? `${dateLabel} · ${timeLabel}` : dateLabel;
+  };
 
   const submitTask = () => {
     if (!name.trim()) return;
@@ -2203,302 +2229,355 @@ function QuestCard({
   };
 
   return (
-    <div className="qd-quest" style={{ "--accent": domain.color }}>
+    <article className={"qd-quest" + (collapsed ? " is-collapsed" : "")} style={{ "--accent": domain.color }}>
       <div className="qd-quest-head">
-        <span className="qd-quest-emoji">{domain.emoji}</span>
+        <div className="qd-quest-iconbox" aria-hidden="true">
+          <span className="qd-quest-emoji">{domain.emoji}</span>
+        </div>
 
         <div className="qd-quest-titlewrap">
+          <div className="qd-quest-kicker">QUEST {String(index + 1).padStart(2, "0")}</div>
           <div className="qd-quest-title">{domain.name}</div>
           <div className="qd-quest-narrative">{status.text}</div>
         </div>
 
-        <div className="qd-quest-actions">
+        <div className="qd-quest-head-actions">
           <button
             type="button"
+            className="qd-quest-collapse"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? `Expand ${domain.name}` : `Collapse ${domain.name}`}
+            onClick={() => {
+              playSFX("click");
+              setCollapsed((value) => !value);
+            }}
+          >
+            {collapsed ? "+" : "−"}
+          </button>
+          <button
+            type="button"
+            className="qd-quest-delete"
+            aria-label={`Delete ${domain.name}`}
+            title="Delete quest"
             onClick={() => {
               if (window.confirm(`Delete the entire "${domain.name}" quest?`)) {
                 onDeleteDomain(domain.id);
               }
             }}
           >
-            Delete quest
+            ×
           </button>
         </div>
+      </div>
 
-        <div className="qd-quest-target">
-          <input
-            type="number"
-            min="1"
-            value={domain.monthlyTarget}
-            onChange={(e) => onTargetChange(e.target.value)}
+      <div className="qd-quest-progress">
+        <div className="qd-quest-progress-copy">
+          <span>MONTHLY PROGRESS</span>
+          <strong>{status.doneThisMonth} / {status.target}</strong>
+          <label className="qd-quest-goal">
+            <span>Goal</span>
+            <input
+              type="number"
+              min="1"
+              value={domain.monthlyTarget}
+              aria-label={`${domain.name} monthly goal`}
+              onChange={(e) => onTargetChange(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="qd-bar" aria-hidden="true">
+          <div
+            className="qd-bar-fill"
+            style={{ width: `${status.pct * 100}%`, background: domain.color }}
           />
-          <span>this month</span>
+        </div>
+
+        <div className="qd-quest-count">
+          {openTasks} {openTasks === 1 ? "open task" : "open tasks"} · {domain.tasks.length} total
         </div>
       </div>
 
-      <div className="qd-bar">
-        <div
-          className="qd-bar-fill"
-          style={{ width: `${status.pct * 100}%`, background: domain.color }}
-        />
-      </div>
+      {!collapsed && (
+        <>
+          <div className="qd-tasklist">
+            {domain.tasks.map((t) =>
+              editingTaskId === t.id ? (
+                <div key={t.id} className="qd-task-edit-row qd-task-editor">
+                  <div className="qd-task-form-heading">EDIT TASK</div>
 
-      <div className="qd-quest-count">
-        {status.doneThisMonth} / {status.target} quests done this month
-      </div>
+                  <input
+                    type="text"
+                    value={editName}
+                    placeholder="Task name"
+                    aria-label="Task name"
+                    onChange={(e) => {
+                      const nextName = e.target.value;
+                      setEditName(nextName);
+                      if (!editEstimateTouched) {
+                        setEditEstimatedMinutes(
+                          getLearnedEstimate(domain, nextName) ?? ""
+                        );
+                      }
+                    }}
+                  />
 
-      <div className="qd-tasklist">
-        {domain.tasks.map((t) =>
-          editingTaskId === t.id ? (
-            <div key={t.id} className="qd-task-edit-row">
+                  <input
+                    type="number"
+                    min="1"
+                    value={editXp}
+                    aria-label="Task XP"
+                    onChange={(e) => setEditXp(e.target.value)}
+                  />
+
+                  <div className="qd-estimate-field" style={{ gridColumn: "1 / -1" }}>
+                    <input
+                      type="number"
+                      min="1"
+                      step="5"
+                      value={editEstimatedMinutes}
+                      placeholder="Estimate"
+                      aria-label="Estimated minutes"
+                      onChange={(e) => {
+                        setEditEstimatedMinutes(e.target.value);
+                        setEditEstimateTouched(true);
+                      }}
+                    />
+                    <span className="qd-estimate-unit">estimated minutes</span>
+                  </div>
+
+                  {getLearnedEstimate(domain, editName) && (
+                    <div className="qd-time-hint">
+                      Learned estimate: about {formatMinutes(getLearnedEstimate(domain, editName))} from {getTimingSampleCount(domain, editName)} previous {getTimingSampleCount(domain, editName) === 1 ? "run" : "runs"}. You can override it.
+                    </div>
+                  )}
+
+                  <div className="qd-task-date-edit">
+                    <input
+                      type="date"
+                      value={editDay}
+                      aria-label="Task date"
+                      onChange={(e) => setEditDay(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="qd-today-btn"
+                      onClick={() => setEditDay(todayStr)}
+                    >
+                      Today
+                    </button>
+                    {editDay && (
+                      <button
+                        type="button"
+                        className="qd-clear-date-btn"
+                        onClick={() => {
+                          setEditDay("");
+                          setEditHour("");
+                        }}
+                      >
+                        No date
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    value={editHour}
+                    onChange={(e) => setEditHour(e.target.value)}
+                    disabled={!editDay}
+                    title={!editDay ? "Choose a date first" : "Task time"}
+                    aria-label="Task time"
+                  >
+                    <option value="">No time</option>
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, "0")}:00
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={editFlexibility}
+                    onChange={(e) => setEditFlexibility(e.target.value)}
+                    title="Can Quest move this task when your day changes?"
+                    aria-label="Task flexibility"
+                  >
+                    <option value="flexible">Flexible · can be rebalanced</option>
+                    <option value="fixed">Fixed · keep this date</option>
+                  </select>
+
+                  <div className="qd-task-edit-actions">
+                    <button type="button" onClick={saveTaskEdit}>Save</button>
+                    <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div key={t.id} className={"qd-task" + (t.done ? " done" : "") + (isSafeHarborTask(t, domain.id, todayAdjustment, todayStr) ? " is-safe-active" : "")}>
+                  <label className="qd-task-check" aria-label={t.done ? `Mark ${t.name} incomplete` : `Complete ${t.name}`}>
+                    <input
+                      type="checkbox"
+                      checked={!!t.done}
+                      onChange={() => onToggleTask(t.id)}
+                    />
+                    <span aria-hidden="true" />
+                  </label>
+
+                  <div className="qd-task-copy">
+                    <div className="qd-task-mainline">
+                      <span className="qd-task-name">{t.name}</span>
+                      <span className="qd-task-xp">+{t.xp} XP</span>
+                    </div>
+
+                    <div className="qd-task-meta">
+                      <span className={t.day ? "qd-task-day" : "qd-task-unscheduled"}>
+                        {getTaskScheduleLabel(t)}
+                      </span>
+
+                      <span className={"qd-flex-chip" + (getTaskFlexibility(t) === "fixed" ? " fixed" : "")}>
+                        {getTaskFlexibility(t) === "fixed" ? "Fixed" : "Flexible"}
+                      </span>
+
+                      {(t.estimatedMinutes || t.actualMinutes) && (
+                        <span className="qd-task-timing">
+                          {t.estimatedMinutes && (
+                            <span className="qd-time-chip">~{formatMinutes(t.estimatedMinutes)} est.</span>
+                          )}
+                          {t.actualMinutes && (
+                            <span className="qd-time-chip actual">{formatMinutes(t.actualMinutes)} actual</span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="qd-task-actions">
+                    <button
+                      type="button"
+                      className="qd-task-edit-btn"
+                      onClick={() => startTaskEdit(t)}
+                      title="Edit task"
+                      aria-label={`Edit ${t.name}`}
+                    >
+                      EDIT
+                    </button>
+
+                    <button
+                      type="button"
+                      className="qd-task-del"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.confirm(`Delete "${t.name}"?`)) onDeleteTask(t.id);
+                      }}
+                      title="Delete task"
+                      aria-label={`Delete ${t.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+
+            {domain.tasks.length === 0 && (
+              <div className="qd-quest-empty">
+                <span>✦</span>
+                <strong>No tasks yet</strong>
+                <small>Add the first step for this quest.</small>
+              </div>
+            )}
+          </div>
+
+          {showAdd ? (
+            <div className="qd-add-task qd-task-editor">
+              <div className="qd-task-form-heading">NEW TASK</div>
+
               <input
                 type="text"
-                value={editName}
-                placeholder="Task name"
+                placeholder="What needs to be done?"
+                value={name}
+                aria-label="Task name"
                 onChange={(e) => {
                   const nextName = e.target.value;
-                  setEditName(nextName);
-                  if (!editEstimateTouched) {
-                    setEditEstimatedMinutes(
+                  setName(nextName);
+                  if (!estimateTouched) {
+                    setEstimatedMinutes(
                       getLearnedEstimate(domain, nextName) ?? ""
                     );
                   }
                 }}
+                onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
               />
 
               <input
                 type="number"
+                placeholder="XP"
+                value={xp}
                 min="1"
-                value={editXp}
                 aria-label="Task XP"
-                onChange={(e) => setEditXp(e.target.value)}
+                onChange={(e) => setXp(e.target.value)}
               />
 
-              <div className="qd-estimate-field" style={{ gridColumn: "1 / -1" }}>
+              <div className="qd-estimate-field">
                 <input
                   type="number"
                   min="1"
                   step="5"
-                  value={editEstimatedMinutes}
                   placeholder="Estimate"
+                  value={estimatedMinutes}
                   aria-label="Estimated minutes"
                   onChange={(e) => {
-                    setEditEstimatedMinutes(e.target.value);
-                    setEditEstimateTouched(true);
+                    setEstimatedMinutes(e.target.value);
+                    setEstimateTouched(true);
                   }}
                 />
-                <span className="qd-estimate-unit">estimated minutes</span>
+                <span className="qd-estimate-unit">min estimate</span>
               </div>
 
-              {getLearnedEstimate(domain, editName) && (
-                <div className="qd-time-hint">
-                  Learned estimate: about {formatMinutes(getLearnedEstimate(domain, editName))} from {getTimingSampleCount(domain, editName)} previous {getTimingSampleCount(domain, editName) === 1 ? "run" : "runs"}. You can override it.
+              {learnedEstimate && (
+                <div className="qd-time-hint" style={{ width: "100%" }}>
+                  Odyssey learned ~{formatMinutes(learnedEstimate)} for “{name.trim()}” in {domain.name} from {learnedSamples} previous {learnedSamples === 1 ? "run" : "runs"}.
                 </div>
               )}
 
-              <div className="qd-task-date-edit">
-                <input
-                  type="date"
-                  value={editDay}
-                  onChange={(e) => setEditDay(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="qd-today-btn"
-                  onClick={() => setEditDay(todayStr)}
-                >
-                  Today
-                </button>
-                {editDay && (
-                  <button
-                    type="button"
-                    className="qd-clear-date-btn"
-                    onClick={() => {
-                      setEditDay("");
-                      setEditHour("");
-                    }}
-                  >
-                    No date
-                  </button>
-                )}
-              </div>
-
               <select
-                value={editHour}
-                onChange={(e) => setEditHour(e.target.value)}
-                disabled={!editDay}
-                title={!editDay ? "Choose a date first" : "Task time"}
+                value={flexibility}
+                onChange={(e) => setFlexibility(e.target.value)}
+                title="Can Quest move this task when your day changes?"
+                aria-label="Task flexibility"
               >
+                <option value="flexible">Flexible · Quest may rebalance it</option>
+                <option value="fixed">Fixed · must stay on its date</option>
+              </select>
+
+              <input type="date" value={day} aria-label="Task date" onChange={(e) => setDay(e.target.value)} />
+
+              <select value={hour} aria-label="Task time" onChange={(e) => setHour(e.target.value)} disabled={!day}>
                 <option value="">No time</option>
                 {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>
-                    {String(h).padStart(2, "0")}:00
-                  </option>
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
                 ))}
               </select>
 
-              <select
-                value={editFlexibility}
-                onChange={(e) => setEditFlexibility(e.target.value)}
-                title="Can Quest move this task when your day changes?"
-              >
-                <option value="flexible">Flexible · can be rebalanced</option>
-                <option value="fixed">Fixed · keep this date</option>
-              </select>
-
-              <div className="qd-task-edit-actions">
-                <button type="button" onClick={saveTaskEdit}>Save changes</button>
-                <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
+              <div className="qd-task-create-actions">
+                <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
+                  Today
+                </button>
+                <button type="button" className="qd-task-save-btn" onClick={submitTask}>Add task</button>
+                <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
               </div>
             </div>
           ) : (
-            <div key={t.id} className={"qd-task" + (t.done ? " done" : "") + (isSafeHarborTask(t, domain.id, todayAdjustment, todayStr) ? " is-safe-active" : "")}>
-              <input
-                type="checkbox"
-                checked={!!t.done}
-                onChange={() => onToggleTask(t.id)}
-              />
-
-              <span className="qd-task-name">{t.name}</span>
-
-              {t.day ? (
-                <span className="qd-task-day">
-                  {t.day}
-                  {t.hour !== null && t.hour !== undefined
-                    ? " · " + String(t.hour).padStart(2, "0") + ":00"
-                    : ""}
-                </span>
-              ) : (
-                <span className="qd-task-unscheduled">Unscheduled</span>
-              )}
-
-              <span className="qd-task-xp">{t.xp} XP</span>
-              <span className={"qd-flex-chip" + (getTaskFlexibility(t) === "fixed" ? " fixed" : "")}>
-                {getTaskFlexibility(t) === "fixed" ? "Fixed" : "Flexible"}
-              </span>
-
-              {(t.estimatedMinutes || t.actualMinutes) && (
-                <span className="qd-task-timing">
-                  {t.estimatedMinutes && (
-                    <span className="qd-time-chip">~{formatMinutes(t.estimatedMinutes)} est.</span>
-                  )}
-                  {t.actualMinutes && (
-                    <span className="qd-time-chip actual">{formatMinutes(t.actualMinutes)} actual</span>
-                  )}
-                </span>
-              )}
-
-              <button
-                type="button"
-                className="qd-task-edit-btn"
-                onClick={() => startTaskEdit(t)}
-                title="Edit task"
-              >
-                Edit
-              </button>
-
-              <button
-                type="button"
-                className="qd-task-del"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (window.confirm(`Delete "${t.name}"?`)) onDeleteTask(t.id);
-                }}
-                title="Delete task"
-              >
-                ×
-              </button>
-            </div>
-          )
-        )}
-
-        {domain.tasks.length === 0 && <div className="qd-dim">No tasks yet.</div>}
-      </div>
-
-      {showAdd ? (
-        <div className="qd-add-task">
-          <input
-            type="text"
-            placeholder="Task name"
-            value={name}
-            onChange={(e) => {
-              const nextName = e.target.value;
-              setName(nextName);
-              if (!estimateTouched) {
-                setEstimatedMinutes(
-                  getLearnedEstimate(domain, nextName) ?? ""
-                );
-              }
-            }}
-            onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
-          />
-
-          <input
-            type="number"
-            placeholder="XP"
-            value={xp}
-            min="1"
-            onChange={(e) => setXp(e.target.value)}
-            style={{ width: 60 }}
-          />
-
-          <div className="qd-estimate-field">
-            <input
-              type="number"
-              min="1"
-              step="5"
-              placeholder="Estimate"
-              value={estimatedMinutes}
-              aria-label="Estimated minutes"
-              onChange={(e) => {
-                setEstimatedMinutes(e.target.value);
-                setEstimateTouched(true);
-              }}
-            />
-            <span className="qd-estimate-unit">min estimate</span>
-          </div>
-
-          {learnedEstimate && (
-            <div className="qd-time-hint" style={{ width: "100%" }}>
-              Odyssey learned ~{formatMinutes(learnedEstimate)} for “{name.trim()}” in {domain.name} from {learnedSamples} previous {learnedSamples === 1 ? "run" : "runs"}.
-            </div>
+            <button
+              type="button"
+              className="qd-add-btn qd-add-task-main"
+              onClick={() => { playSFX("click"); setShowAdd(true); }}
+            >
+              <span aria-hidden="true">＋</span> ADD TASK
+            </button>
           )}
-
-          <select
-            value={flexibility}
-            onChange={(e) => setFlexibility(e.target.value)}
-            title="Can Quest move this task when your day changes?"
-          >
-            <option value="flexible">Flexible · Quest may rebalance it</option>
-            <option value="fixed">Fixed · must stay on its date</option>
-          </select>
-
-          <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-
-          <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={!day}>
-            <option value="">No time</option>
-            {Array.from({ length: 24 }, (_, h) => (
-              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-            ))}
-          </select>
-
-          <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
-            Today
-          </button>
-          <button type="button" onClick={submitTask}>Add</button>
-          <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="qd-add-btn"
-          onClick={() => { playSFX("click"); setShowAdd(true); }}
-        >
-          + Add task
-        </button>
+        </>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -3198,6 +3277,752 @@ function RewardMachine({
     </div>
   );
 }
+
+const QUEST_PAGE_CSS = `
+/* ======================================================
+   PIXEL QUEST JOURNAL
+   Scoped to the Quests destination so Home stays untouched.
+   ====================================================== */
+.qd-quests-page{
+  width:100%;
+  max-width:840px;
+  margin:0 auto;
+  padding-bottom:26px;
+}
+.qd-quests-page .qd-home-page-heading{
+  position:relative;
+  padding:4px 2px 6px;
+}
+.qd-quests-page .qd-home-page-heading::after{
+  content:"";
+  display:block;
+  height:3px;
+  margin-top:18px;
+  background:linear-gradient(90deg,#6dbf67 0 23%,#365b72 23% 100%);
+  box-shadow:0 2px 0 #041522;
+}
+.qd-quests-page .qd-home-page-heading a{
+  color:#9fc6dc;
+}
+.qd-quests-page .qd-home-page-heading p{
+  color:#b7d0df;
+}
+.qd-quest-log-section{
+  width:100%;
+  max-width:795px;
+  margin:10px auto 0;
+}
+.qd-quest-log-heading{
+  margin:0 0 14px;
+}
+.qd-quest-log-kicker{
+  margin-bottom:7px;
+  color:#78ca6d;
+  font:400 14px/1 'VT323',monospace;
+  letter-spacing:.15em;
+}
+.qd-quests-page .qd-section h2{
+  margin:0;
+  color:#fff3d9;
+  font:400 clamp(22px,4vw,31px)/1.1 'Press Start 2P',monospace;
+  letter-spacing:.04em;
+  text-shadow:3px 3px 0 #071521;
+}
+.qd-quests-page .qd-section-tag{
+  margin-top:8px;
+  color:#a8c4d5;
+  font:400 18px/1.15 'VT323',monospace;
+  font-style:normal;
+}
+.qd-quest-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin:0 0 18px;
+  background:#071f33;
+  border:3px solid #0c2231;
+  outline:2px solid #4d7087;
+  box-shadow:inset 0 0 0 2px rgba(109,155,181,.09),0 7px 0 rgba(3,17,28,.38);
+}
+.qd-quest-summary>div{
+  min-width:0;
+  padding:12px 8px 10px;
+  text-align:center;
+  border-right:2px solid #27495f;
+}
+.qd-quest-summary>div:last-child{border-right:0}
+.qd-quest-summary strong{
+  display:block;
+  color:#9eea78;
+  font:400 clamp(23px,5vw,34px)/1 'VT323',monospace;
+  text-shadow:2px 2px 0 #12351f;
+}
+.qd-quest-summary span{
+  display:block;
+  min-height:22px;
+  margin-top:4px;
+  color:#91afc2;
+  font:400 11px/1.1 'Press Start 2P',monospace;
+  letter-spacing:.02em;
+}
+.qd-quests-page .qd-quest-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:20px;
+}
+.qd-quests-page .qd-quest{
+  position:relative;
+  overflow:visible;
+  padding:0;
+  background:linear-gradient(180deg,#0b3149 0%,#08263b 100%);
+  border:3px solid #0b2232;
+  outline:2px solid #52768d;
+  box-shadow:
+    inset 0 0 0 2px rgba(93,143,171,.08),
+    0 8px 0 rgba(3,17,27,.5),
+    0 14px 28px rgba(0,0,0,.18);
+}
+.qd-quests-page .qd-quest::before{
+  content:"";
+  position:absolute;
+  z-index:2;
+  left:-3px;
+  top:-3px;
+  bottom:-3px;
+  width:7px;
+  background:var(--accent,#79cf61);
+  box-shadow:none;
+}
+.qd-quests-page .qd-quest::after{
+  content:"";
+  position:absolute;
+  pointer-events:none;
+  inset:5px;
+  border:1px solid rgba(124,174,202,.08);
+}
+.qd-quests-page .qd-quest-head{
+  position:relative;
+  z-index:3;
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) auto;
+  align-items:start;
+  gap:12px;
+  padding:16px 15px 13px 18px;
+  background:linear-gradient(180deg,rgba(14,57,82,.94),rgba(9,43,65,.92));
+  border-bottom:2px solid #31566d;
+}
+.qd-quest-iconbox{
+  width:52px;
+  height:52px;
+  display:grid;
+  place-items:center;
+  background:#061d30;
+  border:3px solid #17394e;
+  box-shadow:inset 0 0 0 2px rgba(118,167,193,.09),3px 3px 0 rgba(3,15,24,.45);
+}
+.qd-quests-page .qd-quest-emoji{
+  min-width:0;
+  font-size:27px;
+  filter:drop-shadow(2px 2px 0 #06131e);
+}
+.qd-quests-page .qd-quest-titlewrap{
+  min-width:0;
+  padding-top:1px;
+}
+.qd-quest-kicker{
+  margin-bottom:5px;
+  color:#80b7d0;
+  font:400 13px/1 'VT323',monospace;
+  letter-spacing:.15em;
+}
+.qd-quests-page .qd-quest-title{
+  color:#fff5df;
+  font:400 clamp(13px,3.2vw,17px)/1.35 'Press Start 2P',monospace;
+  letter-spacing:.015em;
+  overflow-wrap:anywhere;
+}
+.qd-quests-page .qd-quest-narrative{
+  margin-top:6px;
+  color:#aac7d8;
+  font:400 18px/1.12 'VT323',monospace;
+  font-style:normal;
+}
+.qd-quest-head-actions{
+  display:flex;
+  gap:6px;
+  align-items:center;
+}
+.qd-root .qd-quest-collapse,
+.qd-root .qd-quest-delete{
+  width:42px;
+  height:42px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border-radius:0;
+  cursor:pointer;
+  font:400 24px/1 'VT323',monospace;
+  box-shadow:2px 2px 0 rgba(2,13,22,.48);
+}
+.qd-root .qd-quest-collapse{
+  color:#b7d5e4;
+  background:#09263c;
+  border:2px solid #43677d;
+}
+.qd-root .qd-quest-delete{
+  color:#e09b8f;
+  background:#2b2631;
+  border:2px solid #714d56;
+}
+.qd-root .qd-quest-collapse:active,
+.qd-root .qd-quest-delete:active{
+  transform:translate(2px,2px);
+  box-shadow:none;
+}
+.qd-quest-progress{
+  position:relative;
+  z-index:3;
+  padding:13px 16px 14px 18px;
+  background:#082238;
+  border-bottom:2px solid #294b61;
+}
+.qd-quest-progress-copy{
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  gap:10px;
+  align-items:center;
+  color:#8fb2c6;
+  font:400 15px/1 'VT323',monospace;
+}
+.qd-quest-progress-copy>span{
+  letter-spacing:.08em;
+}
+.qd-quest-progress-copy strong{
+  color:#a9ef84;
+  font:400 19px/1 'VT323',monospace;
+}
+.qd-quest-goal{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:#8fb2c6;
+}
+.qd-quests-page .qd-quest-goal input{
+  width:48px;
+  height:34px;
+  padding:3px;
+  border:2px solid #456a80;
+  border-radius:0;
+  background:#061d30;
+  color:#f4f2e6;
+  text-align:center;
+  font:400 18px/1 'VT323',monospace;
+}
+.qd-quests-page .qd-bar{
+  height:14px;
+  margin-top:10px;
+  overflow:hidden;
+  background:#061b2c;
+  border:2px solid #17384c;
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,.22);
+}
+.qd-quests-page .qd-bar-fill{
+  min-width:0;
+  height:100%;
+  background:linear-gradient(180deg,#9bea79,#67bd5b)!important;
+  box-shadow:inset 0 -3px 0 rgba(24,94,48,.35);
+}
+.qd-quests-page .qd-quest-count{
+  margin-top:7px;
+  color:#86a6b9;
+  font:400 15px/1 'VT323',monospace;
+}
+.qd-quests-page .qd-tasklist{
+  position:relative;
+  z-index:3;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  margin:0;
+  padding:4px 13px 2px 17px;
+}
+.qd-quests-page .qd-task{
+  display:grid;
+  grid-template-columns:32px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  min-height:72px;
+  padding:11px 3px 11px 0;
+  border-bottom:2px solid rgba(56,91,111,.55);
+  background:transparent;
+  font-size:inherit;
+}
+.qd-quests-page .qd-task:last-child{border-bottom:0}
+.qd-task-check{
+  position:relative;
+  width:30px;
+  height:30px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.qd-task-check input{
+  appearance:none;
+  -webkit-appearance:none;
+  width:30px;
+  height:30px;
+  margin:0;
+  border:3px solid #6b91a8;
+  border-radius:0;
+  background:#061b2d;
+  cursor:pointer;
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,.2);
+}
+.qd-task-check span{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+  color:#092337;
+  font:700 22px/1 system-ui,sans-serif;
+}
+.qd-task-check input:checked{
+  background:#7fe56b;
+  border-color:#a7f38f;
+  box-shadow:inset 0 -4px 0 #4dad50;
+}
+.qd-task-check input:checked+span::after{content:"✓"}
+.qd-task-copy{
+  min-width:0;
+}
+.qd-task-mainline{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+}
+.qd-quests-page .qd-task-name{
+  min-width:0;
+  flex:1;
+  color:#f4f2e8;
+  font:400 20px/1.05 'VT323',monospace;
+  overflow-wrap:anywhere;
+}
+.qd-quests-page .qd-task-xp{
+  flex:0 0 auto;
+  color:#a4ec79;
+  font:400 16px/1 'VT323',monospace;
+  white-space:nowrap;
+}
+.qd-task-meta{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:7px;
+}
+.qd-quests-page .qd-task-day,
+.qd-quests-page .qd-task-unscheduled,
+.qd-quests-page .qd-flex-chip,
+.qd-quests-page .qd-time-chip{
+  display:inline-flex;
+  align-items:center;
+  min-height:25px;
+  padding:3px 7px;
+  border-radius:0;
+  white-space:nowrap;
+  font:400 14px/1 'VT323',monospace;
+}
+.qd-quests-page .qd-task-day{
+  color:#b9d9eb;
+  background:#0b3550;
+  border:1px solid #3d6680;
+}
+.qd-quests-page .qd-task-unscheduled{
+  color:#b8aee6;
+  background:#25294a;
+  border:1px solid #5b5c8b;
+}
+.qd-quests-page .qd-flex-chip{
+  color:#b3c9d6;
+  background:#102b3c;
+  border:1px solid #426174;
+}
+.qd-quests-page .qd-flex-chip.fixed{
+  color:#f1c886;
+  background:#3b3025;
+  border-color:#755f43;
+}
+.qd-quests-page .qd-task-timing{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap;
+}
+.qd-quests-page .qd-time-chip{
+  color:#e4c994;
+  background:#342d24;
+  border:1px solid #6e5b3c;
+}
+.qd-quests-page .qd-time-chip.actual{
+  color:#a9e3b5;
+  background:#193b34;
+  border-color:#3d725f;
+}
+.qd-task-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.qd-root .qd-quests-page .qd-task-edit-btn,
+.qd-root .qd-quests-page .qd-task-del{
+  min-width:42px;
+  height:40px;
+  padding:0 8px;
+  display:grid;
+  place-items:center;
+  border-radius:0;
+  cursor:pointer;
+  font:400 13px/1 'VT323',monospace;
+  box-shadow:2px 2px 0 rgba(2,13,22,.42);
+}
+.qd-root .qd-quests-page .qd-task-edit-btn{
+  color:#bcd9e9;
+  background:#0a2b42;
+  border:2px solid #41657b;
+}
+.qd-root .qd-quests-page .qd-task-del{
+  width:40px;
+  min-width:40px;
+  color:#d68d84;
+  background:#2a2630;
+  border:2px solid #674d55;
+  font-size:24px;
+}
+.qd-root .qd-quests-page .qd-task-edit-btn:active,
+.qd-root .qd-quests-page .qd-task-del:active{
+  transform:translate(2px,2px);
+  box-shadow:none;
+}
+.qd-quests-page .qd-task.done{
+  opacity:.62;
+}
+.qd-quests-page .qd-task.done .qd-task-name{
+  text-decoration:line-through;
+  color:#9fb3bd;
+}
+.qd-quests-page .qd-task.is-safe-active{
+  margin-left:-8px;
+  padding-left:8px;
+  background:linear-gradient(90deg,rgba(251,194,84,.12),transparent 65%);
+  box-shadow:inset 4px 0 0 #f0b74e;
+}
+.qd-quest-empty{
+  min-height:112px;
+  margin:10px 0;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:4px;
+  color:#7fa4b8;
+  border:2px dashed #365c70;
+  background:rgba(5,29,45,.48);
+  text-align:center;
+}
+.qd-quest-empty span{color:#82d770;font-size:20px}
+.qd-quest-empty strong{color:#bfd8e5;font:400 19px/1 'VT323',monospace}
+.qd-quest-empty small{font:400 15px/1 'VT323',monospace}
+.qd-root .qd-quests-page .qd-add-btn{
+  position:relative;
+  z-index:3;
+  width:calc(100% - 34px);
+  min-height:50px;
+  margin:12px 17px 17px;
+  padding:9px 12px;
+  border:2px dashed #5b879c;
+  border-radius:0;
+  background:#092b42;
+  color:#bcd8e5;
+  font:400 18px/1 'VT323',monospace;
+  box-shadow:none;
+}
+.qd-root .qd-quests-page .qd-add-btn span{
+  margin-right:7px;
+  color:#91e778;
+}
+.qd-root .qd-quests-page .qd-add-btn:active{
+  background:#0d3b54;
+}
+.qd-task-editor{
+  position:relative;
+  z-index:4;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 92px;
+  gap:9px;
+  margin:12px 15px 16px!important;
+  padding:14px!important;
+  background:#061f33;
+  border:3px solid #17384d;
+  outline:2px solid #456c82;
+  box-shadow:inset 0 0 0 2px rgba(100,151,178,.06);
+}
+.qd-task-form-heading{
+  grid-column:1/-1;
+  color:#9ee77a;
+  font:400 12px/1.2 'Press Start 2P',monospace;
+  letter-spacing:.04em;
+  margin-bottom:2px;
+}
+.qd-quests-page .qd-task-editor input,
+.qd-quests-page .qd-task-editor select{
+  width:100%!important;
+  min-width:0!important;
+  min-height:44px;
+  padding:8px 9px!important;
+  border:2px solid #466b82!important;
+  border-radius:0!important;
+  background:#08263b!important;
+  color:#f2f0e4!important;
+  font:400 17px/1 'VT323',monospace!important;
+}
+.qd-quests-page .qd-task-editor input[type=text]{
+  grid-column:1/-1;
+}
+.qd-quests-page .qd-estimate-field{
+  grid-column:1/-1!important;
+  display:grid;
+  grid-template-columns:92px 1fr;
+  align-items:center;
+  gap:8px;
+}
+.qd-quests-page .qd-estimate-field input{
+  width:92px!important;
+}
+.qd-quests-page .qd-estimate-unit,
+.qd-quests-page .qd-time-hint{
+  color:#90afc0;
+  font:400 15px/1.1 'VT323',monospace;
+}
+.qd-quests-page .qd-task-date-edit{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:7px;
+}
+.qd-root .qd-quests-page .qd-today-btn,
+.qd-root .qd-quests-page .qd-clear-date-btn,
+.qd-root .qd-quests-page .qd-task-edit-actions button,
+.qd-root .qd-quests-page .qd-task-create-actions button{
+  min-height:44px;
+  padding:7px 11px;
+  border-radius:0;
+  font:400 17px/1 'VT323',monospace;
+  cursor:pointer;
+}
+.qd-root .qd-quests-page .qd-today-btn{
+  color:#bddbed;
+  background:#0d3851;
+  border:2px solid #4d748b;
+}
+.qd-root .qd-quests-page .qd-clear-date-btn,
+.qd-root .qd-quests-page .qd-cancel{
+  color:#9eb5c3!important;
+  background:#102534!important;
+  border:2px solid #3f5a6b!important;
+}
+.qd-root .qd-quests-page .qd-task-save-btn,
+.qd-root .qd-quests-page .qd-task-edit-actions button:first-child{
+  color:#082019!important;
+  background:linear-gradient(180deg,#9be87b,#69c85f)!important;
+  border:2px solid #3b8248!important;
+  box-shadow:0 4px 0 #2f6239;
+}
+.qd-root .qd-quests-page .qd-task-save-btn:active,
+.qd-root .qd-quests-page .qd-task-edit-actions button:first-child:active{
+  transform:translateY(3px);
+  box-shadow:0 1px 0 #2f6239;
+}
+.qd-quests-page .qd-task-edit-actions,
+.qd-quests-page .qd-task-create-actions{
+  grid-column:1/-1;
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+}
+.qd-new-quest-zone{
+  margin-top:20px;
+}
+.qd-root .qd-quests-page .qd-new-quest-btn{
+  width:100%;
+  margin:0;
+  min-height:58px;
+  border-style:solid;
+  color:#d8ebf3;
+  background:linear-gradient(180deg,#0d3952,#092c43);
+  box-shadow:0 5px 0 #051a29;
+}
+.qd-quests-page .qd-new-quest-form{
+  margin:0!important;
+  grid-template-columns:minmax(0,1fr) 88px 120px;
+}
+.qd-quests-page .qd-new-quest-form input[type=text]:first-of-type{
+  grid-column:auto;
+}
+.qd-quests-page .qd-new-quest-form input:nth-of-type(2){
+  text-align:center;
+}
+.qd-quest.is-collapsed .qd-quest-progress{
+  border-bottom:0;
+}
+
+@media(max-width:640px){
+  .qd-quests-page{
+    padding:0 1px 22px;
+  }
+  .qd-quest-log-section{
+    margin-top:6px;
+  }
+  .qd-quest-summary{
+    margin-left:1px;
+    margin-right:1px;
+  }
+  .qd-quest-summary>div{
+    padding:10px 4px 9px;
+  }
+  .qd-quest-summary span{
+    font-size:8px;
+    line-height:1.25;
+  }
+  .qd-quests-page .qd-quest-grid{
+    gap:17px;
+  }
+  .qd-quests-page .qd-quest-head{
+    grid-template-columns:46px minmax(0,1fr) auto;
+    gap:9px;
+    padding:13px 10px 11px 14px;
+  }
+  .qd-quest-iconbox{
+    width:46px;
+    height:46px;
+  }
+  .qd-quests-page .qd-quest-emoji{font-size:24px}
+  .qd-quests-page .qd-quest-title{font-size:12px}
+  .qd-quests-page .qd-quest-narrative{font-size:16px}
+  .qd-root .qd-quest-collapse,
+  .qd-root .qd-quest-delete{
+    width:38px;
+    height:38px;
+  }
+  .qd-quest-head-actions{
+    flex-direction:column;
+    gap:5px;
+  }
+  .qd-quest-progress{
+    padding:11px 12px 12px 14px;
+  }
+  .qd-quest-progress-copy{
+    grid-template-columns:1fr auto;
+    gap:7px;
+  }
+  .qd-quest-goal{
+    grid-column:1/-1;
+    justify-content:flex-end;
+  }
+  .qd-quests-page .qd-tasklist{
+    padding:3px 9px 1px 13px;
+  }
+  .qd-quests-page .qd-task{
+    grid-template-columns:30px minmax(0,1fr);
+    gap:9px;
+    min-height:74px;
+    padding:10px 2px 10px 0;
+  }
+  .qd-task-actions{
+    grid-column:2/3;
+    justify-content:flex-end;
+    margin-top:0;
+  }
+  .qd-root .qd-quests-page .qd-task-edit-btn{
+    min-width:54px;
+  }
+  .qd-task-mainline{
+    gap:5px;
+  }
+  .qd-quests-page .qd-task-name{
+    font-size:19px;
+  }
+  .qd-quests-page .qd-task-xp{
+    font-size:14px;
+  }
+  .qd-root .qd-quests-page .qd-add-btn{
+    width:calc(100% - 26px);
+    margin:10px 13px 15px;
+  }
+  .qd-task-editor,
+  .qd-quests-page .qd-new-quest-form{
+    display:flex!important;
+    flex-direction:column;
+    align-items:stretch;
+    margin:10px 11px 14px!important;
+  }
+  .qd-quests-page .qd-task-editor input,
+  .qd-quests-page .qd-task-editor select{
+    min-height:48px;
+  }
+  .qd-quests-page .qd-estimate-field{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto;
+    width:100%;
+  }
+  .qd-quests-page .qd-estimate-field input{
+    width:100%!important;
+  }
+  .qd-quests-page .qd-task-date-edit{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .qd-quests-page .qd-task-date-edit input{
+    grid-column:1/-1;
+  }
+  .qd-quests-page .qd-task-edit-actions,
+  .qd-quests-page .qd-task-create-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .qd-quests-page .qd-task-create-actions .qd-today-btn{
+    grid-column:1/-1;
+  }
+  .qd-root .qd-quests-page .qd-task-edit-actions button,
+  .qd-root .qd-quests-page .qd-task-create-actions button{
+    width:100%;
+  }
+  .qd-root .qd-quests-page .qd-new-quest-btn{
+    width:100%;
+    margin:0;
+  }
+}
+
+@media(max-width:390px){
+  .qd-quests-page .qd-quest-head{
+    grid-template-columns:42px minmax(0,1fr) 34px;
+  }
+  .qd-quest-iconbox{
+    width:42px;
+    height:42px;
+  }
+  .qd-quest-head-actions{
+    width:34px;
+  }
+  .qd-root .qd-quest-collapse,
+  .qd-root .qd-quest-delete{
+    width:34px;
+    height:34px;
+  }
+  .qd-quests-page .qd-task-meta{
+    gap:4px;
+  }
+}
+`;
 
 // ======================================================
 // MAIN DASHBOARD
@@ -4725,47 +5550,87 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   );
 
   const streak = getCurrentStreak({ anchors: state.anchors, tasks: allTasks(), todayStr, resetHour });
+  const questPageStats = state.domains.reduce(
+    (summary, domain) => {
+      domain.tasks.forEach((task) => {
+        if (!task.done) summary.open += 1;
+        if (!task.done && !task.day) summary.unscheduled += 1;
+        if (
+          task.done &&
+          task.doneAt &&
+          isSameMonth(String(task.doneAt).slice(0, 10), today)
+        ) {
+          summary.doneThisMonth += 1;
+        }
+      });
+      return summary;
+    },
+    { open: 0, unscheduled: 0, doneThisMonth: 0 }
+  );
+
   const questLogSection = (
-    <section className="qd-section" id={designPreview ? "quest-log" : "quests"}>
-            <div className="qd-section-heading">
-              <div>
-                <h2>QUEST LOG</h2>
-                <div className="qd-section-tag">Every task is another mile toward Ithaca.</div>
-              </div>
-            </div>
+    <section className="qd-section qd-quest-log-section" id={designPreview ? "quest-log" : "quests"}>
+      <div className="qd-section-heading qd-quest-log-heading">
+        <div>
+          <div className="qd-quest-log-kicker">ADVENTURE JOURNAL</div>
+          <h2>QUEST LOG</h2>
+          <div className="qd-section-tag">Every task is another mile toward Ithaca.</div>
+        </div>
+      </div>
 
-            <div className="qd-quest-grid">
-              {state.domains.map((domain) => (
-                <QuestCard
-                  key={domain.id}
-                  domain={domain}
-                  today={today}
-                  todayStr={todayStr}
-                  onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
-                  onAddTask={(payload) => addTask(domain.id, payload)}
-                  onUpdateTask={(taskId, changes) => updateTask(domain.id, taskId, changes)}
-                  onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
-                  onTargetChange={(value) => updateTarget(domain.id, value)}
-                  onDeleteDomain={deleteDomain}
-                  todayAdjustment={todayAdjustment}
-                />
-              ))}
-            </div>
+      <div className="qd-quest-summary" aria-label="Quest summary">
+        <div>
+          <strong>{questPageStats.open}</strong>
+          <span>OPEN</span>
+        </div>
+        <div>
+          <strong>{questPageStats.doneThisMonth}</strong>
+          <span>DONE THIS MONTH</span>
+        </div>
+        <div>
+          <strong>{questPageStats.unscheduled}</strong>
+          <span>UNSCHEDULED</span>
+        </div>
+      </div>
 
-            {showAddDomain ? (
-              <div className="qd-add-task">
-                <input type="text" placeholder="Quest name" value={newDomainName} onChange={(e) => setNewDomainName(e.target.value)} />
-                <input type="text" placeholder="Emoji" value={newDomainEmoji} onChange={(e) => setNewDomainEmoji(e.target.value)} style={{ width: 55 }} />
-                <input type="number" min="1" placeholder="Monthly target" value={newDomainTarget} onChange={(e) => setNewDomainTarget(e.target.value)} style={{ width: 90 }} />
-                <button type="button" onClick={addDomain}>Add</button>
-                <button type="button" className="qd-cancel" onClick={() => setShowAddDomain(false)}>Cancel</button>
-              </div>
-            ) : (
-              <button type="button" className="qd-add-btn" style={{ marginLeft: 0, width: "auto" }} onClick={() => { playSFX("click"); setShowAddDomain(true); }}>
-                + New quest
-              </button>
-            )}
-          </section>
+      <div className="qd-quest-grid">
+        {state.domains.map((domain, index) => (
+          <QuestCard
+            key={domain.id}
+            domain={domain}
+            index={index}
+            today={today}
+            todayStr={todayStr}
+            onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
+            onAddTask={(payload) => addTask(domain.id, payload)}
+            onUpdateTask={(taskId, changes) => updateTask(domain.id, taskId, changes)}
+            onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
+            onTargetChange={(value) => updateTarget(domain.id, value)}
+            onDeleteDomain={deleteDomain}
+            todayAdjustment={todayAdjustment}
+          />
+        ))}
+      </div>
+
+      <div className="qd-new-quest-zone">
+        {showAddDomain ? (
+          <div className="qd-add-task qd-new-quest-form">
+            <div className="qd-task-form-heading">NEW QUEST</div>
+            <input type="text" placeholder="Quest name" value={newDomainName} onChange={(e) => setNewDomainName(e.target.value)} />
+            <input type="text" placeholder="Emoji" value={newDomainEmoji} onChange={(e) => setNewDomainEmoji(e.target.value)} />
+            <input type="number" min="1" placeholder="Monthly target" value={newDomainTarget} onChange={(e) => setNewDomainTarget(e.target.value)} />
+            <div className="qd-task-create-actions">
+              <button type="button" className="qd-task-save-btn" onClick={addDomain}>Create quest</button>
+              <button type="button" className="qd-cancel" onClick={() => setShowAddDomain(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="qd-add-btn qd-new-quest-btn" onClick={() => { playSFX("click"); setShowAddDomain(true); }}>
+            <span aria-hidden="true">＋</span> NEW QUEST
+          </button>
+        )}
+      </div>
+    </section>
   );
   const currentNav = designPreview ? (showTodayQuestsPage ? "quests" : page) : anchorPageVisible ? "anchors" : showTodayQuestsPage ? "quests" : activeNav;
 
@@ -4778,6 +5643,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     >
       <style>{CSS}</style>
       <style>{PIXEL_CSS}</style>
+      <style>{QUEST_PAGE_CSS}</style>
 
       <div className="qd-legacy-overlays">
       {celebration && (
@@ -4898,7 +5764,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
             </>
           ) : previewSubPage && page === "quests" ? (
-            <><HomePageHeading title="Quests"><p>Plan your tasks and keep making progress.</p></HomePageHeading>{questLogSection}</>
+            <div className="qd-quests-page">
+              <HomePageHeading title="Quests">
+                <p>Choose the next step. Keep the journey moving.</p>
+              </HomePageHeading>
+              {questLogSection}
+            </div>
           ) : previewSubPage && page === "stats" ? (
             <StatsPage streak={streak} completed={homeQuestItems.filter((item) => item.done).length} total={homeQuestItems.length} todayXP={dToday} weekXP={wXP} lifetimeXP={lifetimeXP} level={level} />
           ) : previewSubPage && page === "more" ? (
