@@ -4831,7 +4831,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     <div
       className={
         "qd-root" +
-        (todayAdjustment?.mode === "harbor" ? " qd-safe-harbor" : "")
+        (todayAdjustment?.mode === "harbor" ? " qd-safe-harbor" : "") +
+        (designPreview && page === "quests" ? " qd-quests-active" : "")
       }
     >
       <style>{CSS}</style>
