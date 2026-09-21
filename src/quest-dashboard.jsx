@@ -1478,87 +1478,446 @@ const PIXEL_CSS = `
 }
 `;
 
-const QUEST_REDESIGN_CSS = `
-.qd-main-quests{
-  min-height:calc(100dvh - 90px);
-  padding-top:0!important;
-  padding-left:0!important;
-  padding-right:0!important;
-  overflow:hidden;
+
+// ======================================================
+// RING
+// ======================================================
+
+function Ring({
+  pct,
+  size,
+  stroke,
+  color,
+  label,
+  sublabel,
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.min(pct, 1));
+
+  return (
+    <div className="ring-wrap">
+      <svg width={size} height={size}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          className="ring-track"
+          strokeWidth={stroke}
+          fill="none"
+        />
+
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className="ring-progress"
+        />
+      </svg>
+
+      <div className="ring-center">
+        <div className="ring-value">{label}</div>
+        <div className="ring-sub">{sublabel}</div>
+      </div>
+    </div>
+  );
 }
-.qd-quest-redesign-page{
-  width:100%;
-  min-height:calc(100dvh - 90px);
-  background:#061b2a;
+
+// ======================================================
+// CLOCK
+// ======================================================
+
+function ClockDial({
+  tasks,
+  dateLabel,
+  onPrev,
+  onNext,
+  onToggle,
+  now,
+  safeHarbor = false,
+}) {
+  const size = 430;
+  const cx = size / 2;
+  const cy = size / 2;
+  const outerR = 194;
+  const taskR = 146;
+
+  const pos = (hour, radius = taskR) => {
+    const angle = (hour / 24) * 2 * Math.PI - Math.PI / 2;
+    return {
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
+    };
+  };
+
+  const timed = tasks.filter(
+    (t) => t.hour !== null && t.hour !== undefined
+  );
+
+  // If several items share the same hour, fan them around that hour
+  // instead of drawing every marker on top of the first one.
+  const positionedTimed = timed.map((item) => {
+    const sameHour = timed.filter(
+      (other) => Number(other.hour) === Number(item.hour)
+    );
+    const index = sameHour.findIndex(
+      (other) => other.clockKey === item.clockKey
+    );
+    const count = sameHour.length;
+    const angularStep = count > 1 ? Math.min(0.28, 0.72 / count) : 0;
+    const hourOffset = (index - (count - 1) / 2) * angularStep;
+    const radiusOffset = count > 3 && index % 2 ? -15 : 0;
+
+    return {
+      ...item,
+      markerPos: pos(Number(item.hour) + hourOffset, taskR + radiusOffset),
+    };
+  });
+
+  const current = now || new Date();
+  const exactHour = current.getHours() + current.getMinutes() / 60;
+  const hand = pos(exactHour, 104);
+  const roman = ["XII", "III", "VI", "IX"];
+  const romanHours = [0, 6, 12, 18];
+
+  return (
+    <div className="qd-clock">
+      <div className="qd-clock-nav">
+        <button type="button" onClick={onPrev}>‹</button>
+        <span>{dateLabel}</span>
+        <button type="button" onClick={onNext}>›</button>
+      </div>
+
+      <svg viewBox={`0 0 ${size} ${size}`} className="qd-clock-svg" aria-label="Ancient Greek astrolabe clock">
+        <defs>
+          <radialGradient id="qdClockGlow" cx="50%" cy="45%" r="60%">
+            <stop offset="0%" stopColor="#1b2149" />
+            <stop offset="65%" stopColor="#0a1529" />
+            <stop offset="100%" stopColor="#07111f" />
+          </radialGradient>
+        </defs>
+        <circle cx={cx} cy={cy} r={outerR} fill="url(#qdClockGlow)" className="qd-clock-outer" />
+        <circle cx={cx} cy={cy} r={174} className="qd-clock-ring" />
+        <circle cx={cx} cy={cy} r={150} className="qd-clock-ring-purple" />
+        <circle cx={cx} cy={cy} r={115} className="qd-clock-ring" />
+        <circle cx={cx} cy={cy} r={70} className="qd-clock-ring" />
+
+        {Array.from({ length: 24 }, (_, h) => {
+          const p1 = pos(h, h % 3 === 0 ? 164 : 168);
+          const p2 = pos(h, 178);
+          const label = pos(h, 187);
+          return (
+            <g key={h}>
+              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} className={`qd-clock-tick${h % 3 === 0 ? " major" : ""}`} />
+              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="qd-clock-hour-small">{h}</text>
+            </g>
+          );
+        })}
+
+        {romanHours.map((h, i) => {
+          const p = pos(h, 128);
+          return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" className="qd-clock-ticklabel">{roman[i]}</text>;
+        })}
+
+        {positionedTimed.map((item) => {
+          const p = item.markerPos;
+          const isAnchor = item.sourceType === "anchor";
+          const keepColor = !safeHarbor || !!item.safeHarborHighlight;
+          const markerFill = keepColor
+            ? item.done
+              ? "#7ec5a0"
+              : isAnchor
+              ? "#cba66a"
+              : item.domainColor || "#8b5cf6"
+            : "#666a70";
+          return (
+            <g
+              key={item.clockKey}
+              onClick={() => onToggle(item)}
+              style={{ cursor: "pointer", opacity: keepColor ? 1 : 0.38 }}
+            >
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={isAnchor ? 9 : 10}
+                fill={markerFill}
+                className="qd-clock-dot"
+              />
+              <text
+                x={p.x}
+                y={p.y - 16}
+                textAnchor="middle"
+                fill={keepColor ? "#eee7f5" : "#8a8a8a"}
+                fontSize="10"
+              >
+                {item.domainEmoji}
+              </text>
+            </g>
+          );
+        })}
+
+        <line x1={cx} y1={cy} x2={hand.x} y2={hand.y} className="qd-clock-hand" />
+        <circle cx={cx} cy={cy} r={11} className="qd-clock-center" />
+        <text x={cx} y={cy + 48} textAnchor="middle" className="qd-clock-time">
+          {current.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </text>
+        <text x={cx} y={cy + 67} textAnchor="middle" className="qd-clock-date">
+          {current.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+        </text>
+      </svg>
+
+      <div className="qd-clock-list">
+        {tasks.length === 0 && (
+          <div className="qd-dim">Nothing scheduled for this date — add a time to a quest task or daily anchor.</div>
+        )}
+        {tasks.map((item) => (
+          <div
+            key={item.clockKey}
+            className={
+              "qd-clock-item" +
+              (item.done ? " done" : "") +
+              (safeHarbor
+                ? item.safeHarborHighlight
+                  ? " qd-safe-active"
+                  : " qd-safe-muted"
+                : "")
+            }
+            onClick={() => onToggle(item)}
+          >
+            <span>{item.domainEmoji}</span>
+            <span className="qd-clock-item-name">
+              {item.name}
+              {item.sourceType === "anchor" && (
+                <span className="qd-clock-routine"> · routine</span>
+              )}
+            </span>
+            <span className="qd-clock-item-time">
+              {item.hour !== null && item.hour !== undefined
+                ? String(item.hour).padStart(2, "0") + ":00"
+                : "—"}
+            </span>
+            {item.sourceType === "task" && item.estimatedMinutes && (
+              <span className="qd-time-chip">~{formatMinutes(item.estimatedMinutes)}</span>
+            )}
+            <span className="qd-clock-item-xp">{item.xp} XP</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
-.qd-quest-redesign-canvas{
-  width:100%;
-  min-height:70vh;
-  background:#061b2a;
-}
-.qd-quest-image-hero{
-  position:relative;
-  width:100%;
-  background:#061b2a;
-  overflow:hidden;
-}
-.qd-quest-image-hero-art{
-  display:block;
-  width:100%;
-  height:auto;
-  object-fit:contain;
-  image-rendering:auto;
-}
-.qd-quest-live-date{
-  position:absolute;
-  z-index:2;
-  left:69.4%;
-  top:10.9%;
-  width:22.5%;
-  height:13.7%;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:7%;
-  padding:1.1% 1.2%;
-  background:#5c3826;
-  color:#ffe4ad;
-  text-align:center;
-  font-family:'VT323',monospace;
-  text-shadow:2px 2px 0 #342116;
-}
-.qd-quest-live-date-main{
-  font-family:'Press Start 2P',monospace;
-  font-size:clamp(7px,1.55vw,15px);
-  line-height:1.25;
-  white-space:nowrap;
-}
-.qd-quest-live-day{
-  font-size:clamp(13px,2.25vw,22px);
-  line-height:1;
-  white-space:nowrap;
-}
-.qd-quest-live-day span{
-  margin-right:.2em;
-  font-size:.82em;
-}
-@media(max-width:640px){
-  .qd-quest-live-date{
-    left:68.9%;
-    top:10.5%;
-    width:23.5%;
-    height:14.6%;
-    gap:5%;
-  }
-  .qd-quest-live-date-main{
-    font-size:clamp(7px,2.05vw,10px);
-  }
-  .qd-quest-live-day{
-    font-size:clamp(13px,3.7vw,17px);
-  }
-}
-`
+
+// ======================================================
+// ANCHOR CARD
+// ======================================================
+
+function AnchorCard({
+  anchor,
+  weekDates,
+  onToggle,
+  onUpdate,
+  onDelete,
+  voyageAdjustments = {},
+  safeActive = false,
+}) {
+  const [editing, setEditing] = useState(false);
+
+  const [emoji, setEmoji] = useState(anchor.emoji);
+  const [name, setName] = useState(anchor.name);
+  const [xp, setXp] = useState(anchor.xpPerDay);
+  const [category, setCategory] = useState(anchor.category || "");
+  const [activeWeekdays, setActiveWeekdays] = useState(() => getAnchorWeekdays(anchor));
+  const [hour, setHour] = useState(
+    anchor.hour === null || anchor.hour === undefined ? "" : String(anchor.hour)
+  );
+
+  useEffect(() => {
+    setEmoji(anchor.emoji);
+    setName(anchor.name);
+    setXp(anchor.xpPerDay);
+    setCategory(anchor.category || "");
+    setActiveWeekdays(getAnchorWeekdays(anchor));
+    setHour(
+      anchor.hour === null || anchor.hour === undefined ? "" : String(anchor.hour)
+    );
+  }, [anchor]);
+
+  const save = () => {
+    if (!name.trim()) return;
+
+    onUpdate(anchor.id, {
+      emoji: emoji || "⭐",
+      name: name.trim(),
+      xpPerDay: Math.max(1, Number(xp) || 1),
+      category: normalizeAnchorCategory(category),
+      activeWeekdays: normalizeAnchorWeekdays(activeWeekdays),
+      hour:
+        hour === "" || hour === null || hour === undefined
+          ? null
+          : Number(hour),
+    });
+
+    setEditing(false);
+  };
+
+  return (
+    <div className={`qd-anchor${safeActive ? " is-safe-active" : ""}`}>
+      {!editing ? (
+        <>
+          <div className="qd-anchor-head">
+            <span>{anchor.emoji}</span>
+
+            <span className="qd-anchor-title">
+              {anchor.name}
+            </span>
+
+            <span className="qd-dim">
+              · {anchor.xpPerDay} XP
+              {anchor.hour !== null && anchor.hour !== undefined
+                ? ` · ${String(anchor.hour).padStart(2, "0")}:00`
+                : ""}
+            </span>
+
+            <div className="qd-anchor-meta">
+              <span
+                className="qd-anchor-category"
+                style={{
+                  color: getAnchorCategoryColor(anchor.category),
+                  border: `1px solid ${getAnchorCategoryColor(anchor.category)}77`,
+                  background: `${getAnchorCategoryColor(anchor.category)}14`,
+                  boxShadow: `0 0 10px ${getAnchorCategoryColor(anchor.category)}14`,
+                }}
+              >
+                {normalizeAnchorCategory(anchor.category)}
+              </span>
+              <span className="qd-anchor-frequency">{getAnchorDaysPerWeek(anchor)} days/week</span>
+            </div>
+
+            <div className="qd-anchor-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  playSFX("click");
+                  setEditing(true);
+                }}
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDelete(anchor.id)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="qd-anchor-edit">
+          <input
+            value={emoji}
+            maxLength={4}
+            onChange={(e) => setEmoji(e.target.value)}
+          />
+
+          <input
+            value={name}
+            placeholder="Anchor name"
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <input
+            type="number"
+            min="1"
+            value={xp}
+            onChange={(e) => setXp(e.target.value)}
+          />
+
+          <input
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Category — e.g. Sport, Lifestyle"
+            title="Write your own category"
+            style={{ borderColor: `${getAnchorCategoryColor(category)}88`, boxShadow: `inset 3px 0 0 ${getAnchorCategoryColor(category)}` }}
+          />
+
+          <div className="qd-anchor-schedule-editor">
+            <div className="qd-anchor-schedule-title">
+              <span>Repeat on</span>
+              <strong>{activeWeekdays.length} {activeWeekdays.length === 1 ? "day" : "days"}/week</strong>
+            </div>
+            <div className="qd-anchor-day-picks">
+              {WEEKDAY_OPTIONS.map((dayOption) => {
+                const active = activeWeekdays.includes(dayOption.value);
+                return (
+                  <button
+                    key={dayOption.value}
+                    type="button"
+                    className={"qd-anchor-day-pick" + (active ? " active" : "")}
+                    title={dayOption.label}
+                    onClick={() =>
+                      setActiveWeekdays((current) => {
+                        if (current.includes(dayOption.value)) {
+                          return current.length === 1
+                            ? current
+                            : current.filter((day) => day !== dayOption.value);
+                        }
+                        return [...current, dayOption.value].sort((a, b) => a - b);
+                      })
+                    }
+                  >
+                    {dayOption.short}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <select
+            value={hour}
+            onChange={(e) => setHour(e.target.value)}
+            title="Routine time"
+          >
+            <option value="">No clock time</option>
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>
+                {String(h).padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+
+          <button type="button" onClick={save}>
+            Save
+          </button>
+
+          <button
+            type="button"
+            className="qd-cancel"
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      <div className="qd-anchor-week">
+        {weekDates.map((date, i) => {
+          const adjustment = voyageAdjustments?.[date];
+          const activeAnchorIds = getSafeHarborActiveAnchorIds(
+            { anchors: [anchor] },
+            adjustment
+          );
+          const isProtected =
+            adjustment?.protectedKey === `anchor:${anchor.id}`;
           const keptInHarbor =
             activeAnchorIds.includes(anchor.id) || isProtected;
           const completed = !!anchor.history?.[date];
@@ -2890,16 +3249,9 @@ function QuestPageHero({ today, journeyDay }) {
     <header className="qd-quest-image-hero">
       {heroArt && <img className="qd-quest-image-hero-art" src={heroArt} alt="" aria-hidden="true" />}
 
-      <div
-        className="qd-quest-live-date"
-        aria-label={`${weekday} ${today.getDate()} ${month}. Day ${journeyDay}`}
-      >
-        <div className="qd-quest-live-date-main">
-          {weekday} {today.getDate()} {month}
-        </div>
-        <div className="qd-quest-live-day">
-          <span aria-hidden="true">🌱</span> Day {journeyDay}
-        </div>
+      <div className="qd-quest-live-date" aria-label={`${weekday} ${today.getDate()} ${month}. Day ${journeyDay}`}>
+        <div className="qd-quest-live-date-main">{weekday} {today.getDate()} {month}</div>
+        <div className="qd-quest-live-day"><span aria-hidden="true">🌱</span> Day {journeyDay}</div>
       </div>
     </header>
   );
@@ -4484,7 +4836,6 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     >
       <style>{CSS}</style>
       <style>{PIXEL_CSS}</style>
-      <style>{QUEST_REDESIGN_CSS}</style>
 
       <div className="qd-legacy-overlays">
       {celebration && (
