@@ -161,3 +161,79 @@
     margin-right:-13px;
   }
 }
+
+
+/* Quest page owns the viewport so the artwork reads as one continuous screen. */
+.qd-root.qd-quests-active{
+  background:#001123!important;
+}
+.qd-root.qd-quests-active::before,
+.qd-root.qd-quests-active::after{
+  display:none!important;
+}
+.qd-root.qd-quests-active .qd-shell{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  background:#001123;
+}
+.qd-root.qd-quests-active .qd-main.qd-main-page.qd-main-quests{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  background:#001123;
+}
+.qd-root.qd-quests-active .qd-quest-redesign-page{
+  width:100%;
+  max-width:none;
+  margin:0;
+  background:#001123;
+}
+.qd-root.qd-quests-active .qd-quest-image-hero{
+  width:100%;
+  margin:0;
+  border:0;
+  outline:0;
+  box-shadow:none;
+  background:#001123;
+}
+.qd-root.qd-quests-active .qd-quest-image-hero::after{
+  height:24%;
+  bottom:-2px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0,17,35,0) 0%,
+      rgba(0,17,35,.18) 28%,
+      rgba(0,17,35,.72) 72%,
+      #001123 100%
+    );
+}
+.qd-root.qd-quests-active .qd-quest-redesign-canvas{
+  position:relative;
+  margin-top:-2px;
+  background:#001123;
+}
+.qd-root.qd-quests-active .qd-quest-redesign-canvas::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:-54px;
+  height:56px;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,17,35,0),#001123 88%);
+}
+
+@media(max-width:900px){
+  .qd-root.qd-quests-active .qd-shell,
+  .qd-root.qd-quests-active .qd-main.qd-main-page.qd-main-quests{
+    width:100%!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+}
