@@ -1482,12 +1482,428 @@ const QUEST_REDESIGN_CSS = `
 .qd-main-quests{
   min-height:calc(100dvh - 90px);
   padding-top:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  overflow:hidden;
+}
+.qd-quest-redesign-page{
+  width:100%;
+  min-height:calc(100dvh - 90px);
+  background:#061c2a;
 }
 .qd-quest-redesign-canvas{
   width:100%;
-  min-height:calc(100dvh - 90px);
+  min-height:70vh;
+  background:
+    radial-gradient(circle at 50% 0,rgba(15,75,88,.22),transparent 38%),
+    linear-gradient(180deg,#061c2a 0%,#062432 46%,#082a31 100%);
 }
-`;
+
+/* QUEST HERO — live UI over a coded pixel harbor. */
+.qd-quest-hero{
+  position:relative;
+  isolation:isolate;
+  width:100%;
+  height:clamp(265px,45vw,430px);
+  overflow:hidden;
+  background:#041b35;
+  color:#f8f1dd;
+  image-rendering:pixelated;
+}
+.qd-quest-hero::before{
+  content:"";
+  position:absolute;
+  z-index:7;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px),
+    linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px);
+  background-size:4px 4px;
+  opacity:.46;
+  mix-blend-mode:screen;
+}
+.qd-quest-hero::after{
+  content:"";
+  position:absolute;
+  z-index:8;
+  left:0;right:0;bottom:-1px;
+  height:36%;
+  pointer-events:none;
+  background:linear-gradient(
+    180deg,
+    rgba(6,28,42,0) 0%,
+    rgba(6,28,42,.18) 18%,
+    rgba(6,28,42,.64) 58%,
+    #061c2a 100%
+  );
+}
+.qd-quest-harbor{
+  position:absolute;
+  z-index:0;
+  inset:0;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 74% 28%,rgba(111,167,215,.16),transparent 20%),
+    linear-gradient(180deg,#041831 0%,#062747 53%,#07344b 70%,#082e3c 100%);
+}
+.qd-quest-stars{
+  position:absolute;
+  inset:0 0 38%;
+  opacity:.95;
+  background-image:
+    radial-gradient(circle,#ffcf68 0 1px,transparent 1.4px),
+    radial-gradient(circle,#b7ddf5 0 1px,transparent 1.4px),
+    radial-gradient(circle,#f9e8b8 0 1px,transparent 1.4px);
+  background-size:73px 73px,109px 109px,151px 151px;
+  background-position:11px 25px,47px 6px,82px 36px;
+}
+.qd-quest-moon{
+  position:absolute;
+  z-index:2;
+  right:21%;
+  top:23%;
+  width:clamp(28px,5.4vw,52px);
+  aspect-ratio:1;
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 38% 35%,#ffe69b 0 18%,#f4c75d 19% 61%,#d98a35 62% 100%);
+  box-shadow:
+    0 0 0 3px rgba(244,199,93,.07),
+    0 0 28px rgba(255,211,111,.25);
+}
+.qd-quest-moon::after{
+  content:"";
+  position:absolute;
+  width:18%;height:15%;
+  left:22%;top:24%;
+  background:#e6aa4a;
+  box-shadow:
+    14px 8px 0 #e6aa4a,
+    3px 19px 0 #efbd59;
+  opacity:.75;
+}
+.qd-quest-cloud{
+  position:absolute;
+  z-index:2;
+  height:16px;
+  background:#0d3963;
+  box-shadow:
+    15px -8px 0 #0d3963,
+    30px -4px 0 #0d3963,
+    48px 1px 0 #0d3963,
+    61px -7px 0 #0d3963,
+    77px 1px 0 #0d3963;
+  opacity:.82;
+}
+.qd-quest-cloud-one{top:18%;left:-10px;width:74px}
+.qd-quest-cloud-two{top:31%;right:4%;width:60px;transform:scale(.82);opacity:.6}
+.qd-quest-mountains{
+  position:absolute;
+  left:-4%;right:-4%;
+  clip-path:polygon(0 100%,0 80%,9% 57%,16% 69%,25% 39%,34% 67%,43% 50%,53% 72%,61% 43%,70% 65%,80% 49%,89% 70%,100% 53%,100% 100%);
+}
+.qd-quest-mountains-back{
+  z-index:1;
+  bottom:32%;
+  height:43%;
+  background:#0a2e50;
+  opacity:.88;
+}
+.qd-quest-mountains-front{
+  z-index:2;
+  bottom:28%;
+  height:34%;
+  background:#082741;
+  opacity:.98;
+  transform:scaleX(1.08);
+}
+.qd-quest-town-lights{
+  position:absolute;
+  z-index:4;
+  left:43%;
+  right:5%;
+  bottom:34%;
+  height:8px;
+  background:
+    linear-gradient(90deg,transparent 0 5%,#ffad45 5% 6%,transparent 6% 13%,#ffd064 13% 14%,transparent 14% 22%,#f59b3a 22% 23%,transparent 23% 31%,#ffc958 31% 32%,transparent 32% 41%,#ff9f3d 41% 42%,transparent 42% 54%,#ffd064 54% 55%,transparent 55% 63%,#ffad45 63% 64%,transparent 64% 75%,#ffd064 75% 76%,transparent 76%);
+  filter:drop-shadow(0 0 4px rgba(255,177,73,.55));
+}
+.qd-quest-water{
+  position:absolute;
+  z-index:3;
+  left:0;right:0;bottom:8%;
+  height:34%;
+  overflow:hidden;
+  background:
+    repeating-linear-gradient(180deg,rgba(78,147,181,.18) 0 2px,transparent 2px 8px),
+    linear-gradient(180deg,#0a3c57 0%,#0a344c 40%,#082c3f 100%);
+  border-top:2px solid rgba(65,131,171,.35);
+}
+.qd-quest-water::before{
+  content:"";
+  position:absolute;
+  left:69%;
+  top:0;
+  width:12%;
+  height:100%;
+  transform:translateX(-50%);
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,210,92,.84) 0 3px,
+      transparent 3px 10px
+    );
+  filter:blur(.2px);
+  clip-path:polygon(42% 0,62% 0,82% 100%,12% 100%);
+  opacity:.75;
+}
+.qd-quest-reflection{
+  position:absolute;
+  height:2px;
+  background:#5f91aa;
+  opacity:.36;
+}
+.qd-quest-reflection-one{width:16%;left:7%;top:24%}
+.qd-quest-reflection-two{width:11%;left:29%;top:52%}
+.qd-quest-reflection-three{width:18%;right:6%;top:70%}
+.qd-quest-shore{
+  position:absolute;
+  z-index:4;
+  left:0;right:0;bottom:0;
+  height:14%;
+  background:
+    linear-gradient(180deg,#0b3d36 0 18%,#092d2e 19% 43%,#082531 44% 100%);
+  clip-path:polygon(0 23%,10% 8%,19% 31%,28% 13%,39% 29%,50% 14%,62% 28%,74% 11%,84% 25%,93% 8%,100% 21%,100% 100%,0 100%);
+}
+.qd-quest-pier{
+  position:absolute;
+  z-index:5;
+  right:-3%;
+  bottom:11%;
+  width:42%;
+  height:10%;
+  background:
+    repeating-linear-gradient(90deg,#75482d 0 19px,#50311f 19px 23px);
+  border-top:4px solid #9d653a;
+  border-bottom:4px solid #3d271b;
+  transform:perspective(180px) rotateX(4deg);
+}
+.qd-quest-pier-post{
+  position:absolute;
+  bottom:-28%;
+  width:8px;
+  height:180%;
+  background:#5b361f;
+  border:2px solid #351f16;
+}
+.qd-quest-pier-post-one{left:10%}
+.qd-quest-pier-post-two{left:48%}
+.qd-quest-pier-post-three{right:6%}
+.qd-quest-lantern{
+  position:absolute;
+  z-index:6;
+  right:5%;
+  top:27%;
+  width:30px;
+  height:56px;
+  border-left:5px solid #38251a;
+}
+.qd-quest-lantern::before{
+  content:"";
+  position:absolute;
+  left:-2px;top:0;
+  width:33px;height:5px;
+  background:#38251a;
+}
+.qd-quest-lantern-roof{
+  position:absolute;
+  top:8px;left:18px;
+  width:20px;height:8px;
+  background:#4c2f1e;
+  clip-path:polygon(18% 0,82% 0,100% 100%,0 100%);
+}
+.qd-quest-lantern-glow{
+  position:absolute;
+  top:15px;left:21px;
+  width:14px;height:20px;
+  background:#ffc34f;
+  border:3px solid #5b3822;
+  box-shadow:
+    inset 0 0 0 2px #fff0a4,
+    0 0 16px rgba(255,183,71,.52);
+}
+.qd-quest-hero-copy{
+  position:absolute;
+  z-index:10;
+  left:clamp(18px,5vw,54px);
+  top:clamp(28px,7vw,66px);
+  width:min(55%,430px);
+  text-shadow:3px 3px 0 #04111f;
+}
+.qd-quest-title-row{
+  display:flex;
+  align-items:center;
+  gap:clamp(10px,2.4vw,20px);
+}
+.qd-quest-book{
+  width:clamp(38px,7.2vw,62px);
+  height:auto;
+  flex:0 0 auto;
+  filter:drop-shadow(3px 3px 0 rgba(1,12,22,.7));
+}
+.qd-root .qd-quest-hero h1{
+  margin:0;
+  color:#fff3d6;
+  font:400 clamp(27px,6vw,56px)/1 'Press Start 2P',monospace;
+  letter-spacing:.025em;
+  text-shadow:
+    4px 4px 0 #0b2435,
+    6px 6px 0 rgba(0,0,0,.28);
+}
+.qd-quest-hero-copy p{
+  margin:clamp(12px,2.4vw,21px) 0 0;
+  color:#d7e9f2;
+  font:400 clamp(17px,3.25vw,27px)/1.14 'VT323',monospace;
+  letter-spacing:.025em;
+}
+.qd-quest-date-plaque{
+  position:absolute;
+  z-index:11;
+  top:clamp(22px,5.2vw,48px);
+  right:clamp(17px,4.3vw,46px);
+  min-width:clamp(150px,27vw,235px);
+  padding:clamp(10px,1.9vw,16px) clamp(12px,2.3vw,19px);
+  text-align:center;
+  background:#704426;
+  border:4px solid #3c261b;
+  outline:3px solid #93603a;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,187,102,.18),
+    5px 6px 0 rgba(1,13,23,.48);
+}
+.qd-quest-date-plaque::before,
+.qd-quest-date-plaque::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  width:7px;height:7px;
+  margin-top:-4px;
+  background:#d69049;
+  border:2px solid #56351f;
+}
+.qd-quest-date-plaque::before{left:7px}
+.qd-quest-date-plaque::after{right:7px}
+.qd-quest-date-main{
+  color:#ffe0a6;
+  font:400 clamp(12px,2vw,18px)/1.1 'Press Start 2P',monospace;
+  white-space:nowrap;
+}
+.qd-quest-day{
+  margin-top:8px;
+  color:#f8d58a;
+  font:400 clamp(17px,2.8vw,23px)/1 'VT323',monospace;
+}
+.qd-quest-day span{
+  margin-right:5px;
+  font-size:.9em;
+}
+
+@media(max-width:640px){
+  .qd-quest-hero{
+    height:286px;
+  }
+  .qd-quest-hero-copy{
+    left:17px;
+    top:31px;
+    width:57%;
+  }
+  .qd-root .qd-quest-hero h1{
+    font-size:28px;
+  }
+  .qd-quest-book{
+    width:37px;
+  }
+  .qd-quest-title-row{
+    gap:9px;
+  }
+  .qd-quest-hero-copy p{
+    margin-top:13px;
+    font-size:18px;
+  }
+  .qd-quest-date-plaque{
+    top:22px;
+    right:13px;
+    min-width:132px;
+    padding:9px 10px;
+    border-width:3px;
+    outline-width:2px;
+  }
+  .qd-quest-date-main{
+    font-size:9px;
+  }
+  .qd-quest-day{
+    margin-top:6px;
+    font-size:16px;
+  }
+  .qd-quest-cloud-two{display:none}
+  .qd-quest-lantern{right:4%;top:36%;transform:scale(.82);transform-origin:top right}
+  .qd-quest-moon{right:25%;top:31%;width:36px}
+}
+@media(max-width:430px){
+  .qd-quest-hero{
+    height:274px;
+  }
+  .qd-quest-hero-copy{
+    top:29px;
+    left:14px;
+    width:54%;
+  }
+  .qd-root .qd-quest-hero h1{
+    font-size:24px;
+  }
+  .qd-quest-book{
+    width:32px;
+  }
+  .qd-quest-hero-copy p{
+    margin-top:12px;
+    font-size:17px;
+  }
+  .qd-quest-date-plaque{
+    min-width:124px;
+    right:10px;
+    top:18px;
+  }
+  .qd-quest-date-main{
+    font-size:8px;
+  }
+  .qd-quest-day{
+    font-size:15px;
+  }
+}
+@media(prefers-reduced-motion:no-preference){
+  .qd-quest-water::before{
+    animation:qdQuestWaterShimmer 3.8s steps(4,end) infinite alternate;
+  }
+  .qd-quest-lantern-glow{
+    animation:qdQuestLanternFlicker 1.8s steps(3,end) infinite;
+  }
+  .qd-quest-stars{
+    animation:qdQuestStarTwinkle 4s steps(2,end) infinite alternate;
+  }
+}
+@keyframes qdQuestWaterShimmer{
+  from{opacity:.58;transform:translateX(-50%) translateY(0)}
+  to{opacity:.82;transform:translateX(-50%) translateY(3px)}
+}
+@keyframes qdQuestLanternFlicker{
+  0%,100%{filter:brightness(.92)}
+  50%{filter:brightness(1.16)}
+}
+@keyframes qdQuestStarTwinkle{
+  from{opacity:.7}
+  to{opacity:1}
+}
+`
 
 
 
@@ -3211,6 +3627,57 @@ function RewardMachine({
   );
 }
 
+function QuestPageHero({ today, journeyDay }) {
+  const weekday = today.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const month = today.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+
+  return (
+    <header className="qd-quest-hero">
+      <div className="qd-quest-harbor" aria-hidden="true">
+        <div className="qd-quest-stars" />
+        <div className="qd-quest-moon" />
+        <div className="qd-quest-cloud qd-quest-cloud-one" />
+        <div className="qd-quest-cloud qd-quest-cloud-two" />
+        <div className="qd-quest-mountains qd-quest-mountains-back" />
+        <div className="qd-quest-mountains qd-quest-mountains-front" />
+        <div className="qd-quest-town-lights" />
+        <div className="qd-quest-water">
+          <span className="qd-quest-reflection qd-quest-reflection-one" />
+          <span className="qd-quest-reflection qd-quest-reflection-two" />
+          <span className="qd-quest-reflection qd-quest-reflection-three" />
+        </div>
+        <div className="qd-quest-shore" />
+        <div className="qd-quest-pier">
+          <span className="qd-quest-pier-post qd-quest-pier-post-one" />
+          <span className="qd-quest-pier-post qd-quest-pier-post-two" />
+          <span className="qd-quest-pier-post qd-quest-pier-post-three" />
+        </div>
+        <div className="qd-quest-lantern">
+          <span className="qd-quest-lantern-roof" />
+          <span className="qd-quest-lantern-glow" />
+        </div>
+      </div>
+
+      <div className="qd-quest-hero-copy">
+        <div className="qd-quest-title-row">
+          <svg className="qd-quest-book" viewBox="0 0 36 32" aria-hidden="true" focusable="false" shapeRendering="crispEdges">
+            <path d="M3 4H14L18 8V29L14 26H3ZM33 4H22L18 8V29L22 26H33Z" fill="#f0d6a4" stroke="#8b6547" strokeWidth="2" />
+            <path d="M7 9H13M7 13H14M7 17H14M23 9H29M22 13H29M22 17H29" stroke="#8b6547" strokeWidth="2" />
+            <path d="M18 8V29" stroke="#684a35" strokeWidth="2" />
+          </svg>
+          <h1>QUESTS</h1>
+        </div>
+        <p>“Every task is another step<br />toward Ithaca.”</p>
+      </div>
+
+      <div className="qd-quest-date-plaque" aria-label={`${weekday} ${today.getDate()} ${month}. Day ${journeyDay}`}>
+        <div className="qd-quest-date-main">{weekday} {today.getDate()} {month}</div>
+        <div className="qd-quest-day"><span aria-hidden="true">🌱</span> Day {journeyDay}</div>
+      </div>
+    </header>
+  );
+}
+
 // ======================================================
 // MAIN DASHBOARD
 // ======================================================
@@ -4911,7 +5378,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
             </>
           ) : previewSubPage && page === "quests" ? (
-            <div className="qd-quest-redesign-canvas" aria-hidden="true" />
+            <div className="qd-quest-redesign-page">
+              <QuestPageHero today={today} journeyDay={journeyDay} />
+              <div className="qd-quest-redesign-canvas" aria-hidden="true" />
+            </div>
           ) : previewSubPage && page === "stats" ? (
             <StatsPage streak={streak} completed={homeQuestItems.filter((item) => item.done).length} total={homeQuestItems.length} todayXP={dToday} weekXP={wXP} lifetimeXP={lifetimeXP} level={level} />
           ) : previewSubPage && page === "more" ? (
