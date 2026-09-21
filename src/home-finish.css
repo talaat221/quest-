@@ -49,33 +49,48 @@
 
 
 /* Quest redesign image hero */
-.qd-main-quests{
+.qd-root .qd-main.qd-main-page.qd-main-quests{
   min-height:calc(100dvh - 90px);
   padding-top:0!important;
   padding-left:0!important;
   padding-right:0!important;
-  overflow:hidden;
+  gap:0!important;
+  overflow:visible;
 }
 .qd-quest-redesign-page{
   width:100%;
   min-height:calc(100dvh - 90px);
-  background:#061b2a;
+  background:#001123;
 }
 .qd-quest-redesign-canvas{
   width:100%;
   min-height:70vh;
-  background:#061b2a;
+  margin-top:-1px;
+  background:#001123;
 }
 .qd-quest-image-hero{
   position:relative;
   width:100%;
+  margin:0;
   overflow:hidden;
-  background:#061b2a;
+  background:#001123;
+}
+.qd-quest-image-hero::after{
+  content:"";
+  position:absolute;
+  z-index:1;
+  left:0;
+  right:0;
+  bottom:-1px;
+  height:14%;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,17,35,0),#001123 92%);
 }
 .qd-quest-image-hero-art{
   display:block;
   width:100%;
   height:auto;
+  margin:0;
 }
 .qd-quest-live-date{
   position:absolute;
@@ -94,6 +109,7 @@
   background:#5a3828;
   color:#ffe2aa;
   text-align:center;
+  font-family:'VT323',monospace;
   text-shadow:2px 2px 0 #2d1b13;
 }
 .qd-quest-live-date-main{
@@ -107,17 +123,41 @@
 .qd-quest-live-day span{
   margin-right:.15em;
 }
+
+@media(max-width:900px){
+  .qd-root .qd-main.qd-main-page.qd-main-quests{
+    width:calc(100% + 28px);
+    margin-left:-14px;
+    margin-right:-14px;
+  }
+}
+
 @media(max-width:640px){
+  .qd-root .qd-main.qd-main-page.qd-main-quests{
+    width:calc(100% + 26px);
+    margin-left:-13px;
+    margin-right:-13px;
+    padding-bottom:62px!important;
+  }
   .qd-quest-live-date{
     left:68.8%;
     top:11.9%;
     width:24.6%;
     height:11.6%;
+    gap:5%;
   }
   .qd-quest-live-date-main{
     font-size:clamp(7px,2vw,10px);
   }
   .qd-quest-live-day{
     font-size:clamp(13px,3.5vw,17px);
+  }
+}
+
+@media(max-width:390px){
+  .qd-root .qd-main.qd-main-page.qd-main-quests{
+    width:calc(100% + 26px);
+    margin-left:-13px;
+    margin-right:-13px;
   }
 }
