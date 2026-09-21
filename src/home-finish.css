@@ -237,3 +237,23 @@
     margin-right:0!important;
   }
 }
+
+
+/* Let the Quest sky continue behind the iPhone status bar. */
+@supports (padding-top: env(safe-area-inset-top)){
+  @media(max-width:700px){
+    .qd-root.qd-quests-active{
+      min-height:100dvh;
+    }
+    .qd-root.qd-quests-active .qd-quest-redesign-page{
+      margin-top:calc(-1 * env(safe-area-inset-top));
+    }
+    .qd-root.qd-quests-active .qd-quest-image-hero{
+      padding-top:env(safe-area-inset-top);
+      box-sizing:content-box;
+    }
+    .qd-root.qd-quests-active .qd-quest-live-date{
+      transform:translateY(env(safe-area-inset-top));
+    }
+  }
+}
