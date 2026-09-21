@@ -46,3 +46,78 @@
 .qd-root .qd-more-sign-out { max-width: 795px; color: #eeb09f; border-color: #76594f; background: #201f2a; }
 .qd-home-settings-card button:disabled, .qd-more-sign-out:disabled { opacity: .6; cursor: wait; }
 @media (prefers-reduced-motion: no-preference) { .qd-bottom-navigation a { transition: color .15s ease, background-color .15s ease; } }
+
+
+/* Quest redesign image hero */
+.qd-main-quests{
+  min-height:calc(100dvh - 90px);
+  padding-top:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  overflow:hidden;
+}
+.qd-quest-redesign-page{
+  width:100%;
+  min-height:calc(100dvh - 90px);
+  background:#061b2a;
+}
+.qd-quest-redesign-canvas{
+  width:100%;
+  min-height:70vh;
+  background:#061b2a;
+}
+.qd-quest-image-hero{
+  position:relative;
+  width:100%;
+  overflow:hidden;
+  background:#061b2a;
+}
+.qd-quest-image-hero-art{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.qd-quest-live-date{
+  position:absolute;
+  z-index:2;
+  left:68.9%;
+  top:12.1%;
+  width:24.4%;
+  height:11.3%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8%;
+  padding:.7% 1%;
+  box-sizing:border-box;
+  background:#5a3828;
+  color:#ffe2aa;
+  text-align:center;
+  text-shadow:2px 2px 0 #2d1b13;
+}
+.qd-quest-live-date-main{
+  font:400 clamp(7px,1.45vw,15px)/1.2 'Press Start 2P',monospace;
+  white-space:nowrap;
+}
+.qd-quest-live-day{
+  font:400 clamp(13px,2.2vw,22px)/1 'VT323',monospace;
+  white-space:nowrap;
+}
+.qd-quest-live-day span{
+  margin-right:.15em;
+}
+@media(max-width:640px){
+  .qd-quest-live-date{
+    left:68.8%;
+    top:11.9%;
+    width:24.6%;
+    height:11.6%;
+  }
+  .qd-quest-live-date-main{
+    font-size:clamp(7px,2vw,10px);
+  }
+  .qd-quest-live-day{
+    font-size:clamp(13px,3.5vw,17px);
+  }
+}
