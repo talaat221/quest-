@@ -3257,6 +3257,107 @@ function QuestPageHero({ today, journeyDay }) {
   );
 }
 
+function QuestStatsBar({ activeQuests, doneThisMonth, remaining, totalXP }) {
+  const [statsArt, setStatsArt] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = "";
+
+    const loadStatsArt = async () => {
+      try {
+        const names = [
+          "part-01.txt",
+          "part-01b.txt",
+          "part-02.txt",
+          "part-03.txt",
+          "part-04.txt",
+          "part-05.txt",
+          "part-06.txt",
+          "part-07.txt",
+          "part-08.txt",
+        ];
+
+        const parts = await Promise.all(
+          names.map(async (name) => {
+            const response = await fetch(`/quest-stats-frame/${name}`, {
+              cache: "force-cache",
+            });
+            if (!response.ok) {
+              throw new Error("Quest stats artwork could not be loaded.");
+            }
+            return response.text();
+          })
+        );
+
+        const encoded = parts.join("").replace(/\s/g, "");
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+
+        objectUrl = URL.createObjectURL(
+          new Blob([bytes], { type: "image/webp" })
+        );
+
+        if (!cancelled) setStatsArt(objectUrl);
+      } catch (error) {
+        console.warn("Quest stats artwork failed to load:", error);
+      }
+    };
+
+    void loadStatsArt();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, []);
+
+  return (
+    <section className="qd-quest-summary-art" aria-label="Quest overview">
+      {statsArt && (
+        <img
+          className="qd-quest-summary-art-image"
+          src={statsArt}
+          alt=""
+          aria-hidden="true"
+        />
+      )}
+
+      <span
+        className="qd-quest-summary-value qd-quest-summary-active"
+        aria-label={`${activeQuests} active quests`}
+      >
+        {activeQuests}
+      </span>
+
+      <span
+        className="qd-quest-summary-value qd-quest-summary-done"
+        aria-label={`${doneThisMonth} tasks done this month`}
+      >
+        {doneThisMonth}
+      </span>
+
+      <span
+        className="qd-quest-summary-value qd-quest-summary-remaining"
+        aria-label={`${remaining} tasks remaining`}
+      >
+        {remaining}
+      </span>
+
+      <span
+        className="qd-quest-summary-value qd-quest-summary-xp"
+        aria-label={`${totalXP} total XP`}
+      >
+        {totalXP}
+      </span>
+    </section>
+  );
+}
+
 // ======================================================
 // MAIN DASHBOARD
 // ======================================================
@@ -4754,6 +4855,18 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           (Number(anchor.xpPerDay) || 0),
       0
     );
+  const questSummaryStats = {
+    activeQuests: state.domains.length,
+    doneThisMonth: allTasks().filter(
+      (task) =>
+        task.done &&
+        task.doneAt &&
+        isSameMonth(String(task.doneAt).slice(0, 10), today)
+    ).length,
+    remaining: allTasks().filter((task) => !task.done).length,
+    totalXP: lifetimeXP,
+  };
+
   const level = Math.max(1, Math.floor(lifetimeXP / 500) + 1);
   const levelXP = lifetimeXP % 500;
   const recordedJourneyDates = [
@@ -4959,6 +5072,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ) : previewSubPage && page === "quests" ? (
             <div className="qd-quest-redesign-page">
               <QuestPageHero today={today} journeyDay={journeyDay} />
+              <QuestStatsBar
+                activeQuests={questSummaryStats.activeQuests}
+                doneThisMonth={questSummaryStats.doneThisMonth}
+                remaining={questSummaryStats.remaining}
+                totalXP={questSummaryStats.totalXP}
+              />
               <div className="qd-quest-redesign-canvas" aria-hidden="true" />
             </div>
           ) : previewSubPage && page === "stats" ? (
