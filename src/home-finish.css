@@ -264,7 +264,7 @@
 .qd-quest-summary-art{
   position:relative;
   container-type:inline-size;
-  width:min(calc(100% - 28px),824px);
+  width:min(96.7%,824px);
   aspect-ratio:824 / 105;
   margin:0 auto;
   overflow:hidden;
@@ -302,8 +302,3 @@
 .qd-quest-summary-remaining{left:61.71%}
 .qd-quest-summary-xp{left:89.14%}
 
-@media(max-width:430px){
-  .qd-quest-summary-art{
-    width:calc(100% - 20px);
-  }
-}
