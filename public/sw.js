@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v22-cottage-icon';
+const CACHE_NAME = 'quest-shell-v23-account-reset';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',

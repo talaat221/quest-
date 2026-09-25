@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { isEmptyQuestAccount } from "./account-reset.js";
 
 const supabaseUrl = "https://nagxpuqdurdcogzudblo.supabase.co";
 const supabaseAnonKey = "sb_publishable_fD34vhaeM1pyxWo8OcfZrA_ycEYnpT-";
@@ -8,6 +9,7 @@ const rawSupabase = createClient(supabaseUrl, supabaseAnonKey);
 const CACHE_PREFIX = "quest-offline-v3:";
 const LEGACY_CACHE_PREFIXES = ["quest-offline-v2:", "quest-offline-v1:"];
 const SYNC_EVENT = "quest-sync-status";
+const ACCOUNT_RESET_EVENT = "quest-account-reset";
 
 type QuestSyncState = "synced" | "syncing" | "offline" | "pending" | "conflict";
 
@@ -37,6 +39,7 @@ type QuestCacheRecord = {
   localRevision: number;
   pendingEdits: number;
   conflict: ConflictRecord | null;
+  resetRevision?: number;
 };
 
 type CloudState = {
@@ -47,6 +50,7 @@ type CloudState = {
   legacyExists: boolean;
   source: "normalized" | "legacy" | "none";
   error: any | null;
+  resetRevision: number;
 };
 
 let syncSnapshot: QuestSyncSnapshot = {
@@ -60,6 +64,9 @@ let syncSnapshot: QuestSyncSnapshot = {
 };
 
 const syncLocks = new Map<string, Promise<void>>();
+const resettingUsers = new Set<string>();
+const observedResetRevisions = new Map<string, number>();
+let activeQuestUserId: string | null = null;
 
 const nowISO = () => new Date().toISOString();
 const cacheKey = (userId: string) => `${CACHE_PREFIX}${userId}`;
@@ -90,6 +97,7 @@ const normalizeCacheRecord = (record: any): QuestCacheRecord => ({
   cachedAt: record?.cachedAt || nowISO(),
   localRevision: Number(record?.localRevision) || 0,
   pendingEdits: Number(record?.pendingEdits) || 0,
+  resetRevision: Number(record?.resetRevision) || 0,
   conflict: record?.conflict
     ? {
         remoteData: record.conflict.remoteData,
@@ -191,6 +199,48 @@ export const subscribeQuestSync = (
   return () => window.removeEventListener(SYNC_EVENT, handler);
 };
 
+export const subscribeQuestAccountReset = (
+  callback: (reset: { userId: string; data: any }) => void
+) => {
+  if (typeof window === "undefined") return () => {};
+  const handler = (event: Event) => callback((event as CustomEvent).detail);
+  window.addEventListener(ACCOUNT_RESET_EVENT, handler);
+  return () => window.removeEventListener(ACCOUNT_RESET_EVENT, handler);
+};
+
+const notifyAccountReset = (userId: string, record: QuestCacheRecord) => {
+  observedResetRevisions.set(userId, record.resetRevision || 0);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(ACCOUNT_RESET_EVENT, {
+      detail: { userId, data: record.data },
+    }));
+  }
+};
+
+const adoptResetSnapshot = (userId: string, cloud: CloudState) => {
+  const previous = readCache(userId);
+  if (previous?.baseRevision != null && cloud.revision != null &&
+      previous.baseRevision > cloud.revision) return;
+  const record: QuestCacheRecord = {
+    data: cloud.data, dirty: false, baseData: cloud.data,
+    baseUpdatedAt: cloud.updatedAt, baseHash: stateHash(cloud.data),
+    baseRevision: cloud.revision, serverKnownMissing: false,
+    lastSyncedAt: cloud.updatedAt || nowISO(), cachedAt: nowISO(),
+    localRevision: (previous?.localRevision || 0) + 1,
+    pendingEdits: 0, conflict: null, resetRevision: cloud.resetRevision,
+  };
+  // Publish the new generation together with its data before notifying any UI.
+  writeCache(userId, record);
+  if (typeof localStorage !== "undefined") {
+    for (const prefix of LEGACY_CACHE_PREFIXES) {
+      try { localStorage.removeItem(`${prefix}${userId}`); } catch { /* Storage may be unavailable. */ }
+    }
+  }
+  notifyAccountReset(userId, record);
+  emitSync({ state: "synced", pending: pendingCount(), lastSyncedAt: record.lastSyncedAt,
+    message: "Account restarted. Your fresh start is saved." });
+};
+
 const sortedIds = (items: any[]) =>
   items
     .map((item) => String(item?.id || ""))
@@ -251,6 +301,7 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
   const legacy = legacyResult.data;
   const snapshot: any = normalizedResult.data;
   const normalized = snapshot?.data ?? null;
+  const resetRevision = Number(snapshot?.resetRevision) || 0;
   const snapshotRevision = Number(snapshot?.revision);
   const revision = Number.isFinite(snapshotRevision) ? snapshotRevision : null;
   const snapshotUpdatedAt = snapshot?.updatedAt
@@ -259,7 +310,10 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
 
   if (
     !normalizedResult.error &&
-    normalizedLooksComplete(normalized, legacy?.data)
+    (normalizedLooksComplete(normalized, legacy?.data) ||
+      (resetRevision > 0 && normalizedLooksComplete(normalized, null) &&
+        !!snapshotUpdatedAt && (!legacy?.updated_at ||
+          Date.parse(snapshotUpdatedAt) >= Date.parse(legacy.updated_at))))
   ) {
     return {
       data: normalized,
@@ -269,6 +323,7 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
       legacyExists: !!legacy,
       source: "normalized",
       error: null,
+      resetRevision,
     };
   }
 
@@ -290,6 +345,7 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
       legacyExists: true,
       source: "legacy",
       error: null,
+      resetRevision,
     };
   }
 
@@ -302,6 +358,7 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
       legacyExists: false,
       source: "normalized",
       error: null,
+      resetRevision,
     };
   }
 
@@ -313,6 +370,7 @@ const fetchCloudState = async (userId: string): Promise<CloudState> => {
     legacyExists: false,
     source: "none",
     error: legacyResult.error || normalizedResult.error || null,
+    resetRevision,
   };
 };
 
@@ -544,6 +602,7 @@ const commitNormalizedChanges = async (
   });
 
 const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
+  if (resettingUsers.has(userId)) return;
   const existingLock = syncLocks.get(userId);
   if (existingLock) return existingLock;
 
@@ -572,16 +631,6 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       return;
     }
 
-    if (cache.conflict && !forceLocal) {
-      emitSync({
-        state: "conflict",
-        pending: pendingCount(),
-        lastSyncedAt: cache.lastSyncedAt,
-        message: "Sync needs attention before Quest can safely continue.",
-      });
-      return;
-    }
-
     emitSync({
       state: "syncing",
       pending: pendingCount(),
@@ -602,6 +651,20 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
 
     const remoteHash = stateHash(cloud.data);
     const localHash = stateHash(cache.data);
+    if ((readCache(userId)?.resetRevision || 0) > cloud.resetRevision) return;
+
+    // A restart supersedes edits made before that account generation, including
+    // offline edits and an explicit conflict resolution from an old device.
+    if (cloud.resetRevision > (cache.baseRevision ?? -1)) {
+      adoptResetSnapshot(userId, cloud);
+      return;
+    }
+
+    if (cache.conflict && !forceLocal) {
+      emitSync({ state: "conflict", pending: pendingCount(), lastSyncedAt: cache.lastSyncedAt,
+        message: "Sync needs attention before Quest can safely continue." });
+      return;
+    }
 
     if (!forceLocal) {
       const revisionChanged =
@@ -673,6 +736,10 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       if (String(saveError.code || "") === "40001" || String(saveError.message || "").includes("QUEST_SYNC_CONFLICT")) {
         const latestCloud = await fetchCloudState(userId);
         if (latestCloud.data) {
+          if (latestCloud.resetRevision > (cache.baseRevision ?? -1)) {
+            adoptResetSnapshot(userId, latestCloud);
+            return;
+          }
           markConflict(
             userId,
             cache,
@@ -704,6 +771,9 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
       : nowISO();
 
     const latest = readCache(userId) || cache;
+    if ((latest.resetRevision || 0) > (cache.resetRevision || 0) &&
+        latest.baseRevision != null && committedRevision != null &&
+        latest.baseRevision > committedRevision) return;
     const changedWhileSyncing = latest.localRevision !== revisionBeingSynced;
 
     writeCache(userId, {
@@ -746,7 +816,9 @@ const flushUser = async (userId: string, forceLocal = false): Promise<void> => {
 };
 
 const loadQuestRow = async (userId: string) => {
+  activeQuestUserId = userId;
   const cached = readCache(userId);
+  observedResetRevisions.set(userId, cached?.resetRevision || 0);
 
   if (!isOnline()) {
     emitSync({
@@ -798,6 +870,16 @@ const loadQuestRow = async (userId: string) => {
   }
 
   const syncedAt = cloud.updatedAt || cached?.lastSyncedAt || nowISO();
+  const latest = readCache(userId);
+  // An auth refresh that started before a reset must not restore its old read.
+  if (resettingUsers.has(userId) || (latest?.resetRevision || 0) > cloud.resetRevision) {
+    return { data: latest ? { data: latest.data } : null, error: null };
+  }
+  if (cached && cloud.resetRevision > (cached.baseRevision ?? -1)) {
+    adoptResetSnapshot(userId, cloud);
+    return { data: { data: cloud.data }, error: null };
+  }
+  observedResetRevisions.set(userId, cloud.resetRevision);
   writeCache(userId, {
     data: cloud.data,
     dirty: false,
@@ -811,6 +893,7 @@ const loadQuestRow = async (userId: string) => {
     localRevision: cached?.localRevision || 0,
     pendingEdits: 0,
     conflict: null,
+    resetRevision: cloud.resetRevision,
   });
 
   emitSync({
@@ -833,6 +916,13 @@ const saveQuestRow = async (payload: any) => {
   }
 
   const existing = readCache(userId);
+  if (resettingUsers.has(userId)) {
+    return { data: null, error: new Error("Account restart is in progress.") };
+  }
+  if ((existing?.resetRevision || 0) > (observedResetRevisions.get(userId) || 0)) {
+    notifyAccountReset(userId, existing!);
+    return { data: null, error: new Error("This account was restarted in another tab.") };
+  }
   const next: QuestCacheRecord = {
     data: payload.data,
     dirty: true,
@@ -846,6 +936,7 @@ const saveQuestRow = async (payload: any) => {
     localRevision: (existing?.localRevision || 0) + 1,
     pendingEdits: (existing?.pendingEdits || 0) + 1,
     conflict: existing?.conflict || null,
+    resetRevision: existing?.resetRevision || 0,
   };
 
   writeCache(userId, next);
@@ -892,7 +983,59 @@ export const flushQuestSync = async () => {
   } = await rawSupabase.auth.getSession();
 
   if (!session?.user?.id) return;
-  await flushUser(session.user.id);
+  const userId = session.user.id;
+  await flushUser(userId);
+  // A clean device also needs to notice a restart when it comes back online.
+  if (!isOnline() || resettingUsers.has(userId)) return;
+  const cached = readCache(userId);
+  if (!cached) return;
+  const cloud = await fetchCloudState(userId);
+  if (!cloud.error && cloud.data && cloud.resetRevision > (cached.baseRevision ?? -1)) {
+    adoptResetSnapshot(userId, cloud);
+  }
+};
+
+export const resetQuestAccount = async (expectedUserId: string) => {
+  if (!isOnline()) throw new Error("Connect to the internet before restarting your account.");
+  if (!expectedUserId) throw new Error("Sign in before restarting your account.");
+  if (resettingUsers.has(expectedUserId)) throw new Error("Your account is already restarting.");
+  resettingUsers.add(expectedUserId);
+  try {
+    // Let an already-started save finish; block any new autosaves until reset ends.
+    await syncLocks.get(expectedUserId);
+    const { data: { session }, error: sessionError } = await rawSupabase.auth.getSession();
+    if (sessionError || session?.user?.id !== expectedUserId) {
+      throw new Error("Your sign-in changed. Reload Quest and try again.");
+    }
+    const { data: snapshot, error: readError } = await fetchNormalizedSnapshot();
+    if (readError || !snapshot || !Number.isFinite(Number(snapshot.revision)) ||
+        !Object.prototype.hasOwnProperty.call(snapshot, "resetRevision")) {
+      throw new Error("Could not verify your saved account. Please try again when sync is available.");
+    }
+    const { data: result, error } = await commitNormalizedChanges(
+      Number(snapshot.revision),
+      { resetAccount: true, resetUserId: expectedUserId },
+      false
+    );
+    if (error) {
+      if (String(error.code) === "40001") {
+        throw new Error("Your account changed on another device. Review it, then try restarting again.");
+      }
+      throw new Error("The restart could not be confirmed. Reconnect and check sync before trying again.");
+    }
+    if (!isEmptyQuestAccount(result?.data) ||
+        !(Number(result?.resetRevision) > Number(snapshot.revision))) {
+      throw new Error("The restart could not be confirmed. Reload Quest to check your saved progress.");
+    }
+    adoptResetSnapshot(expectedUserId, {
+      data: result.data, updatedAt: result.updatedAt, baseHash: stateHash(result.data),
+      revision: Number(result.revision), resetRevision: Number(result.resetRevision),
+      legacyExists: true, source: "normalized", error: null,
+    });
+    return result.data;
+  } finally {
+    resettingUsers.delete(expectedUserId);
+  }
 };
 
 export const resolveQuestConflict = async (strategy: "cloud" | "local") => {
@@ -953,6 +1096,15 @@ export const resolveQuestConflict = async (strategy: "cloud" | "local") => {
 };
 
 if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    const userId = activeQuestUserId;
+    if (!userId || event.key !== cacheKey(userId)) return;
+    const record = readCache(userId);
+    if (record && (record.resetRevision || 0) > (observedResetRevisions.get(userId) || 0)) {
+      notifyAccountReset(userId, record);
+    }
+  });
+  window.addEventListener("focus", () => { void flushQuestSync().catch(() => {}); });
   window.addEventListener("offline", () => {
     emitSync({
       state: "offline",

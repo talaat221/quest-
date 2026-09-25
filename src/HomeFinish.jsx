@@ -2,6 +2,7 @@ import { useId, useState, useEffect } from "react";
 import { supabase, flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync, resolveQuestConflict } from "./supabaseClient";
 import "./home-finish.css";
 import "./day-pause.css";
+import AccountResetCard from "./AccountResetCard.jsx";
 
 const farmPicture = <image href="/home-finish/farm-streak-v1.webp" width="959" height="1640" />;
 
@@ -110,13 +111,15 @@ export function StatsPage({ streak, completed, total, todayXP, weekXP, lifetimeX
   );
 }
 
-export function MorePage({ resetHour, onResetHour }) {
+export function MorePage({ resetHour, onResetHour, onResetAccount }) {
   const [sync, setSync] = useState(getQuestSyncSnapshot);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const locked = busy || resetting;
   useEffect(() => subscribeQuestSync(setSync), []);
   const run = async (action) => {
-    if (busy) return;
+    if (locked) return;
     setBusy(true); setError("");
     try { await action(); } catch { setError("That didn’t finish. Please try again."); }
     finally { setBusy(false); }
@@ -132,7 +135,7 @@ export function MorePage({ resetHour, onResetHour }) {
         <h2 id="qd-more-day-reset">Day reset time</h2>
         <p>Your next day starts at this hour.</p>
         <label htmlFor="qd-more-reset-time" className="qd-anchor-sr-only">Day reset time</label>
-        <select id="qd-more-reset-time" value={resetHour} onChange={(event) => onResetHour(event.target.value)}>
+        <select id="qd-more-reset-time" value={resetHour} disabled={locked} onChange={(event) => onResetHour(event.target.value)}>
           {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{`${hour % 12 || 12}:00 ${hour < 12 ? "AM" : "PM"}`}</option>)}
         </select>
       </section>
@@ -141,12 +144,13 @@ export function MorePage({ resetHour, onResetHour }) {
         <p role="status">{sync.message}</p>
         {sync.state === "conflict" ? <>
           <p>This device and the cloud have different saved changes. Choose the copy you want to keep.</p>
-          <button type="button" disabled={busy} onClick={() => resolve("cloud")}>Use cloud copy</button>
-          <button type="button" disabled={busy} onClick={() => resolve("local")}>Keep this device</button>
-        </> : <button type="button" disabled={busy || sync.state === "syncing"} onClick={() => void run(flushQuestSync)}>{busy ? "Checking…" : "Sync now"}</button>}
+          <button type="button" disabled={locked} onClick={() => resolve("cloud")}>Use cloud copy</button>
+          <button type="button" disabled={locked} onClick={() => resolve("local")}>Keep this device</button>
+        </> : <button type="button" disabled={locked || sync.state === "syncing"} onClick={() => void run(flushQuestSync)}>{busy ? "Checking…" : "Sync now"}</button>}
         {error && <p role="alert">{error}</p>}
       </section>
-      <button className="qd-more-sign-out" type="button" disabled={busy} onClick={() => void run(async () => { const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw signOutError; })}>Log out</button>
+      <AccountResetCard onReset={onResetAccount} disabled={busy} onBusyChange={setResetting} />
+      <button className="qd-more-sign-out" type="button" disabled={locked} onClick={() => void run(async () => { const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw signOutError; })}>Log out</button>
     </>
   );
 }

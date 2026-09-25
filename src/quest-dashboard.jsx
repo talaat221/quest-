@@ -1,7 +1,7 @@
 console.log("🔥 NEW QUEST DASHBOARD CODE LOADED 🔥");
 
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase, resetQuestAccount, subscribeQuestAccountReset } from "./supabaseClient";
 import Login from "./Login";
 import GardenScene from "./GardenScene";
 import DailyAnchors from "./DailyAnchors";
@@ -3621,6 +3621,32 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const rewardDetectionReady = useRef(false);
   const savedAdjustmentVersion = useRef(null);
+  const accountResetEpoch = useRef(0);
+  const accountResetInProgress = useRef(false);
+  const [resettingAccount, setResettingAccount] = useState(false);
+
+  useEffect(() => subscribeQuestAccountReset(({ userId, data }) => {
+    if (userId !== session?.user?.id) return;
+    accountResetEpoch.current += 1;
+    rewardDetectionReady.current = false;
+    savedAdjustmentVersion.current = null;
+    setState(data);
+    setLoaded(true);
+    setViewOffset(0);
+    setCelebrationQueue([]); setCelebration(null);
+    setPendingTimeLog(null); setShowVoyageAdjustment(false);
+    setShowAddDomain(false); setShowAddAnchor(false); setQuestFilter("all");
+    setNewDomainName(""); setNewDomainEmoji("⭐"); setNewDomainTarget(5);
+  }), [session?.user?.id]);
+
+  const restartAccount = async () => {
+    if (accountResetInProgress.current) throw new Error("Your account is already restarting.");
+    accountResetInProgress.current = true;
+    accountResetEpoch.current += 1;
+    setResettingAccount(true);
+    try { await resetQuestAccount(session?.user?.id); }
+    finally { accountResetInProgress.current = false; setResettingAccount(false); }
+  };
 
   // The anchor manager handles editing; the home timeline supports completion.
   // Listen to the URL so bottom tabs, View All, reloads and browser Back agree.
@@ -3737,12 +3763,16 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   }, []);
 
   async function loadUserData(userId) {
+    const epoch = accountResetEpoch.current;
+    if (accountResetInProgress.current) return;
     try {
       const { data, error } = await supabase
         .from("quest_data")
         .select("data")
         .eq("user_id", userId)
         .maybeSingle();
+
+      if (accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
 
       if (error) {
         console.error(
@@ -3774,6 +3804,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         }
       }
     } catch (error) {
+      if (accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
       console.error(error);
       setState(clone(DEFAULT_STATE));
     }
@@ -3789,7 +3820,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     if (
       !loaded ||
       !state ||
-      !session?.user?.id
+      !session?.user?.id ||
+      resettingAccount || accountResetInProgress.current
     ) {
       return;
     }
@@ -3797,7 +3829,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     const adjustmentVersion = JSON.stringify(state.voyageAdjustments || {});
     const saveImmediately = savedAdjustmentVersion.current !== null && savedAdjustmentVersion.current !== adjustmentVersion;
     savedAdjustmentVersion.current = adjustmentVersion;
+    const epoch = accountResetEpoch.current;
     const save = async () => {
+      if (accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
       try {
         const { error } = await supabase
           .from("quest_data")
@@ -3827,7 +3861,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     if (saveImmediately) { void save(); return; }
     const timeout = setTimeout(() => void save(), 500);
     return () => clearTimeout(timeout);
-  }, [state, loaded, session]);
+  }, [state, loaded, session, resettingAccount]);
 
   // ====================================================
   // CALCULATIONS
@@ -5372,7 +5406,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : previewSubPage && page === "more" ? (
-            <MorePage resetHour={resetHour} onResetHour={setResetHour} />
+            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} />
           ) : (
           <>
           <header className="qd-scene">
