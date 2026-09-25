@@ -301,4 +301,436 @@
 .qd-quest-summary-done{left:39.38%}
 .qd-quest-summary-remaining{left:61.71%}
 .qd-quest-summary-xp{left:89.14%}
+/* ======================================================
+   QUEST REDESIGN — FINAL HERO / STATS ALIGNMENT
+   ====================================================== */
 
+/* The final design has no artificial fade. */
+.qd-root.qd-quests-active .qd-quest-image-hero::after,
+.qd-root.qd-quests-active .qd-quest-redesign-canvas::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+
+/* The original hero artwork contains extra dark space
+   at the bottom. Pull the stats panel over that space
+   so it starts where it does in the final mockup. */
+.qd-root.qd-quests-active .qd-quest-summary-art {
+  position: relative;
+  z-index: 5;
+
+  width: min(96%, 824px);
+  aspect-ratio: 824 / 105;
+
+  margin-top: clamp(-260px, -28.8vw, -108px);
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 0;
+
+  overflow: hidden;
+  background: transparent;
+}
+
+
+/* IMPORTANT:
+   The website asset is ALREADY 824x105.
+   Do not crop or zoom it. */
+.qd-root.qd-quests-active .qd-quest-summary-art-image {
+  position: absolute !important;
+  inset: 0 !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  object-fit: fill !important;
+  object-position: center !important;
+
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+}
+
+
+/* Live calculated numbers remain above the artwork. */
+.qd-root.qd-quests-active .qd-quest-summary-value {
+  z-index: 6;
+}
+
+
+/* Continue directly into the Quest content. */
+.qd-root.qd-quests-active .qd-quest-redesign-canvas {
+  position: relative;
+  margin-top: 0 !important;
+  background: #001123 !important;
+}
+/* ======================================================
+   QUEST FILTER / NEW QUEST ART
+   Image owns the visual design
+   ====================================================== */
+
+.qd-root.qd-quests-active .qd-quest-filter-bar {
+  position: relative;
+  z-index: 5;
+
+  width: 95.4%;
+  max-width: 813px;
+
+  margin: 18px auto 0;
+
+  overflow: visible;
+  background: transparent;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-bar-image {
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  margin: 0;
+
+  object-fit: contain;
+  image-rendering: pixelated;
+
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ======================================================
+   QUEST FILTER INTERACTION
+   Visual states are PNGs; CSS only provides click areas.
+   ====================================================== */
+
+.qd-root.qd-quests-active .qd-quest-filter-bar {
+  position: relative;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  z-index: 6;
+
+  margin: 0;
+  padding: 0;
+
+  border: 0;
+  background: transparent;
+
+  cursor: pointer;
+  appearance: none;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit-all {
+  left: 0.4%;
+  width: 16.4%;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit-active {
+  left: 16.8%;
+  width: 15.1%;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit-completed {
+  left: 31.9%;
+  width: 18.9%;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit-archived {
+  left: 50.8%;
+  width: 18.8%;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit-new {
+  left: 71.3%;
+  width: 28.7%;
+}
+
+.qd-root.qd-quests-active .qd-quest-filter-hit:focus-visible {
+  outline: 2px solid #a8ef85;
+  outline-offset: -4px;
+}
+
+.qd-root.qd-quests-active .qd-quest-new-form {
+  position: relative;
+  z-index: 5;
+
+  width: 95.4%;
+  max-width: 813px;
+
+  margin: 12px auto 0;
+}
+/* ======================================================
+   QUEST CARDS — fitted image frames, live content (v3)
+   Only the quest list is changed; the hero/filters above stay intact.
+   Artwork is nine-sliced so corners never stretch with the task list.
+   ====================================================== */
+.qd-quests-active .qd-redesign-quest-list {
+  width: 95.4%; max-width: 813px; margin: 14px auto 130px;
+  display: grid; gap: 10px; container-type: inline-size;
+}
+.qd-quests-active .qd-rpg-quest-card {
+  position: relative; isolation: isolate; box-sizing: border-box;
+  min-width: 0; color: #eef6ff; background: transparent;
+  font-family: "VT323", monospace;
+}
+.qd-quests-active .qd-rpg-quest-card *,
+.qd-quests-active .qd-rpg-quest-card *::before,
+.qd-quests-active .qd-rpg-quest-card *::after { box-sizing: border-box; }
+.qd-quests-active .qd-rpg-card-art {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border: 8px solid transparent;
+  border-image: url("/quest-cards/quest-closed-frame-v1.webp") 60 fill / 8px / 0 stretch;
+  image-rendering: pixelated;
+}
+.qd-quests-active .qd-rpg-quest-open .qd-rpg-card-art {
+  border-width: 11px;
+  border-image: url("/quest-cards/quest-open-frame-v1.webp") 68 fill / 11px / 0 stretch;
+}
+.qd-quests-active .qd-rpg-quest-card button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.qd-quests-active .qd-rpg-quest-card svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.qd-quests-active .qd-rpg-quest-card button:focus-visible,
+.qd-quests-active .qd-rpg-quest-card input:focus-visible,
+.qd-quests-active .qd-rpg-quest-card select:focus-visible {
+  outline: 2px solid #b7ed88; outline-offset: 2px;
+}
+.qd-quests-active .qd-rpg-quest-details[hidden] { display: none !important; }
+
+/* Closed state: content sets the height, with no absolute text positioning. */
+.qd-quests-active .qd-rpg-quest-closed-hit {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr) minmax(42px, 19%) max-content 12px;
+  align-items: center; gap: 6px; width: 100%; min-height: 64px;
+  padding: 12px 13px; border: 0; background: transparent; color: inherit;
+  text-align: left; font: inherit;
+}
+.qd-quests-active .qd-rpg-quest-closed-icon { font-size: 27px; line-height: 1; text-align: center; }
+.qd-quests-active .qd-rpg-quest-closed-copy { min-width: 0; display: grid; gap: 5px; }
+.qd-quests-active .qd-rpg-quest-name {
+  display: block; color: #fff3df; font-family: "Press Start 2P", monospace;
+  font-size: clamp(9px, 2.45cqw, 14px); line-height: 1.5;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qd-quests-active .qd-rpg-quest-subtitle {
+  display: block; color: #a6c6df; font-size: clamp(14px, 3.9cqw, 19px); line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qd-quests-active .qd-rpg-quest-closed-count {
+  color: #c6dced; font-size: clamp(14px, 3.9cqw, 19px); white-space: nowrap; text-align: center;
+}
+.qd-quests-active .qd-rpg-quest-chevron { width: 12px !important; height: 18px !important; color: #b9d7ec; }
+.qd-quests-active .qd-rpg-quest-closed-progress,
+.qd-quests-active .qd-rpg-quest-progress {
+  display: block; min-width: 0; height: 9px; overflow: hidden;
+  background: #163a54; border: 1px solid #315a78; border-radius: 2px;
+}
+.qd-quests-active .qd-rpg-quest-progress-fill {
+  display: block; height: 100%; max-width: 100%;
+  background: linear-gradient(#a8f081 0%, #71dd65 28%, #4abb55 64%, #379e45 100%);
+  box-shadow: inset 0 1px rgba(214,255,186,.45);
+}
+
+/* Open state: a real, growing document inside the bronze frame. */
+.qd-quests-active .qd-rpg-quest-open { padding: 19px 13px 12px; }
+.qd-quests-active .qd-rpg-quest-open-header {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) 64px;
+  gap: 9px; align-items: start; padding: 0 4px;
+}
+.qd-quests-active .qd-rpg-quest-open-icon {
+  display: grid; place-items: center; width: 40px; height: 40px; font-size: 29px;
+  border: 5px solid transparent;
+  border-image: url("/quest-cards/quest-closed-frame-v1.webp") 60 fill / 5px / 0 stretch;
+}
+.qd-quests-active .qd-rpg-quest-open-copy { min-width: 0; }
+.qd-quests-active .qd-rpg-quest-open-title {
+  margin: 2px 0 0; color: #fff3df; font-family: "Press Start 2P", monospace;
+  font-size: clamp(10px, 2.6cqw, 17px); line-height: 1.6; letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.qd-quests-active .qd-rpg-quest-open-subtitle {
+  margin: 4px 0 0; color: #b0cde4; font-size: clamp(15px, 4cqw, 22px); line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qd-quests-active .qd-rpg-quest-header-actions { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 1px 2px; }
+.qd-quests-active .qd-rpg-quest-more,
+.qd-quests-active .qd-rpg-quest-collapse {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  color: #a9c7de; border: 0; background: transparent;
+}
+.qd-quests-active .qd-rpg-quest-earned-xp {
+  grid-column: 1 / -1; text-align: right; color: #b2e77c;
+  font-size: clamp(15px, 4cqw, 21px); line-height: 1; white-space: nowrap;
+}
+.qd-quests-active .qd-rpg-quest-progress-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; margin: 10px 5px 7px 53px;
+}
+.qd-quests-active .qd-rpg-quest-progress { height: 10px; }
+.qd-quests-active .qd-rpg-quest-progress-count { color: #c6e0ef; font-size: 15px; white-space: nowrap; }
+.qd-quests-active .qd-rpg-quest-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 5px 12px 53px; }
+.qd-quests-active .qd-rpg-quest-chips > span,
+.qd-quests-active .qd-rpg-flex,
+.qd-quests-active .qd-rpg-task-unscheduled {
+  display: inline-flex; align-items: center; gap: 5px; width: fit-content;
+  padding: 2px 7px; border: 1px solid #345574; border-radius: 4px;
+  background: #122f4d; color: #c1d6e8; font-size: 13px; line-height: 1.15; white-space: nowrap;
+}
+.qd-quests-active .qd-rpg-quest-chips > .is-category,
+.qd-quests-active .qd-rpg-task-unscheduled { background: #1b2548; border-color: #5b47a0; color: #cbbbfa; }
+.qd-quests-active .qd-rpg-quest-chips > .qd-rpg-month { background: none; border-color: transparent; padding-left: 0; }
+.qd-quests-active .qd-rpg-quest-chips svg { width: 13px; height: 13px; }
+.qd-quests-active .qd-rpg-flex.is-fixed { color: #f1d9a6; border-color: #9b7336; background: #453b27; }
+
+/* The same blue artwork is reused for the inner task tray. */
+.qd-quests-active .qd-rpg-task-frame { position: relative; isolation: isolate; padding: 4px; }
+.qd-quests-active .qd-rpg-task-frame-art {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; border: 5px solid transparent;
+  border-image: url("/quest-cards/quest-closed-frame-v1.webp") 60 fill / 5px / 0 stretch; image-rendering: pixelated;
+}
+.qd-quests-active .qd-rpg-existing-quest-content > .qd-quest {
+  display: flex; flex-direction: column; margin: 0; padding: 0 !important;
+  border: 0 !important; outline: 0 !important; box-shadow: none !important;
+  background: transparent !important; overflow: visible;
+}
+.qd-quests-active .qd-rpg-existing-quest-content > .qd-quest::before,
+.qd-quests-active .qd-rpg-existing-quest-content .qd-quest-head,
+.qd-quests-active .qd-rpg-existing-quest-content .qd-bar,
+.qd-quests-active .qd-rpg-existing-quest-content .qd-quest-count { display: none !important; }
+.qd-quests-active .qd-rpg-task-heading {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  min-height: 36px; padding: 0 9px; border-bottom: 1px solid #345f7b;
+  background: rgba(51,92,124,.14);
+}
+.qd-quests-active .qd-rpg-task-heading h3 { margin: 0; font: 18px/1 "VT323", monospace; color: #f1f5ee; }
+.qd-quests-active .qd-rpg-add-task {
+  display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 0;
+  color: #b4ec7b; font: 17px/1 "VT323", monospace; background: none; border: 0;
+}
+.qd-quests-active .qd-rpg-add-task svg { width: 15px; height: 15px; border: 1px solid currentColor; }
+.qd-quests-active .qd-rpg-existing-quest-content .qd-tasklist { display: block; margin: 0; order: 2; }
+.qd-quests-active .qd-rpg-existing-quest-content .qd-task {
+  position: relative; display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 42px 62px; align-items: center;
+  gap: 6px; min-height: 63px; padding: 9px 7px !important; border-bottom: 1px solid #254a64;
+  background: transparent; font-family: "VT323", monospace;
+}
+.qd-quests-active .qd-rpg-existing-quest-content .qd-task:last-child { border-bottom: 0; }
+.qd-quests-active .qd-rpg-check { position: relative; display: grid; place-items: center; min-height: 40px; cursor: pointer; }
+.qd-quests-active .qd-rpg-check input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
+  opacity: 0; cursor: pointer; z-index: 1;
+}
+.qd-quests-active .qd-rpg-check-art {
+  display: grid; place-items: center; width: 23px; height: 23px;
+  color: #0a3729; background: #041d32; border: 2px solid #e2edf4;
+  clip-path: polygon(3px 0,calc(100% - 3px) 0,100% 3px,100% calc(100% - 3px),calc(100% - 3px) 100%,3px 100%,0 calc(100% - 3px),0 3px);
+}
+.qd-quests-active .qd-rpg-check input:checked + .qd-rpg-check-art { background: linear-gradient(#8feb68,#4fc456); border-color: #acef8d; }
+.qd-quests-active .qd-rpg-check input:focus-visible + .qd-rpg-check-art { outline: 2px solid #c4ff99; outline-offset: 3px; clip-path: none; }
+.qd-quests-active .qd-rpg-check-art svg { width: 19px; height: 19px; stroke-width: 3; }
+.qd-quests-active .qd-rpg-task-copy { min-width: 0; }
+.qd-quests-active .qd-rpg-task .qd-task-name {
+  display: block; min-width: 0; color: #fff4e5; font-size: 19px; line-height: 1.1;
+  overflow-wrap: anywhere; flex: none;
+}
+.qd-quests-active .qd-rpg-task.done .qd-task-name { color: #9cb9cc; opacity: .8; text-decoration: line-through; }
+.qd-quests-active .qd-rpg-task-details { display: flex; flex-wrap: wrap; gap: 4px 7px; align-items: center; margin-top: 5px; }
+.qd-quests-active .qd-rpg-task-date,
+.qd-quests-active .qd-rpg-task-duration { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; line-height: 1; color: #9ec5df; white-space: nowrap; }
+.qd-quests-active .qd-rpg-task-details svg { width: 12px; height: 12px; }
+.qd-quests-active .qd-rpg-task .qd-task-xp { color: #7be69a; font: 16px/1 "VT323", monospace; white-space: nowrap; text-align: center; }
+.qd-quests-active .qd-rpg-task-actions { display: flex; align-items: center; gap: 2px; }
+.qd-quests-active .qd-rpg-icon-button {
+  display: grid; place-items: center; width: 30px; min-width: 0; min-height: 38px; padding: 5px;
+  background: rgba(10,32,54,.6); border: 1px solid #2c4f6b; border-radius: 3px; color: #b7d6eb;
+}
+.qd-quests-active .qd-rpg-icon-button svg { width: 17px; height: 17px; }
+.qd-quests-active .qd-rpg-quest-options,
+.qd-quests-active .qd-rpg-task-options { position: relative; }
+.qd-quests-active .qd-rpg-quest-menu,
+.qd-quests-active .qd-rpg-task-menu {
+  position: absolute; right: 0; top: 100%; width: 175px; z-index: 20;
+  border: 1px solid #517b97; border-radius: 3px; padding: 10px; background: #082237;
+  box-shadow: 0 7px 20px #0009; color: #d1e6f4; font: 17px/1.2 "VT323", monospace;
+}
+.qd-quests-active .qd-rpg-quest-menu label { display: grid; gap: 5px; }
+.qd-quests-active .qd-rpg-quest-menu input { width: 100%; padding: 6px; color: #e6f4ff; background: #041726; border: 1px solid #426681; font: inherit; }
+.qd-quests-active .qd-rpg-quest-menu button,
+.qd-quests-active .qd-rpg-task-menu button { display: block; width: 100%; min-height: 36px; color: #f4b3a1; background: #132b3d; border: 1px solid #586075; font: inherit; }
+.qd-quests-active .qd-rpg-quest-menu button { margin-top: 9px; }
+.qd-quests-active .qd-rpg-quest-footer { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 10px 12px 0; color: #779fb8; font: 15px/1.1 "VT323", monospace; text-align: center; }
+.qd-quests-active .qd-rpg-quest-footer::before,
+.qd-quests-active .qd-rpg-quest-footer::after { content: ""; flex: 1; height: 1px; background: #2b4f68; }
+.qd-quests-active .qd-rpg-tasklist-empty,
+.qd-quests-active .qd-rpg-existing-quest-content .qd-dim { padding: 18px 10px; font-size: 17px; }
+
+/* Existing add/edit forms use the same handlers, with a responsive layout. */
+.qd-quests-active .qd-rpg-existing-quest-content .qd-add-task,
+.qd-quests-active .qd-rpg-existing-quest-content .qd-task-edit-row {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px;
+  margin: 8px; padding: 10px; border: 1px solid #416782; background: #0a2439; order: 1;
+}
+.qd-quests-active .qd-rpg-existing-quest-content :is(.qd-add-task,.qd-task-edit-row) :is(input,select,button) {
+  min-width: 0; max-width: 100%; min-height: 36px; border: 1px solid #496c85; border-radius: 3px;
+  padding: 6px 8px; color: #edf2e8; background: #102e44; font: 16px/1.2 "VT323", monospace;
+}
+.qd-quests-active .qd-rpg-existing-quest-content :is(.qd-add-task,.qd-task-edit-row) input[type="text"] { grid-column: 1 / -1; width: 100%; min-width: 0; }
+.qd-quests-active .qd-rpg-existing-quest-content :is(.qd-add-task,.qd-task-edit-row) input[type="number"] { width: 100% !important; }
+.qd-quests-active .qd-rpg-existing-quest-content :is(.qd-task-date-edit,.qd-estimate-field,.qd-task-edit-actions,.qd-time-hint) { grid-column: 1 / -1; min-width: 0; }
+.qd-quests-active .qd-rpg-existing-quest-content .qd-task-date-edit { display: flex; flex-wrap: wrap; gap: 5px; }
+.qd-quests-active .qd-rpg-existing-quest-content .qd-estimate-field { display: grid; grid-template-columns: minmax(0,1fr) 1fr; align-items: center; gap: 8px; }
+.qd-quests-active .qd-rpg-existing-quest-content .qd-time-hint { font: 14px/1.3 "VT323", monospace; }
+.qd-quests-active .qd-rpg-existing-quest-content .qd-task-edit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Safe Harbor filters artwork and ordinary content separately, leaving the
+   important task unfiltered. A child cannot undo grayscale on an ancestor. */
+.qd-quests-active .qd-rpg-quest-card.is-harbor :is(.qd-rpg-card-art,.qd-rpg-task-frame-art,.qd-rpg-quest-open-header,.qd-rpg-quest-progress-row,.qd-rpg-quest-chips,.qd-rpg-task-heading,.qd-rpg-quest-footer) { filter: grayscale(1); }
+.qd-quests-active .qd-rpg-quest-card.is-harbor:not(.has-important-work) .qd-rpg-quest-closed-hit { filter: grayscale(1); }
+.qd-quests-active .qd-rpg-quest-card.is-harbor .qd-quest { filter: none !important; }
+.qd-quests-active .qd-rpg-quest-card.is-harbor .qd-rpg-task:not(.is-safe-active) { filter: grayscale(1); }
+.qd-quests-active .qd-rpg-quest-card.is-harbor .qd-rpg-task.is-safe-active { filter: none; box-shadow: inset 2px 0 #e4b85e; }
+
+@container (min-width: 570px) {
+  .qd-quests-active .qd-rpg-quest-closed-hit { grid-template-columns: 45px minmax(0,1fr) 21% max-content 18px; min-height: 75px; padding: 14px 20px; gap: 12px; }
+  .qd-quests-active .qd-rpg-quest-closed-icon { font-size: 35px; }
+  .qd-quests-active .qd-rpg-quest-open { padding: 25px 23px 17px; }
+  .qd-quests-active .qd-rpg-quest-open-header { grid-template-columns: 64px minmax(0,1fr) 86px; gap: 16px; }
+  .qd-quests-active .qd-rpg-quest-open-icon { width: 62px; height: 62px; font-size: 43px; }
+  .qd-quests-active .qd-rpg-quest-header-actions { gap: 5px; }
+  .qd-quests-active .qd-rpg-quest-more,.qd-quests-active .qd-rpg-quest-collapse { width: 38px; height: 33px; }
+  .qd-quests-active .qd-rpg-quest-progress-row { margin-left: 84px; }
+  .qd-quests-active .qd-rpg-quest-chips { margin-left: 84px; margin-bottom: 17px; }
+  .qd-quests-active .qd-rpg-quest-progress-count { font-size: 20px; }
+  .qd-quests-active .qd-rpg-quest-progress { height: 15px; }
+  .qd-quests-active .qd-rpg-quest-chips > span { font-size: 17px; padding: 4px 9px; }
+  .qd-quests-active .qd-rpg-task-heading { min-height: 46px; padding-inline: 17px; }
+  .qd-quests-active .qd-rpg-task-heading h3 { font-size: 23px; }
+  .qd-quests-active .qd-rpg-add-task { font-size: 22px; }
+  .qd-quests-active .qd-rpg-existing-quest-content .qd-task { grid-template-columns: 38px minmax(0,1fr) 62px 90px; gap: 13px; min-height: 80px; padding: 11px 14px !important; }
+  .qd-quests-active .qd-rpg-task .qd-task-name { font-size: 24px; }
+  .qd-quests-active .qd-rpg-task .qd-task-xp { font-size: 21px; }
+  .qd-quests-active .qd-rpg-task-details { gap: 6px 15px; }
+  .qd-quests-active :is(.qd-rpg-task-date,.qd-rpg-task-duration,.qd-rpg-flex,.qd-rpg-task-unscheduled) { font-size: 17px; }
+  .qd-quests-active .qd-rpg-check-art { width: 31px; height: 31px; }
+  .qd-quests-active .qd-rpg-task-actions { gap: 7px; }
+  .qd-quests-active .qd-rpg-icon-button { width: 39px; min-height: 41px; }
+  .qd-quests-active .qd-rpg-quest-footer { font-size: 19px; }
+}
+@container (max-width: 345px) {
+  .qd-quests-active .qd-rpg-quest-closed-hit { grid-template-columns: 27px minmax(0,1fr) 46px max-content 10px; gap: 4px; padding-inline: 11px; }
+  .qd-quests-active .qd-rpg-quest-name { font-size: 8px; }
+  .qd-quests-active .qd-rpg-quest-open { padding-inline: 11px; }
+  .qd-quests-active .qd-rpg-quest-open-header { grid-template-columns: 32px minmax(0,1fr) 58px; gap: 6px; padding-inline: 2px; }
+  .qd-quests-active .qd-rpg-quest-open-icon { width: 32px; height: 36px; font-size: 25px; }
+  .qd-quests-active .qd-rpg-quest-open-title { font-size: 9px; }
+  .qd-quests-active .qd-rpg-quest-progress-row,.qd-quests-active .qd-rpg-quest-chips { margin-left: 3px; }
+  .qd-quests-active .qd-rpg-existing-quest-content .qd-task { grid-template-columns: 23px minmax(0,1fr) 34px 56px; gap: 4px; padding-inline: 5px; }
+  .qd-quests-active .qd-rpg-task .qd-task-xp { font-size: 14px; }
+  .qd-quests-active .qd-rpg-icon-button { width: 27px; padding-inline: 4px; }
+}
+
+.qd-quests-active .qd-rpg-quest-closed-icon,
+.qd-quests-active .qd-rpg-quest-open-icon { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }

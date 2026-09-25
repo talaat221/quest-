@@ -4,10 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import GardenScene from "./GardenScene";
-import DailyAnchors, { PixelAnchorSymbol } from "./DailyAnchors";
+import DailyAnchors from "./DailyAnchors";
+import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
+import StatsPage from "./StatsPage.jsx";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
-import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, StatsPage, MorePage } from "./HomeFinish";
+import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, MorePage } from "./HomeFinish";
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 
@@ -2106,8 +2108,13 @@ function QuestCard({
   onTargetChange,
   onDeleteDomain,
   todayAdjustment,
+  artLayout = false,
 }) {
   const [showAdd, setShowAdd] = useState(false);
+  const addFormRef = useRef(null);
+  useEffect(() => {
+    if (showAdd && artLayout) addFormRef.current?.querySelector("input")?.focus();
+  }, [showAdd, artLayout]);
 
   const [name, setName] = useState("");
   const [xp, setXp] = useState(20);
@@ -2203,7 +2210,7 @@ function QuestCard({
   };
 
   return (
-    <div className="qd-quest" style={{ "--accent": domain.color }}>
+    <div className={"qd-quest" + (artLayout ? " qd-rpg-task-editor" : "")} style={{ "--accent": domain.color }}>
       <div className="qd-quest-head">
         <span className="qd-quest-emoji">{domain.emoji}</span>
 
@@ -2247,6 +2254,12 @@ function QuestCard({
         {status.doneThisMonth} / {status.target} quests done this month
       </div>
 
+      {artLayout && <div className="qd-rpg-task-heading">
+        <h3>Tasks ({domain.tasks.filter(task => task.done).length}/{domain.tasks.length})</h3>
+        <button type="button" className="qd-rpg-add-task" onClick={() => { playSFX("click"); setShowAdd(value => !value); }} aria-expanded={showAdd}>
+          {showAdd ? "Cancel" : "Add Task"}<QuestGlyph name="plus" />
+        </button>
+      </div>}
       <div className="qd-tasklist">
         {domain.tasks.map((t) =>
           editingTaskId === t.id ? (
@@ -2255,6 +2268,7 @@ function QuestCard({
                 type="text"
                 value={editName}
                 placeholder="Task name"
+                aria-label="Task name"
                 onChange={(e) => {
                   const nextName = e.target.value;
                   setEditName(nextName);
@@ -2298,7 +2312,7 @@ function QuestCard({
 
               <div className="qd-task-date-edit">
                 <input
-                  type="date"
+                  type="date" aria-label="Task date"
                   value={editDay}
                   onChange={(e) => setEditDay(e.target.value)}
                 />
@@ -2324,6 +2338,7 @@ function QuestCard({
               </div>
 
               <select
+                aria-label="Task time"
                 value={editHour}
                 onChange={(e) => setEditHour(e.target.value)}
                 disabled={!editDay}
@@ -2338,6 +2353,7 @@ function QuestCard({
               </select>
 
               <select
+                aria-label="Task flexibility"
                 value={editFlexibility}
                 onChange={(e) => setEditFlexibility(e.target.value)}
                 title="Can Quest move this task when your day changes?"
@@ -2351,6 +2367,10 @@ function QuestCard({
                 <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
               </div>
             </div>
+          ) : artLayout ? (
+            <QuestArtTaskRow key={t.id} task={t} todayStr={todayStr}
+              safeActive={isSafeHarborTask(t, domain.id, todayAdjustment, todayStr)}
+              onToggle={() => onToggleTask(t.id)} onEdit={() => startTaskEdit(t)} onDelete={() => onDeleteTask(t.id)} />
           ) : (
             <div key={t.id} className={"qd-task" + (t.done ? " done" : "") + (isSafeHarborTask(t, domain.id, todayAdjustment, todayStr) ? " is-safe-active" : "")}>
               <input
@@ -2417,10 +2437,11 @@ function QuestCard({
       </div>
 
       {showAdd ? (
-        <div className="qd-add-task">
+        <div className="qd-add-task" ref={addFormRef}>
           <input
             type="text"
             placeholder="Task name"
+                aria-label="Task name"
             value={name}
             onChange={(e) => {
               const nextName = e.target.value;
@@ -2437,6 +2458,7 @@ function QuestCard({
           <input
             type="number"
             placeholder="XP"
+            aria-label="Task XP"
             value={xp}
             min="1"
             onChange={(e) => setXp(e.target.value)}
@@ -2466,6 +2488,7 @@ function QuestCard({
           )}
 
           <select
+            aria-label="Task flexibility"
             value={flexibility}
             onChange={(e) => setFlexibility(e.target.value)}
             title="Can Quest move this task when your day changes?"
@@ -2474,9 +2497,9 @@ function QuestCard({
             <option value="fixed">Fixed · must stay on its date</option>
           </select>
 
-          <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+          <input type="date" aria-label="Task date" value={day} onChange={(e) => setDay(e.target.value)} />
 
-          <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={!day}>
+          <select aria-label="Task time" value={hour} onChange={(e) => setHour(e.target.value)} disabled={!day}>
             <option value="">No time</option>
             {Array.from({ length: 24 }, (_, h) => (
               <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
@@ -2489,7 +2512,7 @@ function QuestCard({
           <button type="button" onClick={submitTask}>Add</button>
           <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
         </div>
-      ) : (
+      ) : !artLayout && (
         <button
           type="button"
           className="qd-add-btn"
@@ -2499,6 +2522,201 @@ function QuestCard({
         </button>
       )}
     </div>
+  );
+}
+
+
+// Decorative frames are image assets. Everything inside remains live UI.
+function QuestGlyph({ name, ...props }) {
+  const paths = {
+    chevron: "m8 4 8 8-8 8",
+    up: "m4 16 8-8 8 8",
+    pencil: "m4 16 12-12 4 4-12 12H4v-4m9-9 4 4",
+    calendar: "M5 3v4m14-4v4M3 9h18M3 5h18v16H3zM7 13h2m3 0h2m3 0h1M7 17h2m3 0h2",
+    clock: "M12 6v6l4 2M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20",
+    plus: "M12 5v14M5 12h14",
+    check: "m5 12 5 5L20 6",
+  };
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="square" strokeLinejoin="miter" aria-hidden="true" focusable="false" {...props}>
+      {name === "more" ? <><circle cx="4" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="20" cy="12" r="1" /></> : <path d={paths[name]} />}
+    </svg>
+  );
+}
+
+function getQuestTaskDate(task, todayStr) {
+  if (!task.day) return "Unscheduled";
+  const date = new Date(`${task.day}T12:00:00`);
+  const label = task.day === todayStr ? "Today" : Number.isNaN(date.getTime())
+    ? task.day : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (task.hour === null || task.hour === undefined || task.hour === "") return label;
+  const hour = Number(task.hour);
+  if (!Number.isFinite(hour)) return label;
+  const wholeHour = Math.floor(hour);
+  const minutes = Math.round((hour - wholeHour) * 60);
+  return `${label} · ${wholeHour % 12 || 12}:${String(minutes).padStart(2, "0")} ${wholeHour >= 12 ? "PM" : "AM"}`;
+}
+
+function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onEdit, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const moreRef = useRef(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event) => {
+      if (event.type === "keydown") {
+        if (event.key !== "Escape") return;
+        setMenuOpen(false);
+        moreRef.current?.focus();
+      } else if (!menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [menuOpen]);
+  const fixed = getTaskFlexibility(task) === "fixed";
+  const actual = task.done && Number(task.actualMinutes) > 0;
+  const minutes = actual ? task.actualMinutes : task.estimatedMinutes;
+  return (
+    <div className={`qd-task qd-rpg-task${task.done ? " done" : ""}${safeActive ? " is-safe-active" : ""}`}>
+      <label className="qd-rpg-check">
+        <input type="checkbox" checked={!!task.done} onChange={onToggle}
+          aria-label={`${task.done ? "Mark incomplete" : "Complete"} ${task.name}`} />
+        <span className="qd-rpg-check-art" aria-hidden="true">{task.done && <QuestGlyph name="check" />}</span>
+      </label>
+      <div className="qd-rpg-task-copy">
+        <span className="qd-task-name" title={task.name}>{task.name}</span>
+        <div className="qd-rpg-task-details">
+          <span className={task.day ? "qd-rpg-task-date" : "qd-rpg-task-unscheduled"} title={task.day || "No scheduled date"}>
+            {task.day && <QuestGlyph name="calendar" />}{getQuestTaskDate(task, todayStr)}
+          </span>
+          {(task.day || fixed) && <span className={`qd-rpg-flex${fixed ? " is-fixed" : ""}`}>{fixed ? "Fixed" : "Flexible"}</span>}
+          {Number(minutes) > 0 && <span className="qd-rpg-task-duration" title={actual
+            ? `Actual: ${formatMinutes(minutes)}${task.estimatedMinutes ? `; estimated: ${formatMinutes(task.estimatedMinutes)}` : ""}`
+            : `Estimated: ${formatMinutes(minutes)}`}><QuestGlyph name="clock" />{actual ? "" : "~"}{formatMinutes(minutes)}{actual ? " actual" : ""}</span>}
+        </div>
+      </div>
+      <span className="qd-task-xp">{task.xp} XP</span>
+      <div className="qd-rpg-task-actions">
+        <button type="button" className="qd-rpg-icon-button" onClick={onEdit} aria-label={`Edit ${task.name}`} title="Edit task"><QuestGlyph name="pencil" /></button>
+        <div ref={menuRef} className="qd-rpg-task-options">
+          <button ref={moreRef} type="button" className="qd-rpg-icon-button" onClick={() => setMenuOpen(value => !value)} aria-label={`Options for ${task.name}`} aria-expanded={menuOpen} title="Task options"><QuestGlyph name="more" /></button>
+          {menuOpen && <div className="qd-rpg-task-menu"><button type="button" onClick={() => {
+            if (window.confirm(`Delete "${task.name}"?`)) onDelete();
+            setMenuOpen(false);
+            moreRef.current?.focus();
+          }}>Delete task</button></div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuestShellCard({
+  domain, today, todayStr, onToggleTask, onAddTask, onUpdateTask,
+  onDeleteTask, onTargetChange, onDeleteDomain, todayAdjustment, defaultOpen = false,
+}) {
+  const [expanded, setExpanded] = useState(defaultOpen);
+  const [showQuestMenu, setShowQuestMenu] = useState(false);
+  const cardRef = useRef(null);
+  const questMenuRef = useRef(null);
+  const questMoreRef = useRef(null);
+  const restoreFocus = useRef(false);
+  const status = questStatus(domain, today);
+  const detailsId = `quest-details-${domain.id}`;
+  const titleId = `quest-title-${domain.id}`;
+  const harbor = todayAdjustment?.mode === "harbor";
+  const hasImportantWork = harbor && domain.tasks.some(task => isSafeHarborTask(task, domain.id, todayAdjustment, todayStr));
+  const monthXP = domain.tasks.filter(task => task.done && task.doneAt && isSameMonth(String(task.doneAt).slice(0, 10), today))
+    .reduce((sum, task) => sum + (Number(task.xp) || 0), 0);
+  const hasFixed = domain.tasks.some(task => getTaskFlexibility(task) === "fixed");
+  const hasFlexible = domain.tasks.some(task => getTaskFlexibility(task) !== "fixed");
+  const flexibilityLabel = hasFixed ? (hasFlexible ? "Mixed" : "Fixed") : "Flexible";
+  const category = domain.category || (/video|film|edit|photo|design|brand/i.test(domain.name) ? "Creative" : "Quest");
+
+  useEffect(() => {
+    if (!restoreFocus.current) return;
+    cardRef.current?.querySelector(".qd-rpg-quest-toggle")?.focus({ preventScroll: true });
+    restoreFocus.current = false;
+  }, [expanded]);
+  useEffect(() => {
+    if (!showQuestMenu) return;
+    const close = (event) => {
+      if (event.type === "keydown") {
+        if (event.key !== "Escape") return;
+        setShowQuestMenu(false);
+        questMoreRef.current?.focus();
+      } else if (!questMenuRef.current?.contains(event.target)) setShowQuestMenu(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [showQuestMenu]);
+  const toggleExpanded = () => {
+    playSFX("click");
+    restoreFocus.current = true;
+    setShowQuestMenu(false);
+    setExpanded(value => !value);
+  };
+
+  return (
+    <article ref={cardRef} className={`qd-rpg-quest-card ${expanded ? "qd-rpg-quest-open" : "qd-rpg-quest-closed"}${harbor ? " is-harbor" : ""}${hasImportantWork ? " has-important-work" : ""}`}
+      style={{ "--quest-accent": domain.color }} aria-labelledby={titleId}>
+      <div className="qd-rpg-card-art" aria-hidden="true" />
+      {expanded ? <>
+        <header className="qd-rpg-quest-open-header">
+          <div className="qd-rpg-quest-open-icon" aria-hidden="true">{domain.emoji}</div>
+          <div className="qd-rpg-quest-open-copy">
+            <h2 className="qd-rpg-quest-open-title" id={titleId}>{domain.name}</h2>
+            <p className="qd-rpg-quest-open-subtitle" title={status.text}>{status.text}</p>
+          </div>
+          <div className="qd-rpg-quest-header-actions">
+            <div ref={questMenuRef} className="qd-rpg-quest-options">
+              <button ref={questMoreRef} type="button" className="qd-rpg-quest-more" onClick={() => setShowQuestMenu(value => !value)} aria-label={`${domain.name} options`} aria-expanded={showQuestMenu}><QuestGlyph name="more" /></button>
+              {showQuestMenu && <div className="qd-rpg-quest-menu">
+                <label>Monthly target<input type="number" min="1" value={domain.monthlyTarget} onChange={event => onTargetChange(event.target.value)} /></label>
+                <button type="button" onClick={() => {
+                  if (window.confirm(`Delete the entire "${domain.name}" quest?`)) onDeleteDomain(domain.id);
+                }}>Delete quest</button>
+              </div>}
+            </div>
+            <button type="button" className="qd-rpg-quest-collapse qd-rpg-quest-toggle" onClick={toggleExpanded} aria-label={`Collapse ${domain.name}`} aria-expanded="true" aria-controls={detailsId}><QuestGlyph name="up" /></button>
+            <span className="qd-rpg-quest-earned-xp" title="XP earned this month">+{monthXP} XP</span>
+          </div>
+        </header>
+        <div className="qd-rpg-quest-progress-row">
+          <div className="qd-rpg-quest-progress" role="progressbar" aria-label={`${domain.name} monthly progress`} aria-valuemin={0} aria-valuemax={status.target} aria-valuenow={Math.min(status.target, status.doneThisMonth)} aria-valuetext={`${status.doneThisMonth} of ${status.target} tasks`}>
+            <div className="qd-rpg-quest-progress-fill" style={{ width: `${status.pct * 100}%` }} />
+          </div>
+          <span className="qd-rpg-quest-progress-count">{status.doneThisMonth} / {status.target} tasks</span>
+        </div>
+        <div className="qd-rpg-quest-chips"><span className="is-category">{category}</span><span>{flexibilityLabel}</span><span className="qd-rpg-month"><QuestGlyph name="calendar" />This Month</span></div>
+      </> : <button type="button" className="qd-rpg-quest-closed-hit qd-rpg-quest-toggle" onClick={toggleExpanded} aria-label={`Open ${domain.name}`} aria-expanded="false" aria-controls={detailsId}>
+        <span className="qd-rpg-quest-closed-icon" aria-hidden="true">{domain.emoji}</span>
+        <span className="qd-rpg-quest-closed-copy"><span className="qd-rpg-quest-name" id={titleId}>{domain.name}</span><span className="qd-rpg-quest-subtitle" title={status.text}>{status.text}</span></span>
+        <span className="qd-rpg-quest-closed-progress" aria-hidden="true"><span className="qd-rpg-quest-progress-fill" style={{ width: `${status.pct * 100}%` }} /></span>
+        <span className="qd-rpg-quest-closed-count" aria-label={`${status.doneThisMonth} of ${status.target} tasks this month`}>{status.doneThisMonth} / {status.target}</span>
+        <QuestGlyph name="chevron" className="qd-rpg-quest-chevron" />
+      </button>}
+      <div id={detailsId} className="qd-rpg-quest-details" hidden={!expanded}>
+        <div className="qd-rpg-task-frame"><div className="qd-rpg-task-frame-art" aria-hidden="true" />
+          <div className="qd-rpg-existing-quest-content">
+            <QuestCard artLayout domain={domain} today={today} todayStr={todayStr}
+              onToggleTask={onToggleTask} onAddTask={onAddTask} onUpdateTask={onUpdateTask}
+              onDeleteTask={onDeleteTask} onTargetChange={onTargetChange}
+              onDeleteDomain={onDeleteDomain} todayAdjustment={todayAdjustment} />
+          </div>
+        </div>
+        <div className="qd-rpg-quest-footer"><span>A little progress every day.</span></div>
+      </div>
+    </article>
   );
 }
 
@@ -3256,76 +3474,20 @@ function QuestPageHero({ today, journeyDay }) {
     </header>
   );
 }
-
-function QuestStatsBar({ activeQuests, doneThisMonth, remaining, totalXP }) {
-  const [statsArt, setStatsArt] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    let objectUrl = "";
-
-    const loadStatsArt = async () => {
-      try {
-        const names = [
-          "part-01.txt",
-          "part-01b.txt",
-          "part-02.txt",
-          "part-03.txt",
-          "part-04.txt",
-          "part-05.txt",
-          "part-06.txt",
-          "part-07.txt",
-          "part-08.txt",
-        ];
-
-        const parts = await Promise.all(
-          names.map(async (name) => {
-            const response = await fetch(`/quest-stats-frame/${name}`, {
-              cache: "force-cache",
-            });
-            if (!response.ok) {
-              throw new Error("Quest stats artwork could not be loaded.");
-            }
-            return response.text();
-          })
-        );
-
-        const encoded = parts.join("").replace(/\s/g, "");
-        const binary = atob(encoded);
-        const bytes = new Uint8Array(binary.length);
-
-        for (let i = 0; i < binary.length; i += 1) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-
-        objectUrl = URL.createObjectURL(
-          new Blob([bytes], { type: "image/webp" })
-        );
-
-        if (!cancelled) setStatsArt(objectUrl);
-      } catch (error) {
-        console.warn("Quest stats artwork failed to load:", error);
-      }
-    };
-
-    void loadStatsArt();
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, []);
-
+function QuestStatsBar({
+  activeQuests,
+  doneThisMonth,
+  remaining,
+  totalXP,
+}) {
   return (
     <section className="qd-quest-summary-art" aria-label="Quest overview">
-      {statsArt && (
-        <img
-          className="qd-quest-summary-art-image"
-          src={statsArt}
-          alt=""
-          aria-hidden="true"
-        />
-      )}
+      <img
+        className="qd-quest-summary-art-image"
+        src="/quest-stats-frame-cropped.png?v=2"
+        alt=""
+        aria-hidden="true"
+      />
 
       <span
         className="qd-quest-summary-value qd-quest-summary-active"
@@ -3357,7 +3519,71 @@ function QuestStatsBar({ activeQuests, doneThisMonth, remaining, totalXP }) {
     </section>
   );
 }
+function QuestFilterBar({
+  activeFilter,
+  onFilterChange,
+  onNewQuest,
+}) {
+  const filterImages = {
+    all: "/quest-filter-all.png",
+    active: "/quest-filter-active.png",
+    completed: "/quest-filter-completed.png",
+    archived: "/quest-filter-archived.png",
+  };
 
+  return (
+    <section
+      className="qd-quest-filter-bar"
+      aria-label="Quest filters and actions"
+    >
+      <img
+        className="qd-quest-filter-bar-image"
+        src={filterImages[activeFilter] || filterImages.all}
+        alt=""
+        aria-hidden="true"
+      />
+
+      <button
+        type="button"
+        className="qd-quest-filter-hit qd-quest-filter-hit-all"
+        aria-label="Show all quests"
+        aria-pressed={activeFilter === "all"}
+        onClick={() => onFilterChange("all")}
+      />
+
+      <button
+        type="button"
+        className="qd-quest-filter-hit qd-quest-filter-hit-active"
+        aria-label="Show active quests"
+        aria-pressed={activeFilter === "active"}
+        onClick={() => onFilterChange("active")}
+      />
+
+      <button
+        type="button"
+        className="qd-quest-filter-hit qd-quest-filter-hit-completed"
+        aria-label="Show completed quests"
+        aria-pressed={activeFilter === "completed"}
+        onClick={() => onFilterChange("completed")}
+      />
+
+      <button
+        type="button"
+        className="qd-quest-filter-hit qd-quest-filter-hit-archived"
+        aria-label="Show archived quests"
+        aria-pressed={activeFilter === "archived"}
+        onClick={() => onFilterChange("archived")}
+      />
+
+      <button
+        type="button"
+        className="qd-quest-filter-hit qd-quest-filter-hit-new"
+        aria-label="Create a new quest"
+        onClick={onNewQuest}
+      />
+    </section>
+  );
+}
 // ======================================================
 // MAIN DASHBOARD
 // ======================================================
@@ -3370,6 +3596,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [viewOffset, setViewOffset] = useState(0);
 
   const [showAddDomain, setShowAddDomain] = useState(false);
+  const [questFilter, setQuestFilter] = useState("all");
   const [newDomainName, setNewDomainName] = useState("");
   const [newDomainEmoji, setNewDomainEmoji] = useState("⭐");
   const [newDomainTarget, setNewDomainTarget] = useState(5);
@@ -3387,6 +3614,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     () => getHomePage(typeof window === "undefined" ? "" : window.location.hash)
   );
   const showAnchorPage = page === "anchors";
+  const showStatsPage = page === "stats";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
   const previewSubPage = designPreview && ["quests", "stats", "more"].includes(page);
@@ -3407,19 +3635,19 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   useEffect(() => {
     if (!loaded) return;
-    if (designPreview) {
+    if (designPreview || showStatsPage) {
       window.scrollTo({ top: 0, behavior: "instant" });
       return;
     }
     const target = showAnchorPage ? "anchors" : showTodayQuestsPage ? "today-quests" : window.location.hash.slice(1) || "home";
     document.getElementById(target)?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [page, showAnchorPage, showTodayQuestsPage, loaded, designPreview]);
+  }, [page, showAnchorPage, showTodayQuestsPage, loaded, designPreview, showStatsPage]);
 
   // Keep the compact voyage navigator aware of the section currently nearest
   // the top of the viewport. The bar itself is fixed, so it follows the user
   // without ever becoming a second scrollable panel.
   useEffect(() => {
-    if (showAnchorPage || showTodayQuestsPage || designPreview) return;
+    if (showAnchorPage || showTodayQuestsPage || showStatsPage || designPreview) return;
     const ids = ["home", "voyage", "anchors", "rewards", "quests"];
     const updateActiveNav = () => {
       const marker = 150;
@@ -3446,7 +3674,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       window.removeEventListener("scroll", updateActiveNav);
       window.removeEventListener("resize", updateActiveNav);
     };
-  }, [state, showAnchorPage, showTodayQuestsPage, designPreview]);
+  }, [state, showAnchorPage, showTodayQuestsPage, designPreview, showStatsPage]);
 
   // ====================================================
   // CLOCK
@@ -4938,14 +5166,16 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             )}
           </section>
   );
-  const currentNav = designPreview ? (showTodayQuestsPage ? "quests" : page) : anchorPageVisible ? "anchors" : showTodayQuestsPage ? "quests" : activeNav;
+  const currentNav = (designPreview || showStatsPage) ? (showTodayQuestsPage ? "quests" : page) : anchorPageVisible ? "anchors" : showTodayQuestsPage ? "quests" : activeNav;
 
   return (
     <div
       className={
         "qd-root" +
         (todayAdjustment?.mode === "harbor" ? " qd-safe-harbor" : "") +
-        (designPreview && page === "quests" ? " qd-quests-active" : "")
+        (designPreview && page === "quests" ? " qd-quests-active" : "") +
+        (anchorPageVisible ? " qd-anchors-active" : "") +
+        (showStatsPage ? " qd-stats-active" : "")
       }
     >
       <style>{CSS}</style>
@@ -5020,46 +5250,20 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : previewSubPage ? page : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
-            <>
-              <header className="qd-anchor-page-heading">
-                <a href="#home">‹ Back to Home</a>
-                <h1><PixelAnchorSymbol /> Daily Anchors</h1>
-                <p>Your routines, your rhythm. Make a little progress each day.</p>
-              </header>
-              <section className="qd-panel qd-anchor-panel" aria-label="Manage daily anchors">
-                <div className="qd-panel-head">
-                  <div>
-                    <div className="qd-panel-title">YOUR WEEK</div>
-                    <div className="qd-panel-sub">Check off your anchors, set their times, and choose their days.</div>
-                  </div>
-                </div>
-                <div className="qd-anchors">
-                  {state.anchors.map((anchor) => (
-                    <AnchorCard
-                      key={anchor.id}
-                      anchor={anchor}
-                      weekDates={wDates}
-                      onToggle={toggleAnchor}
-                      onUpdate={updateAnchor}
-                      onDelete={deleteAnchor}
-                      voyageAdjustments={state.voyageAdjustments || {}}
-                      safeActive={todayAdjustment?.mode === "harbor" && todayActiveAnchorIds.includes(anchor.id)}
-                    />
-                  ))}
-                </div>
-                {showAddAnchor ? (
-                  <div style={{ padding: "0 16px 12px" }}>
-                    <AnchorAddForm onAdd={addAnchor} onCancel={() => setShowAddAnchor(false)} />
-                  </div>
-                ) : (
-                  <button type="button" className="qd-add-btn" onClick={() => { playSFX("click"); setShowAddAnchor(true); }}>
-                    + New daily anchor
-                  </button>
-                )}
-              </section>
-            </>
+            <DailyAnchorsPage
+              anchors={state.anchors}
+              todayStr={todayStr}
+              now={clockNow}
+              resetHour={resetHour}
+              voyageAdjustments={state.voyageAdjustments || {}}
+              onToggle={toggleAnchor}
+              onAdd={addAnchor}
+              onUpdate={updateAnchor}
+              onDelete={deleteAnchor}
+              categoryColor={getAnchorCategoryColor}
+            />
           ) : showTodayQuestsPage ? (
             <>
               <header className="qd-today-quests-page-heading">
@@ -5078,10 +5282,95 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                 remaining={questSummaryStats.remaining}
                 totalXP={questSummaryStats.totalXP}
               />
-              <div className="qd-quest-redesign-canvas" aria-hidden="true" />
+              <QuestFilterBar
+  activeFilter={questFilter}
+  onFilterChange={(filter) => {
+    playSFX("click");
+    setQuestFilter(filter);
+  }}
+  onNewQuest={() => {
+    playSFX("click");
+    setShowAddDomain(true);
+  }}
+/>
+
+{showAddDomain && (
+  <div className="qd-quest-new-form">
+    <div className="qd-add-task">
+      <input
+        type="text"
+        placeholder="Quest name"
+        value={newDomainName}
+        onChange={(e) => setNewDomainName(e.target.value)}
+      />
+
+      <input
+        type="text"
+        placeholder="Emoji"
+        value={newDomainEmoji}
+        onChange={(e) => setNewDomainEmoji(e.target.value)}
+        style={{ width: 55 }}
+      />
+
+      <input
+        type="number"
+        min="1"
+        placeholder="Monthly target"
+        value={newDomainTarget}
+        onChange={(e) => setNewDomainTarget(e.target.value)}
+        style={{ width: 90 }}
+      />
+
+      <button
+        type="button"
+        onClick={addDomain}
+      >
+        Add
+      </button>
+
+      <button
+        type="button"
+        className="qd-cancel"
+        onClick={() => setShowAddDomain(false)}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+              <div className="qd-quest-redesign-canvas">
+  <div className="qd-redesign-quest-list">
+    {state.domains.map((domain, index) => (
+      <QuestShellCard
+        key={domain.id}
+        domain={domain}
+        today={today}
+        todayStr={todayStr}
+        defaultOpen={index === 0}
+        onToggleTask={(taskId) =>
+          toggleTask(domain.id, taskId)
+        }
+        onAddTask={(payload) =>
+          addTask(domain.id, payload)
+        }
+        onUpdateTask={(taskId, changes) =>
+          updateTask(domain.id, taskId, changes)
+        }
+        onDeleteTask={(taskId) =>
+          deleteTask(domain.id, taskId)
+        }
+        onTargetChange={(value) =>
+          updateTarget(domain.id, value)
+        }
+        onDeleteDomain={deleteDomain}
+        todayAdjustment={todayAdjustment}
+      />
+    ))}
+  </div>
+</div>
             </div>
-          ) : previewSubPage && page === "stats" ? (
-            <StatsPage streak={streak} completed={homeQuestItems.filter((item) => item.done).length} total={homeQuestItems.length} todayXP={dToday} weekXP={wXP} lifetimeXP={lifetimeXP} level={level} />
+          ) : showStatsPage ? (
+            <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : previewSubPage && page === "more" ? (
             <MorePage resetHour={resetHour} onResetHour={setResetHour} />
           ) : (
@@ -5427,7 +5716,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           )}
         </main>
       </div>
-      {designPreview && <BottomNavigation page={page} />}
+      {(designPreview || anchorPageVisible || showStatsPage) && <BottomNavigation page={page} />}
     </div>
   );
 }
