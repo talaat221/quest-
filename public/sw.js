@@ -1,11 +1,13 @@
-const CACHE_NAME = 'quest-shell-v21-preview';
+const CACHE_NAME = 'quest-shell-v22-cottage-icon';
 const APP_SHELL = [
   '/',
-  '/manifest.webmanifest',
-  '/apple-touch-icon.png',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon-maskable-512.png',
+  '/manifest.webmanifest?v=quest-cottage-v1',
+  '/apple-touch-icon.png?v=quest-cottage-v1',
+  '/icon-192.png?v=quest-cottage-v1',
+  '/icon-512.png?v=quest-cottage-v1',
+  '/icon-maskable-512.png?v=quest-cottage-v1',
+  '/favicon.ico?v=quest-cottage-v1',
+  '/favicon-32x32.png?v=quest-cottage-v1',
   '/odyssey-sea.jpg',
   '/pixel-garden-hero.webp',
   '/xp-frame-mobile.png',
