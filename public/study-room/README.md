@@ -1,52 +1,41 @@
-# Study Room artwork
+# Study Room artwork — cottage v2
 
-The room is assembled in `src/StudyRoom.jsx` with placement and motion in
-`src/study-room.css`. The live timer and controls are HTML, never painted into
-the artwork. The scene keeps the room's 1672 × 941 landscape coordinate space.
+The live room uses an original Stardew Valley-inspired, elevated three-quarter
+pixel-game interior. The background, desk and character poses are independent
+images. The live timer and controls use the existing shared Quest task timer.
 
-All five original assets were made with the built-in image-generation tool,
-then encoded as WebP while preserving transparency. Original generated PNGs
-were retained in the working session. No external stock assets are required.
+## Current assets
 
-| Asset | Layer | Use |
-| --- | --- | --- |
-| `room-v1.webp` | Background | Cottage, moonlit window, shelves, plants, lanterns |
-| `boy-idle-v1.webp` | Character | Seated, relaxed pose when no task is running |
-| `boy-studying-v1.webp` | Character | Focused pose while the shared timer runs |
-| `desk-v1.webp` | Foreground | Desk, notebook, mug, books |
-| `steam-v1.webp` | Above mug | Slow drifting steam |
+All artwork was made with the built-in image-generation tool. The four v2 PNGs
+were encoded as WebP with transparency preserved. No stock artwork is required.
+The v1 files remain available as a fallback.
 
-The writing hand and resting hand are separate DOM layers sampling the study
-sprite through explicit clip polygons. This keeps their pixels aligned with
-the body and notebook while letting only the writing hand move. The remaining
-motion is gentle breathing, steam, small window fireflies and lantern warmth.
-All movement can be disabled. Reduced-motion preferences are respected.
+| File (relative to this folder) | Layer |
+| --- | --- |
+| `room-v2.webp` | 1672 × 941 opaque cottage, rug, shelves, window and cat |
+| `desk-v2.webp` | 1536 × 1024 transparent desk, notebook, mug and books |
+| `boy-idle-v2.webp` | 1254 × 1254 transparent seated boy and chair |
+| `boy-studying-v2.webp` | Matching transparent studying pose, same canvas |
+| `steam-v1.webp` | Reused transparent steam layer |
 
-## Prompt set
+The hand layers sample the studying sprite using clip polygons. Breathing,
+pencil movement, steam, fireflies and lantern light are separate animations.
+The boy's pose follows the existing running/paused task. Reduced-motion
+preferences and the Gentle motion control remain available.
 
-1. **Room:** a wide 16:9 front-facing, slightly elevated view into a cozy pixel
-   farm cottage at night. Moonlit lake and forest through a left wooden window;
-   bookshelves, trailing plants and a lantern on the right. Walnut floorboards,
-   navy/teal shadows and amber highlights. Empty dark teal central wall for a
-   live timer and clear central floor for separate furniture and character.
-   No people, central desk, chair, text or interface. Crisp detailed 16-bit art.
-2. **Desk:** use the room as lighting, perspective and pixel-style reference.
-   Isolated walnut desk seen from the front and slightly above, with cream
-   open notebook at its center, teal mug at left and olive/rust books at right.
-   True transparent background; no person, chair, scene, lettering or steam.
-3. **Idle boy:** match the room and desk. A friendly tan-skinned young adult
-   with short dark brown hair, muted sage sweater and dark trousers, seated
-   upright in a low walnut chair facing the viewer. Relaxed expression, hands
-   in his lap; head through upper thighs. Transparent square sprite, no desk,
-   book or background, warm rim lighting and blue shadows.
-4. **Studying boy:** edit the exact idle boy, keeping identity, hair, clothes,
-   chair, placement, lighting and transparency. Slight forward head tilt,
-   downward gaze, relaxed concentration. Forearms forward at desk level;
-   viewer-left hand holds a golden pencil and other hand rests flat. No desk
-   or paper in this layer. Preserve the original canvas alignment.
-5. **Steam:** three slender cream and blue-grey translucent steam wisps with
-   stepped pixel edges and sparse broken clusters near the top. Transparent
-   background with no mug, fire, sparks, glow rectangle, scene or lettering.
+## Layout
 
-Task and timing data use the existing Quest task model and persistence path.
-There is no separate study-session database or parallel timer.
+Every scene layer shares one 1672:941 coordinate plane, with no viewport-specific
+sprite offsets. Landscape phones automatically fit the complete room beside
+its controls, hide the main bottom dock, and keep the Quests back link.
+The scene is contained, never stretched or cropped. Safe-area insets leave
+room for notches and the home indicator. Portrait rotation restores navigation.
+Room view remains available on portrait phones and larger screens.
+
+The new-task form uses a native dialog so keyboard entry cannot squeeze the
+scene. Closing the room does not stop or reset a running task.
+
+## Generation prompts
+
+The exact four v2 prompts are in [v2-prompts.md](./v2-prompts.md).
+All used the built-in tool, not CLI/API fallback.
