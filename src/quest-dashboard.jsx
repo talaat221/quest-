@@ -10,6 +10,7 @@ import GardenScene from "./GardenScene";
 import DailyAnchors from "./DailyAnchors";
 import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
 import StatsPage from "./StatsPage.jsx";
+import StudyRoom from "./StudyRoom.jsx";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
 import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, MorePage } from "./HomeFinish";
@@ -3499,9 +3500,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const showAnchorPage = page === "anchors";
   const showStatsPage = page === "stats";
   const showGoalsPage = page === "goals";
+  const showStudyPage = page === "study";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more", "goals"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const savedAdjustmentVersion = useRef(null);
@@ -4399,8 +4401,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       hour,
       estimatedMinutes,
       flexibility,
-    }
+    },
+    startImmediately = false
   ) => {
+    if (!String(name || "").trim() || !state.domains.some(domain => domain.id === domainId)) return null;
+    const createdAt = Date.now();
+    const taskId = `task-${createdAt}-${Math.random().toString(36).slice(2, 7)}`;
     updateState((next) => {
       const domain = next.domains.find(
         (d) => d.id === domainId
@@ -4409,13 +4415,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       if (!domain) return;
 
       domain.tasks.push({
-        id:
-          "task-" +
-          Date.now() +
-          "-" +
-          Math.random()
-            .toString(36)
-            .slice(2, 7),
+        id: taskId,
 
         name,
 
@@ -4443,9 +4443,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         done: false,
         doneAt: null,
       });
+      if (startImmediately) startTaskTimer(next.domains, domainId, taskId, createdAt);
     });
 
     playSFX("add");
+    return taskId;
   };
 
   const updateTask = (
@@ -5072,7 +5074,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         (anchorPageVisible ? " qd-anchors-active" : "") +
         (showStatsPage ? " qd-stats-active" : "") +
         (showGoalsPage ? " qd-goals-active" : "") +
-        (workingTask ? " qd-timer-running" : "")
+        (showStudyPage ? " qd-study-active" : "") +
+        (workingTask && !showStudyPage ? " qd-timer-running" : "")
       }
     >
       <style>{CSS}</style>
@@ -5101,7 +5104,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         />
       )}
 
-      {completionSummary && <TaskFinishedDialog result={completionSummary} onClose={() => setCompletionSummary(null)} />}
+      {completionSummary && <TaskFinishedDialog result={completionSummary} onClose={() => setCompletionSummary(null)} returnLabel={showStudyPage ? "Back to Study Room" : undefined} />}
       {goalEditor && <GoalEditor key={`${goalEditor.questId || "any"}:${goalEditor.goal?.id || "new"}`}
         domains={goalEditor.questId === "__new_quest__" ? [draftQuest] : state.domains}
         questId={goalEditor.questId} goal={goalEditor.goal} todayStr={todayStr}
@@ -5144,7 +5147,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : previewSubPage ? page : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showStudyPage ? " qd-main-study" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showStudyPage ? "study" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
             <DailyAnchorsPage
               anchors={state.anchors}
@@ -5189,6 +5192,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 />
 
 <a className="gg-quest-garden-link" href="#goals">Visit Goals Garden <span aria-hidden="true">›</span></a>
+<a className="sr-quest-entry" href="#study">Study with me <span aria-hidden="true">›</span></a>
 {showAddDomain && (
   <div className="qd-quest-new-form">
     <div className="qd-add-task">
@@ -5272,6 +5276,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   </div>
 </div>
             </div>
+          ) : showStudyPage ? (
+            <StudyRoom domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask}
+              onCreate={({ domainId, name, startNow }) => addTask(domainId, {
+                name, xp: 10, day: todayStr, hour: null,
+                estimatedMinutes: getLearnedEstimate(state.domains.find(domain => domain.id === domainId), name), flexibility: "flexible",
+              }, startNow)} />
           ) : showGoalsPage ? (
             <GoalsPage domains={state.domains} todayStr={todayStr} resetHour={resetHour}
               onAdd={questId => setGoalEditor({ questId })} onEdit={(questId, goal) => setGoalEditor({ questId, goal })}
@@ -5623,10 +5633,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           )}
         </main>
       </div>
-      {workingTask && <FocusTimerBar task={workingTask} domain={workingDomain}
+      {workingTask && !showStudyPage && <FocusTimerBar task={workingTask} domain={workingDomain}
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
-      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage) && <BottomNavigation page={page} />}
+      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage) && <BottomNavigation page={page} />}
     </div>
   );
 }
