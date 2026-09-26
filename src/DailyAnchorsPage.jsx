@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
+import TimeInput from "./TimeInput.jsx";
+import { formatScheduleTime, isTimeInputValid, parseTimeInput } from "./schedule-time.js";
 import { PixelAnchorSymbol, PixelTaskIcon } from "./DailyAnchors.jsx";
 import {
   ANCHOR_WEEKDAYS, anchorDate, anchorDays, anchorDayState, anchorPageItems,
@@ -249,7 +251,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
     emoji: anchor?.emoji || "⭐", name: anchor?.name || "",
     category: anchor?.category || "", xpPerDay: anchor?.xpPerDay ?? 10,
     activeWeekdays: anchorDays(anchor || {}),
-    hour: anchor?.hour === null || anchor?.hour === undefined ? "8" : String(anchor.hour),
+    hour: formatScheduleTime(anchor?.hour) || "08:00",
     timed: anchor?.hour !== null && anchor?.hour !== undefined,
   }));
   const [error, setError] = useState("");
@@ -273,7 +275,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
       ? days.length === 1 ? days : days.filter((value) => value !== day)
       : [...days, day].sort((a, b) => a - b) };
   });
-  const preview = { ...draft, hour: draft.timed ? Number(draft.hour) : null };
+  const preview = { ...draft, hour: draft.timed ? parseTimeInput(draft.hour) : null };
   return <dialog ref={dialogRef} className="dap-editor" aria-labelledby={id + "-title"}
     onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <PanelArt bronze />
@@ -283,11 +285,14 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
       if (!Number.isFinite(Number(draft.xpPerDay)) || Number(draft.xpPerDay) < 1) {
         setError("Choose at least 1 XP per completion."); return;
       }
+      if (draft.timed && !isTimeInputValid(draft.hour, true)) {
+        setError("Enter a time from 00:00 to 23:59, like 10:20."); return;
+      }
       onSave({
         name: draft.name.trim(), emoji: draft.emoji.trim() || "⭐",
         category: draft.category.trim() || "General",
         xpPerDay: Number(draft.xpPerDay), activeWeekdays: draft.activeWeekdays,
-        hour: draft.timed ? Number(draft.hour) : null,
+        hour: draft.timed ? parseTimeInput(draft.hour) : null,
       });
     }}>
       <header className="dap-editor-heading">
@@ -326,12 +331,9 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
           <button type="button" aria-pressed={draft.timed} onClick={() => patch("timed", true)}><UiIcon kind="clock" />At a time</button>
           <button type="button" aria-pressed={!draft.timed} onClick={() => patch("timed", false)}><span aria-hidden="true">☾</span>Anytime</button>
         </div>
-        {draft.timed ? <label className="dap-time-select" htmlFor={id + "-hour"}>
-          <span className="dap-sr-only">Anchor time</span>
-          <select id={id + "-hour"} value={draft.hour} onChange={(event) => patch("hour", event.target.value)}>
-            {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{anchorTimeLabel(hour)}</option>)}
-          </select><small>Shown on your daily clock</small>
-        </label> : <p className="dap-field-note">Complete it whenever it fits your day.</p>}
+        {draft.timed ? <TimeInput label="Anchor time" value={draft.hour}
+          onChange={value => patch("hour", value)} required />
+          : <p className="dap-field-note">Complete it whenever it fits your day.</p>}
       </fieldset>
       <fieldset className="dap-editor-section">
         <legend>REPEAT ON</legend>

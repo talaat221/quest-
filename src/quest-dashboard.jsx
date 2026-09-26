@@ -9,6 +9,8 @@ import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, forma
 import GardenScene from "./GardenScene";
 import DailyAnchors from "./DailyAnchors";
 import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
+import TimeInput from "./TimeInput.jsx";
+import { formatScheduleTime, isTimeInputValid, parseTimeInput } from "./schedule-time.js";
 import StatsPage from "./StatsPage.jsx";
 import StudyRoom from "./StudyRoom.jsx";
 import { useQuestNotifications, disconnectNotifications } from "./notifications.js";
@@ -1649,7 +1651,7 @@ function ClockDial({
             </span>
             <span className="qd-clock-item-time">
               {item.hour !== null && item.hour !== undefined
-                ? String(item.hour).padStart(2, "0") + ":00"
+                ? formatScheduleTime(item.hour)
                 : "—"}
             </span>
             {item.sourceType === "task" && item.estimatedMinutes && (
@@ -1684,7 +1686,7 @@ function AnchorCard({
   const [category, setCategory] = useState(anchor.category || "");
   const [activeWeekdays, setActiveWeekdays] = useState(() => getAnchorWeekdays(anchor));
   const [hour, setHour] = useState(
-    anchor.hour === null || anchor.hour === undefined ? "" : String(anchor.hour)
+    formatScheduleTime(anchor.hour)
   );
 
   useEffect(() => {
@@ -1694,12 +1696,12 @@ function AnchorCard({
     setCategory(anchor.category || "");
     setActiveWeekdays(getAnchorWeekdays(anchor));
     setHour(
-      anchor.hour === null || anchor.hour === undefined ? "" : String(anchor.hour)
+      formatScheduleTime(anchor.hour)
     );
   }, [anchor]);
 
   const save = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !isTimeInputValid(hour)) return;
 
     onUpdate(anchor.id, {
       emoji: emoji || "⭐",
@@ -1707,10 +1709,7 @@ function AnchorCard({
       xpPerDay: Math.max(1, Number(xp) || 1),
       category: normalizeAnchorCategory(category),
       activeWeekdays: normalizeAnchorWeekdays(activeWeekdays),
-      hour:
-        hour === "" || hour === null || hour === undefined
-          ? null
-          : Number(hour),
+      hour: parseTimeInput(hour),
     });
 
     setEditing(false);
@@ -1730,7 +1729,7 @@ function AnchorCard({
             <span className="qd-dim">
               · {anchor.xpPerDay} XP
               {anchor.hour !== null && anchor.hour !== undefined
-                ? ` · ${String(anchor.hour).padStart(2, "0")}:00`
+                ? ` · ${formatScheduleTime(anchor.hour)}`
                 : ""}
             </span>
 
@@ -1831,20 +1830,9 @@ function AnchorCard({
             </div>
           </div>
 
-          <select
-            value={hour}
-            onChange={(e) => setHour(e.target.value)}
-            title="Routine time"
-          >
-            <option value="">No clock time</option>
-            {Array.from({ length: 24 }, (_, h) => (
-              <option key={h} value={h}>
-                {String(h).padStart(2, "0")}:00
-              </option>
-            ))}
-          </select>
+          <TimeInput label="Anchor time" value={hour} onChange={setHour} />
 
-          <button type="button" onClick={save}>
+          <button type="button" onClick={save} disabled={!isTimeInputValid(hour)}>
             Save
           </button>
 
@@ -1923,7 +1911,7 @@ function AnchorAddForm({ onAdd, onCancel }) {
   const [hour, setHour] = useState("");
 
   const submit = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !isTimeInputValid(hour)) return;
 
     onAdd({
       emoji: emoji || "⭐",
@@ -1931,10 +1919,7 @@ function AnchorAddForm({ onAdd, onCancel }) {
       xpPerDay: Math.max(1, Number(xp) || 1),
       category: normalizeAnchorCategory(category),
       activeWeekdays: normalizeAnchorWeekdays(activeWeekdays),
-      hour:
-        hour === "" || hour === null || hour === undefined
-          ? null
-          : Number(hour),
+      hour: parseTimeInput(hour),
     });
 
     setEmoji("⭐");
@@ -2012,20 +1997,9 @@ function AnchorAddForm({ onAdd, onCancel }) {
         </div>
       </div>
 
-      <select
-        value={hour}
-        onChange={(e) => setHour(e.target.value)}
-        title="Routine time"
-      >
-        <option value="">No clock time</option>
-        {Array.from({ length: 24 }, (_, h) => (
-          <option key={h} value={h}>
-            {String(h).padStart(2, "0")}:00
-          </option>
-        ))}
-      </select>
+      <TimeInput label="Anchor time" value={hour} onChange={setHour} />
 
-      <button type="button" onClick={submit}>
+      <button type="button" onClick={submit} disabled={!isTimeInputValid(hour)}>
         Add
       </button>
 
@@ -2086,7 +2060,7 @@ function QuestCard({
   const learnedSamples = getTimingSampleCount(domain, name);
 
   const submitTask = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || (day && !isTimeInputValid(hour))) return;
 
     const learned = getLearnedEstimate(domain, name);
     const finalEstimate =
@@ -2098,7 +2072,7 @@ function QuestCard({
       name: name.trim(),
       xp,
       day,
-      hour,
+      hour: day ? parseTimeInput(hour) : null,
       estimatedMinutes: finalEstimate,
       flexibility,
     });
@@ -2118,7 +2092,7 @@ function QuestCard({
     setEditName(task.name || "");
     setEditXp(Number(task.xp) || 10);
     setEditDay(task.day || "");
-    setEditHour(task.hour === null || task.hour === undefined ? "" : String(task.hour));
+    setEditHour(task.day ? formatScheduleTime(task.hour) : "");
     setEditEstimatedMinutes(
       task.estimatedMinutes ?? getLearnedEstimate(domain, task.name) ?? ""
     );
@@ -2138,7 +2112,7 @@ function QuestCard({
   };
 
   const saveTaskEdit = () => {
-    if (!editingTaskId || !editName.trim()) return;
+    if (!editingTaskId || !editName.trim() || (editDay && !isTimeInputValid(editHour))) return;
 
     const learned = getLearnedEstimate(domain, editName);
 
@@ -2146,7 +2120,7 @@ function QuestCard({
       name: editName.trim(),
       xp: Math.max(1, Number(editXp) || 1),
       day: editDay || null,
-      hour: editHour === "" || editHour === null || editHour === undefined ? null : Number(editHour),
+      hour: editDay ? parseTimeInput(editHour) : null,
       estimatedMinutes:
         editEstimatedMinutes === "" || editEstimatedMinutes === null
           ? learned
@@ -2263,7 +2237,7 @@ function QuestCard({
                 <input
                   type="date" aria-label="Task date"
                   value={editDay}
-                  onChange={(e) => setEditDay(e.target.value)}
+                  onChange={(e) => { setEditDay(e.target.value); if (!e.target.value) setEditHour(""); }}
                 />
                 <button
                   type="button"
@@ -2286,20 +2260,7 @@ function QuestCard({
                 )}
               </div>
 
-              <select
-                aria-label="Task time"
-                value={editHour}
-                onChange={(e) => setEditHour(e.target.value)}
-                disabled={!editDay}
-                title={!editDay ? "Choose a date first" : "Task time"}
-              >
-                <option value="">No time</option>
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>
-                    {String(h).padStart(2, "0")}:00
-                  </option>
-                ))}
-              </select>
+              <TimeInput value={editHour} onChange={setEditHour} disabled={!editDay} />
 
               <select
                 aria-label="Task flexibility"
@@ -2312,7 +2273,7 @@ function QuestCard({
               </select>
 
               <div className="qd-task-edit-actions">
-                <button type="button" onClick={saveTaskEdit}>Save changes</button>
+                <button type="button" onClick={saveTaskEdit} disabled={!!editDay && !isTimeInputValid(editHour)}>Save changes</button>
                 <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
               </div>
             </div>
@@ -2335,7 +2296,7 @@ function QuestCard({
                 <span className="qd-task-day">
                   {t.day}
                   {t.hour !== null && t.hour !== undefined
-                    ? " · " + String(t.hour).padStart(2, "0") + ":00"
+                    ? " · " + formatScheduleTime(t.hour)
                     : ""}
                 </span>
               ) : (
@@ -2447,19 +2408,14 @@ function QuestCard({
             <option value="fixed">Fixed · must stay on its date</option>
           </select>
 
-          <input type="date" aria-label="Task date" value={day} onChange={(e) => setDay(e.target.value)} />
+          <input type="date" aria-label="Task date" value={day} onChange={(e) => { setDay(e.target.value); if (!e.target.value) setHour(""); }} />
 
-          <select aria-label="Task time" value={hour} onChange={(e) => setHour(e.target.value)} disabled={!day}>
-            <option value="">No time</option>
-            {Array.from({ length: 24 }, (_, h) => (
-              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-            ))}
-          </select>
+          <TimeInput value={hour} onChange={setHour} disabled={!day} />
 
           <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
             Today
           </button>
-          <button type="button" onClick={submitTask}>Add</button>
+          <button type="button" onClick={submitTask} disabled={!!day && !isTimeInputValid(hour)}>Add</button>
           <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
         </div>
       ) : !artLayout && (
@@ -2501,10 +2457,9 @@ function getQuestTaskDate(task, todayStr) {
   const label = task.day === todayStr ? "Today" : Number.isNaN(date.getTime())
     ? task.day : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   if (task.hour === null || task.hour === undefined || task.hour === "") return label;
-  const hour = Number(task.hour);
-  if (!Number.isFinite(hour)) return label;
-  const wholeHour = Math.floor(hour);
-  const minutes = Math.round((hour - wholeHour) * 60);
+  const time = formatScheduleTime(task.hour);
+  if (!time) return label;
+  const [wholeHour, minutes] = time.split(":").map(Number);
   return `${label} · ${wholeHour % 12 || 12}:${String(minutes).padStart(2, "0")} ${wholeHour >= 12 ? "PM" : "AM"}`;
 }
 
@@ -2897,7 +2852,7 @@ function VoyageAdjustmentModal({
                       <span>{anchor.emoji || "⚓"} {anchor.name}</span>
                       <span className="qd-anchor-pick-time">
                         {anchor.hour !== null && anchor.hour !== undefined
-                          ? `${String(anchor.hour).padStart(2, "0")}:00`
+                          ? `${formatScheduleTime(anchor.hour)}`
                           : "no clock time"}
                       </span>
                     </label>
@@ -5510,7 +5465,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                       <div className="qd-today-name">{task.name}</div>
                       <div className="qd-today-sub">
                         {task.domainEmoji} {task.domainName}
-                        {task.hour !== null && task.hour !== undefined ? ` · ${String(task.hour).padStart(2, "0")}:00` : ""}
+                        {task.hour !== null && task.hour !== undefined ? ` · ${formatScheduleTime(task.hour)}` : ""}
                         {task.estimatedMinutes ? ` · ~${formatMinutes(task.estimatedMinutes)} est.` : ""}
                         {todayAdjustment?.mode === "harbor" &&
                           viewDateStr === todayStr &&
