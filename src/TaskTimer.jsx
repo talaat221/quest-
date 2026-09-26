@@ -1,26 +1,21 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
+import { useTaskNow } from './use-task-now.js';
 import { elapsedTaskMs, formatElapsed, formatMinutes, isTaskWorking } from './task-timer.js';
 import './task-timer.css';
+import { getPomodoro, pomodoroActionLabel, pomodoroStatus } from './pomodoro.js';
 
 export function TaskClock({ task }) {
-  const [now, setNow] = useState(Date.now);
-  const active = isTaskWorking(task);
-  useEffect(() => {
-    if (!active) return;
-    const tick = () => setNow(Date.now());
-    tick();
-    const interval = setInterval(tick, 1000);
-    document.addEventListener('visibilitychange', tick);
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', tick); };
-  }, [active, task.workTimer?.startedAt]);
+  const now = useTaskNow(task);
   return <time className="qt-elapsed" aria-label={`Time spent ${formatElapsed(elapsedTaskMs(task, now))}`}>{formatElapsed(elapsedTaskMs(task, now))}</time>;
 }
 export function TaskTimerControls({ task, onStart, onPause, onFinish }) {
+  const now = useTaskNow(task?.workTimer?.pomodoro ? task : null);
   if (task.done) return null;
-  const active = isTaskWorking(task), started = elapsedTaskMs(task) > 0;
-  return <div className={`qt-controls${active ? ' is-working' : ''}`}>
-    {(active || started) && <span className="qt-status"><i aria-hidden="true" />{active ? 'Working' : 'Paused'} <TaskClock task={task} /></span>}
-    <button type="button" className="qt-start" onClick={active ? onPause : onStart} aria-label={`${active ? 'Pause' : started ? 'Resume' : 'Start working on'} ${task.name}`}><span aria-hidden="true">{active ? 'Ⅱ' : '▶'}</span> {active ? 'Pause' : started ? 'Resume' : 'Start working'}</button>
+  const pomodoro = getPomodoro(task, now), working = isTaskWorking(task), active = pomodoro?.running || working, started = elapsedTaskMs(task) > 0;
+  const action = pomodoro ? pomodoroActionLabel(pomodoro) : active ? 'Pause' : started ? 'Resume' : 'Start working';
+  return <div className={`qt-controls${working ? ' is-working' : ''}`}>
+    {(active || started || pomodoro) && <span className="qt-status"><i aria-hidden="true" />{pomodoro ? pomodoroStatus(pomodoro) : active ? 'Working' : 'Paused'} <TaskClock task={task} /></span>}
+    <button type="button" className="qt-start" onClick={active ? onPause : onStart} aria-label={`${pomodoro ? action : active ? 'Pause' : started ? 'Resume' : 'Start working on'} ${task.name}`}><span aria-hidden="true">{active ? 'Ⅱ' : '▶'}</span> {action}</button>
     {(active || started) && <button type="button" className="qt-finish" onClick={onFinish}>Finish task</button>}
   </div>;
 }

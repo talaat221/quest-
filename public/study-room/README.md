@@ -39,3 +39,19 @@ scene. Closing the room does not stop or reset a running task.
 
 The exact four v2 prompts are in [v2-prompts.md](./v2-prompts.md).
 All used the built-in tool, not CLI/API fallback.
+
+## Optional Pomodoro timer
+
+Choose Pomodoro beside Timer after selecting a task. Defaults are 25 minutes of
+focus, a 5-minute short break and a 15-minute long break after four focus rounds.
+The menu button opens editable lengths. Each phase waits for an explicit start;
+finishing a focus round does not complete the task. Pause works in either phase.
+The boy studies only during active focus and rests during breaks.
+
+The configuration, phase, remaining budget, round count and start timestamp live
+inside the task's existing `workTimer.pomodoro` JSON object. Existing Supabase
+sync preserves this object; no schema change or extra browser-only store is used.
+Task time is capped at the focus deadline even if no JavaScript runs at that
+moment. Breaks and waiting between phases contribute zero task time. Finishing
+uses the same completion, XP and duration-learning logic. Switching to the normal
+timer or changing lengths retains all previously recorded work.

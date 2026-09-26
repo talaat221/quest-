@@ -172,3 +172,15 @@
   .sr-page.is-landscape .sr-panel-footer { align-items: center; }
   .sr-page.is-landscape .sr-panel-footer .sr-motion { font-size: 16px; }
 }
+
+/* Pomodoro is an optional rhythm for the same task timer. */
+.sr-timer-mode { display: flex; gap: 4px; margin-bottom: 12px; }
+.qd-root .sr-page .sr-timer-mode button { flex: 1; min-width: 0; padding: 7px 5px; font-size: 18px; min-height: 40px; background: #17291f; border-color: #647252; color: #adbea0; }
+.qd-root .sr-page .sr-timer-mode button[aria-pressed=true] { color: #ffdfa4; background: #485334; border-color: #b4a46a; }
+.qd-root .sr-page .sr-timer-mode .sr-pomo-settings { flex: 0 0 36px; font-size: 26px; line-height: 1; padding: 0; }
+.sr-task-label { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; }
+.sr-pomo-round { color: #d2c58e; font-size: 16px; white-space: nowrap; }
+.sr-pomodoro-note { color: #b6c2a6; font-size: 18px; }
+.sr-page.is-pomodoro .sr-panel-heading { display: none; }
+.sr-page.is-landscape.is-pomodoro .sr-timer-buttons { flex-direction: row; }
+.qd-root .sr-page.is-landscape.is-pomodoro .sr-timer-buttons button { flex: 1; padding-inline: 5px; font-size: 18px; }

@@ -1,4 +1,4 @@
-import { isTaskWorking } from './task-timer.js';
+import { isTaskTimerRunning } from './task-timer.js';
 
 export const studyTaskKey = (domainId, taskId) => JSON.stringify([domainId, taskId]);
 
@@ -10,8 +10,9 @@ export function getStudyTasks(domains = [], todayStr = '') {
 
 // The shared active timer always wins, including after reload or entry from Quests.
 export function getStudySelection(items, selectedKey) {
-  return items.find(item => isTaskWorking(item.task))
+  return items.find(item => isTaskTimerRunning(item.task))
     || items.find(item => item.key === selectedKey)
+    || items.find(item => item.task.workTimer?.pomodoro)
     || items.find(item => Number(item.task.workTimer?.elapsedMs) > 0)
     || items[0]
     || null;

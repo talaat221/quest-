@@ -5,7 +5,7 @@ import { supabase, resetQuestAccount, subscribeQuestAccountReset } from "./supab
 import Login from "./Login";
 import GoalsPage, { GoalEditor, QuestGoalsSummary } from "./GoalsPage.jsx";
 import { TaskTimerControls, FocusTimerBar, TaskFinishedDialog } from "./TaskTimer.jsx";
-import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, formatMinutes, formatElapsed, isTaskWorking, startTaskTimer, pauseTaskTimer, completeTimedTask, undoTimedTask } from "./task-timer.js";
+import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, formatMinutes, formatElapsed, isTaskWorking, isTaskTimerRunning, startTaskTimer, pauseTaskTimer, configureTaskPomodoro, completeTimedTask, undoTimedTask } from "./task-timer.js";
 import GardenScene from "./GardenScene";
 import DailyAnchors from "./DailyAnchors";
 import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
@@ -4339,6 +4339,13 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     updateState(next => { startTaskTimer(next.domains, domainId, taskId, now); });
     playSFX("click");
   };
+  const configureTimer = (domainId, taskId, settings) => {
+    const now = Date.now();
+    updateState(next => {
+      const task = next.domains.find(domain => domain.id === domainId)?.tasks.find(item => item.id === taskId);
+      configureTaskPomodoro(task, settings, now);
+    });
+  };
   const pauseWorking = (domainId, taskId) => {
     const now = Date.now();
     updateState(next => {
@@ -4402,7 +4409,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       estimatedMinutes,
       flexibility,
     },
-    startImmediately = false
+    startImmediately = false,
+    pomodoro = null
   ) => {
     if (!String(name || "").trim() || !state.domains.some(domain => domain.id === domainId)) return null;
     const createdAt = Date.now();
@@ -4443,6 +4451,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         done: false,
         doneAt: null,
       });
+      if (pomodoro) configureTaskPomodoro(domain.tasks.find(task => task.id === taskId), pomodoro, createdAt);
       if (startImmediately) startTaskTimer(next.domains, domainId, taskId, createdAt);
     });
 
@@ -4692,7 +4701,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       };
       if (mode === "harbor") {
         for (const domain of next.domains) for (const task of domain.tasks) {
-          if (isTaskWorking(task) && !isSafeHarborTask(task, domain.id, next.voyageAdjustments[todayStr], todayStr)) pauseTaskTimer(task, adjustedAt);
+          if (isTaskTimerRunning(task) && !isSafeHarborTask(task, domain.id, next.voyageAdjustments[todayStr], todayStr)) pauseTaskTimer(task, adjustedAt);
         }
       }
     });
@@ -5277,11 +5286,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 </div>
             </div>
           ) : showStudyPage ? (
-            <StudyRoom domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask}
-              onCreate={({ domainId, name, startNow }) => addTask(domainId, {
+            <StudyRoom domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
+              onCreate={({ domainId, name, startNow, pomodoro }) => addTask(domainId, {
                 name, xp: 10, day: todayStr, hour: null,
                 estimatedMinutes: getLearnedEstimate(state.domains.find(domain => domain.id === domainId), name), flexibility: "flexible",
-              }, startNow)} />
+              }, startNow, pomodoro)} />
           ) : showGoalsPage ? (
             <GoalsPage domains={state.domains} todayStr={todayStr} resetHour={resetHour}
               onAdd={questId => setGoalEditor({ questId })} onEdit={(questId, goal) => setGoalEditor({ questId, goal })}

@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { TaskClock } from './TaskTimer.jsx';
+import { useTaskNow } from './use-task-now.js';
+import PomodoroOptions from './PomodoroOptions.jsx';
+import { getPomodoro, normalizePomodoro, formatCountdown, pomodoroActionLabel, pomodoroStatus } from './pomodoro.js';
 import { elapsedTaskMs, isTaskWorking } from './task-timer.js';
 import { getStudySelection, getStudyTasks, studyTaskKey } from './study-room.js';
 import './study-room.css';
@@ -22,7 +25,7 @@ function RoomArtwork({ working, motion }) {
   </div>;
 }
 
-export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate }) {
+export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate, onConfigureTimer }) {
   const id = useId(), pageRef = useRef(null), taskInput = useRef(null), immersiveButton = useRef(null), newTaskDialog = useRef(null);
   const [selectedKey, setSelectedKey] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
@@ -36,7 +39,11 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
   const items = getStudyTasks(domains, todayStr);
   const selection = getStudySelection(items, selectedKey);
   const task = selection?.task, domain = selection?.domain;
+  const now = useTaskNow(task?.workTimer?.pomodoro ? task : null);
+  const pomodoro = getPomodoro(task, now);
   const working = !!task && isTaskWorking(task);
+  const timerRunning = !!pomodoro?.running || working;
+  const actionLabel = pomodoro ? pomodoroActionLabel(pomodoro) : working ? 'Pause' : elapsedTaskMs(task) > 0 ? 'Resume' : 'Start studying';
   const hasTime = !!task && elapsedTaskMs(task) > 0;
   const selectedQuestId = domains.some(item => item.id === newQuestId) ? newQuestId : domain?.id || domains[0]?.id || '';
   const roomView = immersive || landscape;
@@ -80,31 +87,32 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
     const name = newName.trim();
     if (!name) { setError('Give your task a name.'); return; }
     if (!domains.some(item => item.id === selectedQuestId)) { setError('Choose a quest for this task.'); return; }
-    const taskId = onCreate({ domainId: selectedQuestId, name, startNow: event.nativeEvent.submitter?.value === 'start' });
+    const taskId = onCreate({ domainId: selectedQuestId, name, startNow: event.nativeEvent.submitter?.value === 'start', pomodoro: pomodoro ? normalizePomodoro(pomodoro) : null });
     if (!taskId) { setError('This quest is no longer available. Choose another one.'); return; }
     setSelectedKey(studyTaskKey(selectedQuestId, taskId));
     setNewName(''); setError(''); setShowNewTask(false);
   };
 
-  return <section ref={pageRef} className={`sr-page${roomView ? ' is-room-view' : ''}${immersive ? ' is-immersive' : ''}${landscape ? ' is-landscape' : ''}`} aria-labelledby={`${id}-title`}>
+  return <section ref={pageRef} className={`sr-page${roomView ? ' is-room-view' : ''}${immersive ? ' is-immersive' : ''}${landscape ? ' is-landscape' : ''}${pomodoro ? ' is-pomodoro' : ''}`} aria-labelledby={`${id}-title`}>
     <header className="sr-page-header"><a href="#quests" className="sr-back">‹ Quests</a><div><span className="sr-eyebrow">INSIDE THE COTTAGE</span><h1 id={`${id}-title`}>Study with me</h1></div><button type="button" className="sr-room-mode" ref={immersiveButton} onClick={() => setImmersive(value => !value)} aria-pressed={immersive}>{immersive ? 'Exit room view' : 'Room view'}</button></header>
     <div className="sr-workspace"><div className="sr-stage-wrap"><div className="sr-stage">
       <RoomArtwork working={working} motion={motionEnabled && visible} />
       <div className="sr-room-clock">
-        <p className="sr-room-status" role="status">{working ? 'STUDYING TOGETHER' : hasTime ? 'TAKE A BREATH' : 'READY WHEN YOU ARE'}</p>
-        {task ? <TaskClock task={task} /> : <time className="qt-elapsed" aria-label="Time spent 00:00">00:00</time>}
-        <p className="sr-room-task" title={task?.name || ''}>{working || hasTime ? task.name : 'A little progress, a little peace.'}</p>
+        <p className="sr-room-status" role="status">{pomodoro ? pomodoroStatus(pomodoro) : working ? 'STUDYING TOGETHER' : hasTime ? 'TAKE A BREATH' : 'READY WHEN YOU ARE'}</p>
+        {pomodoro ? <time className="qt-elapsed" aria-label={`${pomodoro.phase === 'focus' ? 'Focus' : 'Break'} time remaining ${formatCountdown(pomodoro.remainingMs)}`}>{formatCountdown(pomodoro.remainingMs)}</time> : task ? <TaskClock task={task} /> : <time className="qt-elapsed" aria-label="Time spent 00:00">00:00</time>}
+        <p className="sr-room-task" title={task?.name || ''}>{pomodoro || working || hasTime ? task.name : 'A little progress, a little peace.'}</p>
       </div>
-      <div className="sr-scene-caption">{working ? 'One thing at a time.' : 'Your place is waiting.'}</div>
+      <div className="sr-scene-caption">{pomodoro && pomodoro.phase !== 'focus' ? 'Rest is part of the work.' : working ? 'One thing at a time.' : 'Your place is waiting.'}</div>
     </div></div>
     <div className="sr-work-panel">
       <div className="sr-panel-heading"><span aria-hidden="true">✦</span><div><span className="sr-eyebrow">A LITTLE EVERY DAY</span><h2>Settle in.</h2></div></div>
-      <div className="sr-task-controls"><div className="sr-task-picker"><label htmlFor={`${id}-task`}>Your task</label><select id={`${id}-task`} value={selection?.key || ''} disabled={working || !items.length} onChange={event => { setSelectedKey(event.target.value); setShowNewTask(false); }}>
+      <PomodoroOptions key={selection?.key || 'empty'} pomodoro={pomodoro} hasTask={!!task} disabled={timerRunning} onConfigure={settings => task && onConfigureTimer(domain.id, task.id, settings)} />
+      <div className="sr-task-controls"><div className="sr-task-picker"><div className="sr-task-label"><label htmlFor={`${id}-task`}>Your task</label>{pomodoro && <span className="sr-pomo-round">{pomodoro.completedRounds} {pomodoro.completedRounds === 1 ? 'round' : 'rounds'}</span>}</div><select id={`${id}-task`} value={selection?.key || ''} disabled={timerRunning || !items.length} onChange={event => { setSelectedKey(event.target.value); setShowNewTask(false); }}>
         {!items.length && <option value="">No unfinished tasks yet</option>}
         {domains.map(item => <optgroup key={item.id} label={item.name}>{items.filter(entry => entry.domain.id === item.id).map(entry => <option key={entry.key} value={entry.key}>{entry.task.name}{entry.task.day === todayStr ? ' · Today' : ''}</option>)}</optgroup>)}
       </select></div>
-      <div className="sr-timer-buttons"><button type="button" className="sr-start" disabled={!task} aria-label={working ? 'Pause' : hasTime ? 'Resume' : 'Start studying'} onClick={() => working ? onPause(domain.id, task.id) : onStart(domain.id, task.id)}>{working ? 'Ⅱ Pause' : hasTime ? '▶ Resume' : <>▶ Start<span className="sr-start-detail"> studying</span></>}</button><button type="button" className="sr-finish" disabled={!hasTime && !working} onClick={() => onFinish(domain.id, task.id)}>✓ Finish</button></div></div>
-      <div className="sr-panel-footer"><button type="button" className="sr-add-task" aria-expanded={showNewTask} aria-controls={`${id}-new-task`} disabled={!domains.length || working} onClick={() => { setShowNewTask(value => !value); setError(''); }}>+ New task</button><p>{working ? 'Pause to choose another task.' : hasTime ? 'Paused. Your time is kept.' : 'Pick a task, then settle in.'}</p><label className="sr-motion"><input type="checkbox" aria-label="Gentle motion" checked={motionEnabled} onChange={event => setMotionEnabled(event.target.checked)} /><span><span className="sr-motion-detail">Gentle </span>motion</span></label></div>
+      <div className="sr-timer-buttons"><button type="button" className="sr-start" disabled={!task} aria-label={actionLabel} onClick={() => timerRunning ? onPause(domain.id, task.id) : onStart(domain.id, task.id)}>{pomodoro ? timerRunning ? 'Ⅱ Pause' : `▶ ${actionLabel.replace('Start ', '').replace('Resume focus', 'Resume').replace('Resume break', 'Resume')}` : working ? 'Ⅱ Pause' : hasTime ? '▶ Resume' : <>▶ Start<span className="sr-start-detail"> studying</span></>}</button><button type="button" className="sr-finish" disabled={!hasTime && !working} onClick={() => onFinish(domain.id, task.id)}>✓ Finish</button></div></div>
+      <div className="sr-panel-footer"><button type="button" className="sr-add-task" aria-expanded={showNewTask} aria-controls={`${id}-new-task`} disabled={!domains.length || timerRunning} onClick={() => { setShowNewTask(value => !value); setError(''); }}>+ New task</button><p>{pomodoro ? pomodoro.remainingMs === 0 ? 'Round finished. Continue when ready.' : 'Only focus time counts toward your task.' : working ? 'Pause to choose another task.' : hasTime ? 'Paused. Your time is kept.' : 'Pick a task, then settle in.'}</p><label className="sr-motion"><input type="checkbox" aria-label="Gentle motion" checked={motionEnabled} onChange={event => setMotionEnabled(event.target.checked)} /><span><span className="sr-motion-detail">Gentle </span>motion</span></label></div>
       {!domains.length && <p className="sr-no-quests"><a href="#quests">Create your first quest</a> to add a study task.</p>}
     </div></div>
       {showNewTask && <dialog ref={newTaskDialog} className="sr-new-task-dialog" aria-labelledby={`${id}-new-title`} onCancel={event => { event.preventDefault(); setShowNewTask(false); }}>
