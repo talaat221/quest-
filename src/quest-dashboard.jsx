@@ -1,10 +1,12 @@
 console.log("🔥 NEW QUEST DASHBOARD CODE LOADED 🔥");
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase, resetQuestAccount, subscribeQuestAccountReset } from "./supabaseClient";
 import Login from "./Login";
 import GoalsPage, { GoalEditor, QuestGoalsSummary } from "./GoalsPage.jsx";
 import RewardsPage from "./RewardsPage.jsx";
+import RewardWheel from "./RewardWheel.jsx";
+import { prepareRewardSpins } from "./reward-wheel.js";
 import { rewardProgress, rewardThreshold, rewardTaskDay, saveRewardItem, removeRewardItem, recordRewardClaim } from "./rewards.js";
 import { TaskTimerControls, FocusTimerBar, TaskFinishedDialog } from "./TaskTimer.jsx";
 import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, formatMinutes, formatElapsed, isTaskWorking, isTaskTimerRunning, startTaskTimer, pauseTaskTimer, configureTaskPomodoro, completeTimedTask, undoTimedTask } from "./task-timer.js";
@@ -3451,6 +3453,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const [celebrationQueue, setCelebrationQueue] = useState([]);
   const [celebration, setCelebration] = useState(null);
+  const [rewardCompletionEvent, setRewardCompletionEvent] = useState(0);
+  const [handledRewardEvent, setHandledRewardEvent] = useState(0);
+  const [rewardSpins, setRewardSpins] = useState([]);
   const [completionSummary, setCompletionSummary] = useState(null);
   const [showVoyageAdjustment, setShowVoyageAdjustment] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
@@ -3467,6 +3472,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards"].includes(page);
 
   const rewardDetectionReady = useRef(false);
+  const rewardTriggerHandled = useRef(0);
+  const rewardSpinsSeen = useRef(new Set());
+  const rewardSpinUser = useRef(null);
   const savedAdjustmentVersion = useRef(null);
   const savedTimerVersion = useRef(null);
   const savedClaimVersion = useRef(null);
@@ -3478,6 +3486,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     if (userId !== session?.user?.id) return;
     accountResetEpoch.current += 1;
     rewardDetectionReady.current = false;
+    rewardTriggerHandled.current = 0;
+    rewardSpinsSeen.current.clear();
+    setRewardCompletionEvent(0); setHandledRewardEvent(0); setRewardSpins([]);
     savedAdjustmentVersion.current = null;
     savedTimerVersion.current = null;
     savedClaimVersion.current = null;
@@ -3490,6 +3501,16 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     setShowAddDomain(false); setShowAddAnchor(false); setQuestFilter("all");
     setNewDomainName(""); setNewDomainEmoji("⭐"); setNewDomainTarget(5);
   }), [session?.user?.id]);
+
+  useEffect(() => {
+    const userId = session?.user?.id || null;
+    if (rewardSpinUser.current === userId) return;
+    rewardSpinUser.current = userId;
+    rewardTriggerHandled.current = rewardCompletionEvent;
+    setHandledRewardEvent(rewardCompletionEvent);
+    rewardSpinsSeen.current.clear();
+    setRewardSpins([]);
+  }, [session?.user?.id, rewardCompletionEvent]);
 
   const restartAccount = async () => {
     if (accountResetInProgress.current) throw new Error("Your account is already restarting.");
@@ -3936,7 +3957,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         today.getTime()
     );
 
-  const rewardPeriods = {
+  const rewardPeriods = useMemo(() => ({
     daily: {
       xp: dToday, availableXP: dMaxToday,
       thresholdPct: state?.settings?.dayThresholdPct ?? 70,
@@ -3951,19 +3972,48 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       periodKey: weekKeyStr, claimed: state?.claimed?.weekly?.[weekKeyStr] || "",
       resetCountdown: weeklyCountdown,
     },
-  };
+  }), [dToday, dMaxToday, wXP, wMax, todayStr, weekKeyStr, dailyCountdown, weeklyCountdown,
+    state?.settings?.dayThresholdPct, state?.settings?.weekThresholdPct,
+    state?.claimed?.daily, state?.claimed?.weekly,
+    dailyRewardPaused, protectedRequirementMet]);
+
+  const beginRewardSpins = useCallback(kinds => {
+    if (!state || !session?.user?.id) return;
+    const spins = prepareRewardSpins(kinds, rewardPeriods, state.rewards, rewardSpinsSeen.current);
+    if (!spins.length) return;
+    for (const spin of spins) rewardSpinsSeen.current.add(spin.id);
+    // Save each draw before its animation begins. Refreshing, closing the
+    // wheel or putting the phone to sleep cannot reroll or lose the result.
+    setState(previous => {
+      if (!previous) return previous;
+      const next = clone(previous);
+      for (const spin of spins) recordRewardClaim(next, spin.kind, spin.periodKey, spin.reward, rewardPeriods[spin.kind]);
+      return next;
+    });
+    setRewardSpins(queue => [...queue, ...spins.map((spin, index) => ({
+      ...spin, userId: session.user.id, completion: !queue.length && index === 0 ? completionSummary : null,
+    }))]);
+  }, [state, session, rewardPeriods, completionSummary]);
   const readyRewards = Object.entries(rewardPeriods).filter(([kind, data]) =>
     rewardProgress({ ...data, items: state?.rewards?.[kind] || [] }).canClaim
   ).length;
+  const pendingAutomaticReward = designPreview && rewardCompletionEvent !== handledRewardEvent && readyRewards > 0;
+  const activeRewardSpin = rewardSpins[0]?.userId === session?.user?.id ? rewardSpins[0] : null;
 
   // ====================================================
   // REWARD DETECTION
   // ====================================================
 
   useEffect(() => {
-    // The new Rewards page unlocks chests automatically, then lets the user
-    // claim them deliberately. Keep the legacy celebration for the old UI.
-    if (designPreview) return;
+    // Only a real completion starts an automatic wheel. Loading the app,
+    // renaming a reward or changing its XP goal must never consume a reward.
+    if (designPreview) {
+      if (!loaded || !state || !session?.user?.id || rewardCompletionEvent === rewardTriggerHandled.current) return;
+      rewardTriggerHandled.current = rewardCompletionEvent;
+      setHandledRewardEvent(rewardCompletionEvent);
+      beginRewardSpins(["daily", "weekly"]);
+      return;
+    }
     if (
       !loaded ||
       !state ||
@@ -4055,6 +4105,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     dailyRewardPaused,
     protectedRequirementMet,
     designPreview,
+    rewardCompletionEvent,
+    beginRewardSpins,
   ]);
 
   // ====================================================
@@ -4196,6 +4248,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   // ====================================================
 
   const toggleAnchor = (id, ds) => {
+    const currentAnchor = state.anchors.find(anchor => anchor.id === id);
+    if (!currentAnchor) return;
+    const completing = !currentAnchor.history?.[ds];
+    const currentAdjustment = getVoyageAdjustment(state, ds);
+    if (completing && (!isAnchorScheduledOn(currentAnchor, ds) ||
+      (currentAdjustment?.mode === "harbor" && !getSafeHarborActiveAnchorIds(state, currentAdjustment).includes(id)))) return;
     updateState((next) => {
       const anchor = next.anchors.find(
         (x) => x.id === id
@@ -4219,6 +4277,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         anchor.history[ds] = true;
       }
     });
+
+    if (completing) {
+      setClockNow(new Date());
+      setRewardCompletionEvent(event => event + 1);
+    }
 
     playSFX("click");
   };
@@ -4363,6 +4426,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       completeTimedTask(d, d?.tasks.find(item => item.id === taskId), now);
     });
     setCompletionSummary(summary);
+    setClockNow(new Date(now));
+    setRewardCompletionEvent(event => event + 1);
     playSFX("complete");
   };
 
@@ -4752,14 +4817,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     });
   };
 
-  const openRewardChest = kind => {
-    const period = rewardPeriods[kind];
-    const items = (state.rewards?.[kind] || []).filter(item => typeof item === "string" && item.trim());
-    if (!period || !rewardProgress({ ...period, items }).canClaim) return;
-    // Select outside the updater so React can replay the update safely.
-    const reward = items[Math.floor(Math.random() * items.length)];
-    claimReward(kind, period.periodKey, reward);
-    playSFX("reward");
+  const openRewardChest = kind => beginRewardSpins([kind]);
+  const closeRewardWheel = () => {
+    setRewardSpins(queue => queue[0]?.id === activeRewardSpin?.id ? queue.slice(1) : queue);
+    setCompletionSummary(null);
   };
 
   const finishCelebration = (
@@ -5088,7 +5149,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         />
       )}
 
-      {completionSummary && <TaskFinishedDialog result={completionSummary} onClose={() => setCompletionSummary(null)} returnLabel={showStudyPage ? "Back to Study Room" : undefined} />}
+      {activeRewardSpin && <RewardWheel key={`${activeRewardSpin.userId}:${activeRewardSpin.id}`}
+        spin={activeRewardSpin} completion={activeRewardSpin.completion} moreRewards={rewardSpins.length > 1}
+        onClose={closeRewardWheel} onReveal={() => playSFX("reward")}
+        returnLabel={showStudyPage ? "Back to Study Room" : showRewardsPage ? "Lovely, thank you" : "Back to my garden"} />}
+      {completionSummary && !activeRewardSpin && !pendingAutomaticReward && <TaskFinishedDialog result={completionSummary} onClose={() => setCompletionSummary(null)} returnLabel={showStudyPage ? "Back to Study Room" : undefined} />}
       {goalEditor && <GoalEditor key={`${goalEditor.questId || "any"}:${goalEditor.goal?.id || "new"}`}
         domains={goalEditor.questId === "__new_quest__" ? [draftQuest] : state.domains}
         questId={goalEditor.questId} goal={goalEditor.goal} todayStr={todayStr}

@@ -66,7 +66,7 @@ function RewardPeriod({ kind, data, items, onClaim, onAdd, onEdit, onDelete, onT
     </section>
     <section className="rw-list-card" aria-labelledby={`${id}-list`}><Frame />
       <header><h2 id={`${id}-list`}>Your {kind} rewards</h2><span>{items.length}</span></header>
-      <p>Claim one surprise from this list when you reach your XP goal. Your XP stays yours.</p>
+      <p>Finish tasks to reach your XP goal and the reward wheel opens automatically. Win one treat from this list. Your XP stays yours.</p>
       {items.length ? <ul>{items.map((text, index) => <li key={index}>
         <span className="rw-reward-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><span className="rw-reward-name">{text}</span>
         <button type="button" aria-label={`Edit reward: ${text}`} onClick={() => onEdit(kind, { index, text })}>Edit <span aria-hidden="true">›</span></button>

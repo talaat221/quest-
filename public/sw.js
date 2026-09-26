@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v30-rewards-page';
+const CACHE_NAME = 'quest-shell-v31-reward-wheel';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
