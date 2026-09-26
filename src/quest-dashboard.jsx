@@ -11,6 +11,8 @@ import DailyAnchors from "./DailyAnchors";
 import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
 import StatsPage from "./StatsPage.jsx";
 import StudyRoom from "./StudyRoom.jsx";
+import { useQuestNotifications, disconnectNotifications } from "./notifications.js";
+import { NotificationToasts } from "./NotificationSettings.jsx";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
 import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, MorePage } from "./HomeFinish";
@@ -3474,6 +3476,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [state, setState] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
+  const notifications = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id });
 
   const [viewOffset, setViewOffset] = useState(0);
 
@@ -5149,6 +5152,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             aria-label="Log out"
             onClick={async () => {
               playSFX("click");
+              await disconnectNotifications();
               await supabase.auth.signOut();
             }}
           >
@@ -5298,7 +5302,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : previewSubPage && page === "more" ? (
-            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} />
+            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} />
           ) : (
           <>
           <header className="qd-scene">
@@ -5646,6 +5650,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
       {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage) && <BottomNavigation page={page} />}
+      <NotificationToasts notifications={notifications} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v27-pomodoro';
+const CACHE_NAME = 'quest-shell-v28-notifications';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
@@ -91,4 +91,38 @@ self.addEventListener('fetch', (event) => {
       return cached || network;
     })
   );
+});
+
+// Web Push wakes this worker even with no Quest window open. Never rely on a
+// setTimeout in a page or worker for background scheduling.
+self.addEventListener('push', event => {
+  let payload;
+  try { payload = event.data?.json(); } catch { payload = null; }
+  const title = String(payload?.title || 'A little reminder from Quest').slice(0, 140);
+  const options = {
+    body: String(payload?.body || 'Open Quest to see your next step.').slice(0, 300),
+    icon: '/icon-192.png?v=quest-cottage-v1',
+    badge: '/favicon-32x32.png?v=quest-cottage-v1',
+    tag: String(payload?.tag || 'quest-reminder').slice(0, 80),
+    data: payload?.data || { url: self.location.origin + '/#home' },
+  };
+  event.waitUntil((async () => {
+    await self.registration.showNotification(title, options);
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) client.postMessage({ type: 'QUEST_REMINDER', payload: { ...payload, title, body: options.body, data: options.data } });
+  })());
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    let target = new URL('/#home', self.location.origin);
+    try { const candidate = new URL(event.notification.data?.url, self.location.origin); if (candidate.origin === self.location.origin) target = candidate; } catch { /* Use Home. */ }
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if (new URL(client.url).origin !== target.origin) continue;
+      const navigated = await client.navigate(target.href);
+      if (navigated) return navigated.focus();
+    }
+    return self.clients.openWindow(target.href);
+  })());
 });
