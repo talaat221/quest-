@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase, resetQuestAccount, subscribeQuestAccountReset } from "./supabaseClient";
 import Login from "./Login";
 import GoalsPage, { GoalEditor, QuestGoalsSummary } from "./GoalsPage.jsx";
+import RewardsPage from "./RewardsPage.jsx";
+import { rewardProgress, rewardThreshold, rewardTaskDay, saveRewardItem, removeRewardItem, recordRewardClaim } from "./rewards.js";
 import { TaskTimerControls, FocusTimerBar, TaskFinishedDialog } from "./TaskTimer.jsx";
 import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, formatMinutes, formatElapsed, isTaskWorking, isTaskTimerRunning, startTaskTimer, pauseTaskTimer, configureTaskPomodoro, completeTimedTask, undoTimedTask } from "./task-timer.js";
 import GardenScene from "./GardenScene";
@@ -3458,14 +3460,16 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const showAnchorPage = page === "anchors";
   const showStatsPage = page === "stats";
   const showGoalsPage = page === "goals";
+  const showRewardsPage = page === "rewards";
   const showStudyPage = page === "study";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const savedAdjustmentVersion = useRef(null);
   const savedTimerVersion = useRef(null);
+  const savedClaimVersion = useRef(null);
   const accountResetEpoch = useRef(0);
   const accountResetInProgress = useRef(false);
   const [resettingAccount, setResettingAccount] = useState(false);
@@ -3476,6 +3480,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     rewardDetectionReady.current = false;
     savedAdjustmentVersion.current = null;
     savedTimerVersion.current = null;
+    savedClaimVersion.current = null;
     setGoalEditor(null); setNewDomainGoals([]);
     setState(data);
     setLoaded(true);
@@ -3675,7 +3680,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
     const adjustmentVersion = JSON.stringify(state.voyageAdjustments || {});
     const timerVersion = JSON.stringify(state.domains.map(domain => [domain.id, domain.tasks.map(task => [task.id, task.workTimer || null])]));
-    const saveImmediately = (savedAdjustmentVersion.current !== null && savedAdjustmentVersion.current !== adjustmentVersion) || (savedTimerVersion.current !== null && savedTimerVersion.current !== timerVersion);
+    const claimVersion = JSON.stringify(state.claimed || {});
+    const saveImmediately = (savedAdjustmentVersion.current !== null && savedAdjustmentVersion.current !== adjustmentVersion) || (savedTimerVersion.current !== null && savedTimerVersion.current !== timerVersion) || (savedClaimVersion.current !== null && savedClaimVersion.current !== claimVersion);
+    savedClaimVersion.current = claimVersion;
     savedTimerVersion.current = timerVersion;
     savedAdjustmentVersion.current = adjustmentVersion;
     const epoch = accountResetEpoch.current;
@@ -3705,7 +3712,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         console.error("Failed to save data:", error);
       }
     };
-    // Stopping/restoring a day is a deliberate action: stage it immediately
+    // Day changes, timers and reward claims are deliberate: stage immediately
     // in the existing offline adapter instead of waiting for normal autosave.
     if (saveImmediately) { void save(); return; }
     const timeout = setTimeout(() => void save(), 500);
@@ -3829,7 +3836,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         (
           task.done &&
           task.doneAt &&
-          task.doneAt.slice(0, 10) === ds
+          rewardTaskDay(task.doneAt, resetHour) === ds
             ? Number(task.xp) || 0
             : 0
         ),
@@ -3838,7 +3845,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const dayTaskMax = (ds) =>
     allTasks().reduce((sum, task) => {
-      const completedOn = task.doneAt?.slice(0, 10);
+      const completedOn = rewardTaskDay(task.doneAt, resetHour);
       const belongsToDay =
         task.day === ds ||
         (task.done && completedOn === ds);
@@ -3864,7 +3871,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const weekTaskXP = () =>
     allTasks().reduce((sum, task) => {
-      const completedOn = task.doneAt?.slice(0, 10);
+      const completedOn = rewardTaskDay(task.doneAt, resetHour);
       const completedThisWeek =
         !!task.done && !!completedOn && wDates.includes(completedOn);
 
@@ -3873,7 +3880,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const weekTaskMax = () =>
     allTasks().reduce((sum, task) => {
-      const completedOn = task.doneAt?.slice(0, 10);
+      const completedOn = rewardTaskDay(task.doneAt, resetHour);
       const completedThisWeek =
         !!task.done && !!completedOn && wDates.includes(completedOn);
       const activeThisWeek = !task.done || completedThisWeek;
@@ -3929,11 +3936,34 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         today.getTime()
     );
 
+  const rewardPeriods = {
+    daily: {
+      xp: dToday, availableXP: dMaxToday,
+      thresholdPct: state?.settings?.dayThresholdPct ?? 70,
+      periodKey: todayStr, claimed: state?.claimed?.daily?.[todayStr] || "",
+      resetCountdown: dailyCountdown,
+      blockedReason: dailyRewardPaused ? "Your day is stopped. Daily rewards rest until your next day."
+        : !protectedRequirementMet ? "Complete your important task to unlock today’s reward." : "",
+    },
+    weekly: {
+      xp: wXP, availableXP: wMax,
+      thresholdPct: state?.settings?.weekThresholdPct ?? 70,
+      periodKey: weekKeyStr, claimed: state?.claimed?.weekly?.[weekKeyStr] || "",
+      resetCountdown: weeklyCountdown,
+    },
+  };
+  const readyRewards = Object.entries(rewardPeriods).filter(([kind, data]) =>
+    rewardProgress({ ...data, items: state?.rewards?.[kind] || [] }).canClaim
+  ).length;
+
   // ====================================================
   // REWARD DETECTION
   // ====================================================
 
   useEffect(() => {
+    // The new Rewards page unlocks chests automatically, then lets the user
+    // claim them deliberately. Keep the legacy celebration for the old UI.
+    if (designPreview) return;
     if (
       !loaded ||
       !state ||
@@ -3987,6 +4017,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
     if (
       dailyUnlocked &&
+      state.rewards?.daily?.length > 0 &&
       !dailyClaimed &&
       !celebrationQueue.includes("daily") &&
       celebration !== "daily"
@@ -3999,6 +4030,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
     if (
       weeklyUnlocked &&
+      state.rewards?.weekly?.length > 0 &&
       !weeklyClaimed &&
       !celebrationQueue.includes("weekly") &&
       celebration !== "weekly"
@@ -4022,6 +4054,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     celebrationQueue,
     dailyRewardPaused,
     protectedRequirementMet,
+    designPreview,
   ]);
 
   // ====================================================
@@ -4699,40 +4732,34 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   // REWARDS
   // ====================================================
 
-  const addReward = (
-    kind,
-    text
-  ) => {
-    updateState((next) => {
-      if (!next.rewards[kind]) {
-        next.rewards[kind] = [];
-      }
-
-      next.rewards[kind].push(text);
-    });
-  };
-
-  const removeReward = (
-    kind,
-    index
-  ) => {
-    updateState((next) => {
-      next.rewards[kind].splice(index, 1);
-    });
-  };
+  const saveReward = (kind, text, index = null) => updateState(next => {
+    saveRewardItem(next, kind, text, index);
+  });
+  const addReward = (kind, text) => saveReward(kind, text);
+  const removeReward = (kind, index) => updateState(next => {
+    removeRewardItem(next, kind, index);
+  });
 
   const claimReward = (
     kind,
     key,
     reward
   ) => {
+    const period = rewardPeriods[kind];
+    if (!period || key !== period.periodKey) return;
     updateState((next) => {
-      if (!next.claimed[kind]) {
-        next.claimed[kind] = {};
-      }
-
-      next.claimed[kind][key] = reward;
+      recordRewardClaim(next, kind, key, reward, period);
     });
+  };
+
+  const openRewardChest = kind => {
+    const period = rewardPeriods[kind];
+    const items = (state.rewards?.[kind] || []).filter(item => typeof item === "string" && item.trim());
+    if (!period || !rewardProgress({ ...period, items }).canClaim) return;
+    // Select outside the updater so React can replay the update safely.
+    const reward = items[Math.floor(Math.random() * items.length)];
+    claimReward(kind, period.periodKey, reward);
+    playSFX("reward");
   };
 
   const finishCelebration = (
@@ -4772,14 +4799,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     value
   ) => {
     updateState((next) => {
-      next.settings[key] =
-        Math.min(
-          100,
-          Math.max(
-            1,
-            Number(value) || 70
-          )
-        );
+      next.settings[key] = rewardThreshold(value);
     });
   };
 
@@ -4913,12 +4933,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       ? (todayAdjustment.movedTasks || []).length
       : 0;
 
-  const todayThreshold = Math.round(
-    dMaxToday * (Number(state.settings.dayThresholdPct ?? 70) / 100)
-  );
-  const weekThreshold = Math.round(
-    wMax * (Number(state.settings.weekThresholdPct ?? 70) / 100)
-  );
+  const todayThreshold = rewardProgress(rewardPeriods.daily).target;
+  const weekThreshold = rewardProgress(rewardPeriods.weekly).target;
   const greeting =
     today.getHours() < 12
       ? "GOOD MORNING"
@@ -5041,6 +5057,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         (anchorPageVisible ? " qd-anchors-active" : "") +
         (showStatsPage ? " qd-stats-active" : "") +
         (showGoalsPage ? " qd-goals-active" : "") +
+        (showRewardsPage ? " qd-rewards-active" : "") +
         (showStudyPage ? " qd-study-active" : "") +
         (workingTask && !showStudyPage ? " qd-timer-running" : "")
       }
@@ -5115,7 +5132,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showStudyPage ? " qd-main-study" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showStudyPage ? "study" : previewSubPage ? page : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showRewardsPage ? " qd-main-rewards" : showStudyPage ? " qd-main-study" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showRewardsPage ? "rewards" : showStudyPage ? "study" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
             <DailyAnchorsPage
               anchors={state.anchors}
@@ -5256,8 +5273,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               onMilestone={toggleGoalMilestone} onProgress={changeGoalProgress} />
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
+          ) : showRewardsPage ? (
+            <RewardsPage rewards={state.rewards} claimed={state.claimed} periods={rewardPeriods}
+              onSave={saveReward} onDelete={removeReward} onClaim={openRewardChest}
+              onThresholdChange={(kind, value) => setThresholdPct(kind === "daily" ? "dayThresholdPct" : "weekThresholdPct", value)} />
           ) : previewSubPage && page === "more" ? (
-            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} />
+            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} readyRewards={readyRewards} />
           ) : (
           <>
           <header className="qd-scene">
@@ -5604,7 +5625,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       {workingTask && !showStudyPage && <FocusTimerBar task={workingTask} domain={workingDomain}
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
-      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage) && <BottomNavigation page={page} />}
+      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage) && <BottomNavigation page={page} />}
       <NotificationToasts notifications={notifications} />
     </div>
   );

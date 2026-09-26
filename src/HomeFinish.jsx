@@ -5,6 +5,7 @@ import "./day-pause.css";
 import AccountResetCard from "./AccountResetCard.jsx";
 import NotificationSettings from "./NotificationSettings.jsx";
 import { disconnectNotifications } from "./notifications.js";
+import { RewardChest } from "./RewardsPage.jsx";
 
 const farmPicture = <image href="/home-finish/farm-streak-v1.webp" width="959" height="1640" />;
 
@@ -79,7 +80,7 @@ function NavIcon({ type }) {
 const tabs = [["home", "Home"], ["quests", "Quests"], ["anchors", "Anchors"], ["stats", "Stats"], ["more", "More"]];
 
 export function BottomNavigation({ page }) {
-  const active = page === "today-quests" || page === "study" ? "quests" : page === "goals" ? "more" : page;
+  const active = page === "today-quests" || page === "study" ? "quests" : page === "goals" || page === "rewards" ? "more" : page;
   return (
     <div className="qd-bottom-dock">
       <nav className="qd-bottom-navigation" aria-label="Main navigation">
@@ -113,7 +114,7 @@ export function StatsPage({ streak, completed, total, todayXP, weekXP, lifetimeX
   );
 }
 
-export function MorePage({ resetHour, onResetHour, onResetAccount, notifications }) {
+export function MorePage({ resetHour, onResetHour, onResetAccount, notifications, readyRewards = 0 }) {
   const [sync, setSync] = useState(getQuestSyncSnapshot);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -133,6 +134,7 @@ export function MorePage({ resetHour, onResetHour, onResetAccount, notifications
   return (
     <>
       <HomePageHeading title="More"><p>Make room for your own rhythm.</p></HomePageHeading>
+      <a className="qd-home-page-link gg-more-link rw-more-link" href="#rewards"><RewardChest open={readyRewards > 0} /><span><strong>Rewards</strong><small className={readyRewards ? "rw-link-ready" : undefined}>{readyRewards ? `${readyRewards} ${readyRewards === 1 ? "reward is" : "rewards are"} ready to claim.` : "Choose your treats. Earn XP. Open your chest."}</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link" href="#goals"><img src="/garden-scene/v1/12-crop-2-mature.webp" alt="" /><span><strong>Goals Garden</strong><small>Grow your weekly, monthly, and yearly ambitions.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link sr-more-link" href="#study"><img src="/study-room/boy-idle-v2.webp" alt="" /><span><strong>Study with me</strong><small>A cozy room, a quiet companion, and time for your tasks.</small></span><span aria-hidden="true">›</span></a>
       <NotificationSettings notifications={notifications} />
