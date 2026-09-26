@@ -77,7 +77,7 @@ function NavIcon({ type }) {
 const tabs = [["home", "Home"], ["quests", "Quests"], ["anchors", "Anchors"], ["stats", "Stats"], ["more", "More"]];
 
 export function BottomNavigation({ page }) {
-  const active = page === "today-quests" ? "quests" : page;
+  const active = page === "today-quests" ? "quests" : page === "goals" ? "more" : page;
   return (
     <div className="qd-bottom-dock">
       <nav className="qd-bottom-navigation" aria-label="Main navigation">
@@ -131,6 +131,7 @@ export function MorePage({ resetHour, onResetHour, onResetAccount }) {
   return (
     <>
       <HomePageHeading title="More"><p>Make room for your own rhythm.</p></HomePageHeading>
+      <a className="qd-home-page-link gg-more-link" href="#goals"><img src="/garden-scene/v1/12-crop-2-mature.webp" alt="" /><span><strong>Goals Garden</strong><small>Grow your weekly, monthly, and yearly ambitions.</small></span><span aria-hidden="true">›</span></a>
       <section className="qd-home-settings-card" aria-labelledby="qd-more-day-reset">
         <h2 id="qd-more-day-reset">Day reset time</h2>
         <p>Your next day starts at this hour.</p>

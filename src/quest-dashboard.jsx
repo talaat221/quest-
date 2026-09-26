@@ -3,6 +3,9 @@ console.log("🔥 NEW QUEST DASHBOARD CODE LOADED 🔥");
 import { useState, useEffect, useRef } from "react";
 import { supabase, resetQuestAccount, subscribeQuestAccountReset } from "./supabaseClient";
 import Login from "./Login";
+import GoalsPage, { GoalEditor, QuestGoalsSummary } from "./GoalsPage.jsx";
+import { TaskTimerControls, FocusTimerBar, TaskFinishedDialog } from "./TaskTimer.jsx";
+import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, formatMinutes, formatElapsed, isTaskWorking, startTaskTimer, pauseTaskTimer, completeTimedTask, undoTimedTask } from "./task-timer.js";
 import GardenScene from "./GardenScene";
 import DailyAnchors from "./DailyAnchors";
 import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
@@ -56,65 +59,6 @@ const isSameMonth = (dateStr, ref) =>
 const clone = (x) =>
   JSON.parse(JSON.stringify(x));
 
-// Task timing memory is stored inside each quest/domain so similarly named
-// tasks in different quests (for example Reading > Anki vs French > Anki)
-// never share timing history.
-const normalizeTaskTimingKey = (name = "") =>
-  name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u00C0-\u024F\u0600-\u06FF]+/g, " " )
-    .replace(/\s+/g, " " )
-    .trim();
-
-const roundLearnedMinutes = (minutes) => {
-  const value = Number(minutes) || 0;
-  if (value <= 0) return null;
-  return value < 10
-    ? Math.max(1, Math.round(value))
-    : Math.max(5, Math.round(value / 5) * 5);
-};
-
-const getTimingProfile = (domain, taskName) => {
-  const key = normalizeTaskTimingKey(taskName);
-  if (!key) return null;
-  return domain?.timingProfiles?.[key] || null;
-};
-
-const getLearnedEstimate = (domain, taskName) => {
-  const profile = getTimingProfile(domain, taskName);
-  const samples = (profile?.samples || [])
-    .filter((sample) => Number(sample?.actualMinutes) > 0)
-    .slice(-5);
-
-  if (!samples.length) return null;
-
-  // Recent attempts matter more: for 3 samples, weights are 1, 2, 3.
-  const weighted = samples.reduce(
-    (sum, sample, index) =>
-      sum + Number(sample.actualMinutes) * (index + 1),
-    0
-  );
-  const weights = samples.reduce((sum, _sample, index) => sum + index + 1, 0);
-
-  return roundLearnedMinutes(weighted / weights);
-};
-
-const getTimingSampleCount = (domain, taskName) =>
-  (getTimingProfile(domain, taskName)?.samples || []).filter(
-    (sample) => Number(sample?.actualMinutes) > 0
-  ).length;
-
-const formatMinutes = (minutes) => {
-  const value = Math.max(0, Math.round(Number(minutes) || 0));
-  if (!value) return "—";
-  if (value < 60) return `${value}m`;
-  const hours = Math.floor(value / 60);
-  const mins = value % 60;
-  return mins ? `${hours}h ${mins}m` : `${hours}h`;
-};
-
-// ======================================================
 // DAILY ANCHOR SCHEDULE HELPERS
 // ======================================================
 
@@ -2109,6 +2053,7 @@ function QuestCard({
   onDeleteDomain,
   todayAdjustment,
   artLayout = false,
+  onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0,
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const addFormRef = useRef(null);
@@ -2254,6 +2199,7 @@ function QuestCard({
         {status.doneThisMonth} / {status.target} quests done this month
       </div>
 
+      <QuestGoalsSummary domain={domain} onAdd={onAddGoal} onEdit={onEditGoal} resetHour={resetHour} />
       {artLayout && <div className="qd-rpg-task-heading">
         <h3>Tasks ({domain.tasks.filter(task => task.done).length}/{domain.tasks.length})</h3>
         <button type="button" className="qd-rpg-add-task" onClick={() => { playSFX("click"); setShowAdd(value => !value); }} aria-expanded={showAdd}>
@@ -2370,9 +2316,9 @@ function QuestCard({
           ) : artLayout ? (
             <QuestArtTaskRow key={t.id} task={t} todayStr={todayStr}
               safeActive={isSafeHarborTask(t, domain.id, todayAdjustment, todayStr)}
-              onToggle={() => onToggleTask(t.id)} onEdit={() => startTaskEdit(t)} onDelete={() => onDeleteTask(t.id)} />
+              onToggle={() => onToggleTask(t.id)} onStart={() => onStartTask(t.id)} onPause={() => onPauseTask(t.id)} onEdit={() => startTaskEdit(t)} onDelete={() => onDeleteTask(t.id)} />
           ) : (
-            <div key={t.id} className={"qd-task" + (t.done ? " done" : "") + (isSafeHarborTask(t, domain.id, todayAdjustment, todayStr) ? " is-safe-active" : "")}>
+            <div key={t.id} className={"qd-task" + (t.done ? " done" : "") + (isTaskWorking(t) ? " is-working" : "") + (isSafeHarborTask(t, domain.id, todayAdjustment, todayStr) ? " is-safe-active" : "")}>
               <input
                 type="checkbox"
                 checked={!!t.done}
@@ -2380,6 +2326,7 @@ function QuestCard({
               />
 
               <span className="qd-task-name">{t.name}</span>
+              <TaskTimerControls task={t} onStart={() => onStartTask(t.id)} onPause={() => onPauseTask(t.id)} onFinish={() => onToggleTask(t.id)} />
 
               {t.day ? (
                 <span className="qd-task-day">
@@ -2403,7 +2350,7 @@ function QuestCard({
                     <span className="qd-time-chip">~{formatMinutes(t.estimatedMinutes)} est.</span>
                   )}
                   {t.actualMinutes && (
-                    <span className="qd-time-chip actual">{formatMinutes(t.actualMinutes)} actual</span>
+                    <span className="qd-time-chip actual">{t.workTimer?.elapsedMs > 0 ? formatElapsed(t.workTimer.elapsedMs) : formatMinutes(t.actualMinutes)} actual</span>
                   )}
                 </span>
               )}
@@ -2558,7 +2505,7 @@ function getQuestTaskDate(task, todayStr) {
   return `${label} · ${wholeHour % 12 || 12}:${String(minutes).padStart(2, "0")} ${wholeHour >= 12 ? "PM" : "AM"}`;
 }
 
-function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onEdit, onDelete }) {
+function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onStart, onPause, onEdit, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const moreRef = useRef(null);
@@ -2581,8 +2528,9 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onEdit, onDelet
   const fixed = getTaskFlexibility(task) === "fixed";
   const actual = task.done && Number(task.actualMinutes) > 0;
   const minutes = actual ? task.actualMinutes : task.estimatedMinutes;
+  const durationLabel = actual && task.workTimer?.elapsedMs > 0 ? formatElapsed(task.workTimer.elapsedMs) : formatMinutes(minutes);
   return (
-    <div className={`qd-task qd-rpg-task${task.done ? " done" : ""}${safeActive ? " is-safe-active" : ""}`}>
+    <div className={`qd-task qd-rpg-task${task.done ? " done" : ""}${isTaskWorking(task) ? " is-working" : ""}${safeActive ? " is-safe-active" : ""}`}>
       <label className="qd-rpg-check">
         <input type="checkbox" checked={!!task.done} onChange={onToggle}
           aria-label={`${task.done ? "Mark incomplete" : "Complete"} ${task.name}`} />
@@ -2596,8 +2544,8 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onEdit, onDelet
           </span>
           {(task.day || fixed) && <span className={`qd-rpg-flex${fixed ? " is-fixed" : ""}`}>{fixed ? "Fixed" : "Flexible"}</span>}
           {Number(minutes) > 0 && <span className="qd-rpg-task-duration" title={actual
-            ? `Actual: ${formatMinutes(minutes)}${task.estimatedMinutes ? `; estimated: ${formatMinutes(task.estimatedMinutes)}` : ""}`
-            : `Estimated: ${formatMinutes(minutes)}`}><QuestGlyph name="clock" />{actual ? "" : "~"}{formatMinutes(minutes)}{actual ? " actual" : ""}</span>}
+            ? `Actual: ${durationLabel}${task.estimatedMinutes ? `; estimated: ${formatMinutes(task.estimatedMinutes)}` : ""}`
+            : `Estimated: ${formatMinutes(minutes)}`}><QuestGlyph name="clock" />{actual ? "" : "~"}{durationLabel}{actual ? " actual" : ""}</span>}
         </div>
       </div>
       <span className="qd-task-xp">{task.xp} XP</span>
@@ -2612,6 +2560,7 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onEdit, onDelet
           }}>Delete task</button></div>}
         </div>
       </div>
+      <TaskTimerControls task={task} onStart={onStart} onPause={onPause} onFinish={onToggle} />
     </div>
   );
 }
@@ -2619,6 +2568,7 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onEdit, onDelet
 function QuestShellCard({
   domain, today, todayStr, onToggleTask, onAddTask, onUpdateTask,
   onDeleteTask, onTargetChange, onDeleteDomain, todayAdjustment, defaultOpen = false,
+  onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0,
 }) {
   const [expanded, setExpanded] = useState(defaultOpen);
   const [showQuestMenu, setShowQuestMenu] = useState(false);
@@ -2667,7 +2617,7 @@ function QuestShellCard({
   };
 
   return (
-    <article ref={cardRef} className={`qd-rpg-quest-card ${expanded ? "qd-rpg-quest-open" : "qd-rpg-quest-closed"}${harbor ? " is-harbor" : ""}${hasImportantWork ? " has-important-work" : ""}`}
+    <article ref={cardRef} className={`qd-rpg-quest-card ${expanded ? "qd-rpg-quest-open" : "qd-rpg-quest-closed"}${harbor ? " is-harbor" : ""}${hasImportantWork ? " has-important-work" : ""}${domain.tasks.some(isTaskWorking) ? " has-working-task" : ""}`}
       style={{ "--quest-accent": domain.color }} aria-labelledby={titleId}>
       <div className="qd-rpg-card-art" aria-hidden="true" />
       {expanded ? <>
@@ -2711,7 +2661,8 @@ function QuestShellCard({
             <QuestCard artLayout domain={domain} today={today} todayStr={todayStr}
               onToggleTask={onToggleTask} onAddTask={onAddTask} onUpdateTask={onUpdateTask}
               onDeleteTask={onDeleteTask} onTargetChange={onTargetChange}
-              onDeleteDomain={onDeleteDomain} todayAdjustment={todayAdjustment} />
+              onDeleteDomain={onDeleteDomain} todayAdjustment={todayAdjustment}
+              onStartTask={onStartTask} onPauseTask={onPauseTask} onAddGoal={onAddGoal} onEditGoal={onEditGoal} resetHour={resetHour} />
           </div>
         </div>
         <div className="qd-rpg-quest-footer"><span>A little progress every day.</span></div>
@@ -2724,76 +2675,6 @@ function QuestShellCard({
 // COMPLETION TIME MODAL
 // ======================================================
 
-function CompletionTimeModal({ task, domainName, onSave, onCancel }) {
-  const [actualMinutes, setActualMinutes] = useState("");
-
-  useEffect(() => {
-    setActualMinutes("");
-  }, [task?.id]);
-
-  if (!task) return null;
-
-  const numericActual = Number(actualMinutes);
-  const canSave = Number.isFinite(numericActual) && numericActual > 0;
-
-  return (
-    <div className="qd-completion-backdrop" role="dialog" aria-modal="true" aria-labelledby="qd-completion-title">
-      <div className="qd-completion-card">
-        <div className="qd-completion-kicker">Voyage log</div>
-        <div className="qd-completion-title" id="qd-completion-title">How long did it actually take?</div>
-        <div className="qd-completion-quest">
-          {domainName} · {task.name}
-        </div>
-
-        {task.estimatedMinutes && (
-          <div className="qd-completion-estimate">
-            Your estimate was <strong>{formatMinutes(task.estimatedMinutes)}</strong>.
-          </div>
-        )}
-
-        <label className="qd-completion-label" htmlFor="qd-actual-minutes">
-          Actual time
-        </label>
-        <div className="qd-completion-input-wrap">
-          <input
-            id="qd-actual-minutes"
-            className="qd-completion-input"
-            type="number"
-            min="1"
-            step="1"
-            value={actualMinutes}
-            autoFocus
-            placeholder={task.estimatedMinutes ? String(task.estimatedMinutes) : "30"}
-            onChange={(e) => setActualMinutes(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && canSave) onSave(numericActual);
-              if (e.key === "Escape") onCancel();
-            }}
-          />
-          <span className="qd-estimate-unit">minutes</span>
-        </div>
-
-        <div className="qd-time-hint" style={{ marginTop: 10 }}>
-          This actual time teaches Odyssey how long this exact task usually takes inside this quest.
-        </div>
-
-        <div className="qd-completion-actions">
-          <button type="button" onClick={onCancel}>Cancel</button>
-          <button
-            type="button"
-            className="primary"
-            disabled={!canSave}
-            onClick={() => onSave(numericActual)}
-          >
-            Save & complete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ======================================================
 // VOYAGE ADJUSTMENT MODAL
 // ======================================================
 
@@ -3600,6 +3481,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [newDomainName, setNewDomainName] = useState("");
   const [newDomainEmoji, setNewDomainEmoji] = useState("⭐");
   const [newDomainTarget, setNewDomainTarget] = useState(5);
+  const [newDomainGoals, setNewDomainGoals] = useState([]);
+  const [goalEditor, setGoalEditor] = useState(null);
 
   const [showAddAnchor, setShowAddAnchor] = useState(false);
 
@@ -3607,7 +3490,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const [celebrationQueue, setCelebrationQueue] = useState([]);
   const [celebration, setCelebration] = useState(null);
-  const [pendingTimeLog, setPendingTimeLog] = useState(null);
+  const [completionSummary, setCompletionSummary] = useState(null);
   const [showVoyageAdjustment, setShowVoyageAdjustment] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
   const [page, setPage] = useState(
@@ -3615,12 +3498,14 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   );
   const showAnchorPage = page === "anchors";
   const showStatsPage = page === "stats";
+  const showGoalsPage = page === "goals";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "more", "goals"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const savedAdjustmentVersion = useRef(null);
+  const savedTimerVersion = useRef(null);
   const accountResetEpoch = useRef(0);
   const accountResetInProgress = useRef(false);
   const [resettingAccount, setResettingAccount] = useState(false);
@@ -3630,11 +3515,13 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     accountResetEpoch.current += 1;
     rewardDetectionReady.current = false;
     savedAdjustmentVersion.current = null;
+    savedTimerVersion.current = null;
+    setGoalEditor(null); setNewDomainGoals([]);
     setState(data);
     setLoaded(true);
     setViewOffset(0);
     setCelebrationQueue([]); setCelebration(null);
-    setPendingTimeLog(null); setShowVoyageAdjustment(false);
+    setCompletionSummary(null); setShowVoyageAdjustment(false);
     setShowAddDomain(false); setShowAddAnchor(false); setQuestFilter("all");
     setNewDomainName(""); setNewDomainEmoji("⭐"); setNewDomainTarget(5);
   }), [session?.user?.id]);
@@ -3827,7 +3714,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     }
 
     const adjustmentVersion = JSON.stringify(state.voyageAdjustments || {});
-    const saveImmediately = savedAdjustmentVersion.current !== null && savedAdjustmentVersion.current !== adjustmentVersion;
+    const timerVersion = JSON.stringify(state.domains.map(domain => [domain.id, domain.tasks.map(task => [task.id, task.workTimer || null])]));
+    const saveImmediately = (savedAdjustmentVersion.current !== null && savedAdjustmentVersion.current !== adjustmentVersion) || (savedTimerVersion.current !== null && savedTimerVersion.current !== timerVersion);
+    savedTimerVersion.current = timerVersion;
     savedAdjustmentVersion.current = adjustmentVersion;
     const epoch = accountResetEpoch.current;
     const save = async () => {
@@ -4443,105 +4332,63 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   // TASKS
   // ====================================================
 
-  const toggleTask = (
-    domainId,
-    taskId
-  ) => {
-    const domain = state.domains.find(
-      (d) => d.id === domainId
-    );
-
-    const task = domain?.tasks.find(
-      (x) => x.id === taskId
-    );
-
+  const startWorking = (domainId, taskId) => {
+    const now = Date.now();
+    updateState(next => { startTaskTimer(next.domains, domainId, taskId, now); });
+    playSFX("click");
+  };
+  const pauseWorking = (domainId, taskId) => {
+    const now = Date.now();
+    updateState(next => {
+      const task = next.domains.find(domain => domain.id === domainId)?.tasks.find(t => t.id === taskId);
+      if (task && !task.done) pauseTaskTimer(task, now);
+    });
+  };
+  const toggleTask = (domainId, taskId) => {
+    const domain = state.domains.find(d => d.id === domainId);
+    const task = domain?.tasks.find(t => t.id === taskId);
     if (!task) return;
-
-    // Completing a task opens the actual-time log first.
-    if (!task.done) {
-      setPendingTimeLog({
-        domainId,
-        taskId,
-        domainName: domain.name,
-        task: { ...task },
+    if (task.done) {
+      updateState(next => {
+        const d = next.domains.find(item => item.id === domainId);
+        undoTimedTask(d, d?.tasks.find(item => item.id === taskId));
       });
-      playSFX("click");
+      playSFX("undo");
       return;
     }
-
-    // Undoing a completion also removes that task's timing sample so an
-    // accidental completion does not teach the estimator bad data.
-    updateState((next) => {
-      const d = next.domains.find((x) => x.id === domainId);
-      const t = d?.tasks.find((x) => x.id === taskId);
-      if (!d || !t) return;
-
-      const profileKey =
-        t.timingProfileKey || normalizeTaskTimingKey(t.name);
-
-      if (profileKey && d.timingProfiles?.[profileKey]?.samples) {
-        d.timingProfiles[profileKey].samples =
-          d.timingProfiles[profileKey].samples.filter(
-            (sample) => sample.taskId !== taskId
-          );
-      }
-
-      t.done = false;
-      t.doneAt = null;
-      t.actualMinutes = null;
-      t.timingProfileKey = null;
+    const now = Date.now(), previewDomain = clone(domain);
+    const summary = completeTimedTask(previewDomain, previewDomain.tasks.find(t => t.id === taskId), now);
+    updateState(next => {
+      const d = next.domains.find(item => item.id === domainId);
+      completeTimedTask(d, d?.tasks.find(item => item.id === taskId), now);
     });
-
-    playSFX("undo");
-  };
-
-  const completeTaskWithTime = (actualMinutes) => {
-    if (!pendingTimeLog) return;
-
-    const parsedActual = Number(actualMinutes);
-    if (!Number.isFinite(parsedActual) || parsedActual <= 0) return;
-    const actual = Math.max(1, Math.round(parsedActual));
-
-    const { domainId, taskId } = pendingTimeLog;
-
-    updateState((next) => {
-      const domain = next.domains.find((d) => d.id === domainId);
-      const task = domain?.tasks.find((t) => t.id === taskId);
-      if (!domain || !task) return;
-
-      const profileKey = normalizeTaskTimingKey(task.name);
-
-      if (!domain.timingProfiles) domain.timingProfiles = {};
-      if (!domain.timingProfiles[profileKey]) {
-        domain.timingProfiles[profileKey] = { samples: [] };
-      }
-
-      const profile = domain.timingProfiles[profileKey];
-      if (!Array.isArray(profile.samples)) profile.samples = [];
-
-      // One task completion contributes one sample.
-      profile.samples = profile.samples.filter(
-        (sample) => sample.taskId !== taskId
-      );
-      profile.samples.push({
-        taskId,
-        actualMinutes: actual,
-        estimatedMinutes: Number(task.estimatedMinutes) || null,
-        loggedAt: new Date().toISOString(),
-      });
-
-      // Keep enough recent history to learn while avoiding endlessly growing JSON.
-      profile.samples = profile.samples.slice(-20);
-
-      task.done = true;
-      task.doneAt = new Date().toISOString();
-      task.actualMinutes = actual;
-      task.timingProfileKey = profileKey;
-    });
-
-    setPendingTimeLog(null);
+    setCompletionSummary(summary);
     playSFX("complete");
   };
+
+  const saveGoal = (domainId, goal) => {
+    if (domainId === "__new_quest__") {
+      setNewDomainGoals(previous => [...previous.filter(g => g.id !== goal.id), goal]);
+      return;
+    }
+    if (!state.domains.some(domain => domain.id === domainId)) throw new Error("This quest no longer exists. Choose another quest.");
+    updateState(next => {
+      const domain = next.domains.find(d => d.id === domainId);
+      domain.goals = [...(domain.goals || []).filter(g => g.id !== goal.id), goal];
+    });
+  };
+  const deleteGoal = (domainId, goalId) => {
+    if (domainId === "__new_quest__") { setNewDomainGoals(previous => previous.filter(g => g.id !== goalId)); return; }
+    updateState(next => { const domain = next.domains.find(d => d.id === domainId); if (domain) domain.goals = (domain.goals || []).filter(g => g.id !== goalId); });
+  };
+  const toggleGoalMilestone = (domainId, goalId, milestoneId) => updateState(next => {
+    const milestone = next.domains.find(d => d.id === domainId)?.goals?.find(g => g.id === goalId)?.milestones?.find(m => m.id === milestoneId);
+    if (milestone) milestone.done = !milestone.done;
+  });
+  const changeGoalProgress = (domainId, goalId, progress) => updateState(next => {
+    const goal = next.domains.find(d => d.id === domainId)?.goals?.find(g => g.id === goalId);
+    if (goal?.tracking === "manual") goal.progress = Math.min(1000000, Math.max(0, Math.round(Number(progress) || 0)));
+  });
 
   const addTask = (
     domainId,
@@ -4591,6 +4438,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             : Math.max(1, Math.round(Number(estimatedMinutes) || 1)),
         actualMinutes: null,
         timingProfileKey: null,
+        workTimer: { elapsedMs: 0, startedAt: null },
         flexibility: flexibility === "fixed" ? "fixed" : "flexible",
         done: false,
         doneAt: null,
@@ -4757,9 +4605,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ),
 
         tasks: [],
+        goals: clone(newDomainGoals),
       });
     });
 
+    setNewDomainGoals([]);
     setNewDomainName("");
     setNewDomainEmoji("⭐");
     setNewDomainTarget(5);
@@ -4799,6 +4649,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     activeAnchorIds,
     plan,
   }) => {
+    const adjustedAt = Date.now();
     updateState((next) => {
       if (!next.voyageAdjustments) next.voyageAdjustments = {};
 
@@ -4835,8 +4686,13 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             flexibility: task.flexibility,
           }))
         ),
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(adjustedAt).toISOString(),
       };
+      if (mode === "harbor") {
+        for (const domain of next.domains) for (const task of domain.tasks) {
+          if (isTaskWorking(task) && !isSafeHarborTask(task, domain.id, next.voyageAdjustments[todayStr], todayStr)) pauseTaskTimer(task, adjustedAt);
+        }
+      }
     });
 
     setShowVoyageAdjustment(false);
@@ -5158,6 +5014,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   );
 
   const streak = getCurrentStreak({ anchors: state.anchors, tasks: allTasks(), todayStr, resetHour });
+  const draftQuest = { id: "__new_quest__", name: newDomainName.trim() || "New quest", tasks: [], goals: newDomainGoals };
+  const workingDomain = state.domains.find(domain => domain.tasks.some(isTaskWorking));
+  const workingTask = workingDomain?.tasks.find(isTaskWorking);
   const questLogSection = (
     <section className="qd-section" id={designPreview ? "quest-log" : "quests"}>
             <div className="qd-section-heading">
@@ -5175,6 +5034,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                   today={today}
                   todayStr={todayStr}
                   onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
+                  onStartTask={taskId => startWorking(domain.id, taskId)} onPauseTask={taskId => pauseWorking(domain.id, taskId)}
+                  onAddGoal={() => setGoalEditor({ questId: domain.id })} onEditGoal={goal => setGoalEditor({ questId: domain.id, goal })} resetHour={resetHour}
                   onAddTask={(payload) => addTask(domain.id, payload)}
                   onUpdateTask={(taskId, changes) => updateTask(domain.id, taskId, changes)}
                   onDeleteTask={(taskId) => deleteTask(domain.id, taskId)}
@@ -5209,7 +5070,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         (todayAdjustment?.mode === "harbor" ? " qd-safe-harbor" : "") +
         (designPreview && page === "quests" ? " qd-quests-active" : "") +
         (anchorPageVisible ? " qd-anchors-active" : "") +
-        (showStatsPage ? " qd-stats-active" : "")
+        (showStatsPage ? " qd-stats-active" : "") +
+        (showGoalsPage ? " qd-goals-active" : "") +
+        (workingTask ? " qd-timer-running" : "")
       }
     >
       <style>{CSS}</style>
@@ -5238,14 +5101,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         />
       )}
 
-      {pendingTimeLog && (
-        <CompletionTimeModal
-          task={pendingTimeLog.task}
-          domainName={pendingTimeLog.domainName}
-          onSave={completeTaskWithTime}
-          onCancel={() => setPendingTimeLog(null)}
-        />
-      )}
+      {completionSummary && <TaskFinishedDialog result={completionSummary} onClose={() => setCompletionSummary(null)} />}
+      {goalEditor && <GoalEditor key={`${goalEditor.questId || "any"}:${goalEditor.goal?.id || "new"}`}
+        domains={goalEditor.questId === "__new_quest__" ? [draftQuest] : state.domains}
+        questId={goalEditor.questId} goal={goalEditor.goal} todayStr={todayStr}
+        onSave={saveGoal} onDelete={deleteGoal} onClose={() => setGoalEditor(null)} />}
 
       <div className="qd-shell">
         <aside className="qd-sidebar">
@@ -5284,7 +5144,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : previewSubPage ? page : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
             <DailyAnchorsPage
               anchors={state.anchors}
@@ -5328,12 +5188,14 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   }}
 />
 
+<a className="gg-quest-garden-link" href="#goals">Visit Goals Garden <span aria-hidden="true">›</span></a>
 {showAddDomain && (
   <div className="qd-quest-new-form">
     <div className="qd-add-task">
       <input
         type="text"
         placeholder="Quest name"
+        aria-label="Quest name"
         value={newDomainName}
         onChange={(e) => setNewDomainName(e.target.value)}
       />
@@ -5341,6 +5203,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       <input
         type="text"
         placeholder="Emoji"
+        aria-label="Quest icon"
         value={newDomainEmoji}
         onChange={(e) => setNewDomainEmoji(e.target.value)}
         style={{ width: 55 }}
@@ -5349,12 +5212,16 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       <input
         type="number"
         min="1"
-        placeholder="Monthly target"
+        placeholder="Monthly task target"
+        aria-label="Monthly task target"
         value={newDomainTarget}
         onChange={(e) => setNewDomainTarget(e.target.value)}
         style={{ width: 90 }}
       />
 
+      <div className="gg-new-quest-goals"><QuestGoalsSummary domain={draftQuest}
+        onAdd={() => setGoalEditor({ questId: "__new_quest__" })}
+        onEdit={goal => setGoalEditor({ questId: "__new_quest__", goal })} resetHour={resetHour} /></div>
       <button
         type="button"
         onClick={addDomain}
@@ -5381,6 +5248,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         today={today}
         todayStr={todayStr}
         defaultOpen={index === 0}
+        onStartTask={taskId => startWorking(domain.id, taskId)} onPauseTask={taskId => pauseWorking(domain.id, taskId)}
+        onAddGoal={() => setGoalEditor({ questId: domain.id })} onEditGoal={goal => setGoalEditor({ questId: domain.id, goal })} resetHour={resetHour}
         onToggleTask={(taskId) =>
           toggleTask(domain.id, taskId)
         }
@@ -5403,6 +5272,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   </div>
 </div>
             </div>
+          ) : showGoalsPage ? (
+            <GoalsPage domains={state.domains} todayStr={todayStr} resetHour={resetHour}
+              onAdd={questId => setGoalEditor({ questId })} onEdit={(questId, goal) => setGoalEditor({ questId, goal })}
+              onMilestone={toggleGoalMilestone} onProgress={changeGoalProgress} />
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : previewSubPage && page === "more" ? (
@@ -5750,7 +5623,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           )}
         </main>
       </div>
-      {(designPreview || anchorPageVisible || showStatsPage) && <BottomNavigation page={page} />}
+      {workingTask && <FocusTimerBar task={workingTask} domain={workingDomain}
+        safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
+        onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
+      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage) && <BottomNavigation page={page} />}
     </div>
   );
 }

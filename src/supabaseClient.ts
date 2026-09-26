@@ -390,6 +390,7 @@ const questShells = (state: any) =>
       color: domain?.color ?? null,
       monthlyTarget: Number(domain?.monthlyTarget) || 1,
       timingProfiles: domain?.timingProfiles || {},
+      goals: Array.isArray(domain?.goals) ? domain.goals : [],
       sortOrder: index,
     })
   );
@@ -408,6 +409,7 @@ const flatTasks = (state: any) =>
           estimatedMinutes: task?.estimatedMinutes ?? null,
           actualMinutes: task?.actualMinutes ?? null,
           timingProfileKey: task?.timingProfileKey || null,
+          workTimer: task?.workTimer || { elapsedMs: 0, startedAt: null },
           flexibility: task?.flexibility === "fixed" ? "fixed" : "flexible",
           done: !!task?.done,
           doneAt: task?.doneAt || null,
