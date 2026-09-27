@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="282" height="90" viewBox="0 0 282 90" shape-rendering="crispEdges">
+<rect x="15" y="14" width="60" height="60" fill="#102b40" stroke="#7897a8" stroke-width="3" stroke-dasharray="7 5"/>
+<g stroke="#83a6b9" stroke-width="5"><path d="M45 29v30M30 44h30"/></g>
+<text x="95" y="45" fill="#dce7ea" font-family="monospace" font-weight="900" font-size="20">Add a friend</text>
+<text x="95" y="66" fill="#86a5b5" font-family="monospace" font-weight="700" font-size="14">Tap to invite</text>
+</svg>
