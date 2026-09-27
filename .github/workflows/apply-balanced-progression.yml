@@ -1,0 +1,55 @@
+name: Apply balanced progression
+
+on:
+  push:
+    branches:
+      - feature/quest-redesign-canvas
+    paths:
+      - scripts/apply-balanced-progression.mjs
+      - .github/workflows/apply-balanced-progression.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/quest-redesign-canvas
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply balanced XP integration
+        run: node scripts/apply-balanced-progression.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run progression tests
+        run: node --test tests/progression.test.mjs
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Check patch cleanliness
+        run: git diff --check
+
+      - name: Commit verified source changes
+        run: |
+          if git diff --quiet -- src/quest-dashboard.jsx; then
+            echo "No dashboard changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/quest-dashboard.jsx
+          git commit -m "Wire balanced effort XP and nonlinear levels"
+          git push origin HEAD:feature/quest-redesign-canvas
