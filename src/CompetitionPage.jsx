@@ -23,6 +23,20 @@ function daysLeftInWeek(weekKey, todayKey) {
   return clamp(6 - dayIndex, 0, 6);
 }
 
+function initials(value = '') {
+  return String(value || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(part => part[0] || '')
+    .join('')
+    .toUpperCase() || '?';
+}
+
+function friendXP(friend) {
+  return Math.max(0, Math.round(Number(friend?.scoreXP ?? friend?.xp) || 0));
+}
+
 export default function CompetitionPage({
   progression,
   weekKey,
@@ -30,6 +44,7 @@ export default function CompetitionPage({
   displayName = 'You',
   focusMinutes = 0,
   level = 1,
+  friends = [],
 }) {
   const stats = competitionWeekStats({ progression, weekKey, todayKey });
   const focusLabel = formatFocus(focusMinutes);
@@ -40,12 +55,20 @@ export default function CompetitionPage({
   const todayTaskPct = clamp((stats.todayTasks / 5) * 100, 0, 100);
   const focusPct = clamp((focusMinutes / 120) * 100, 0, 100);
 
+  // A weekly challenge is group-ready: you + up to three friends.
+  // The social backend can pass real friend records into this prop later
+  // without changing the visual structure again.
+  const challengeFriends = Array.from({ length: 3 }, (_, index) => friends[index] || null);
   const leagueRows = [
     { name: displayName, xp: stats.scoreXP, self: true },
-    { name: 'Invite a friend', xp: null },
-    { name: 'Invite a friend', xp: null },
-    { name: 'Invite a friend', xp: null },
+    ...challengeFriends.map(friend => friend
+      ? { name: friend.displayName || friend.name || 'Friend', xp: friendXP(friend), self: false }
+      : { name: 'Invite a friend', xp: null, self: false }),
   ];
+
+  const openFriends = () => {
+    window.location.hash = 'more';
+  };
 
   return (
     <section className="cp2-page" aria-labelledby="cp2-title">
@@ -55,8 +78,8 @@ export default function CompetitionPage({
         <img src="/competition-v2/hero-v2.svg" alt="" aria-hidden="true" />
       </section>
 
-      <section className="cp2-art cp2-challenge" aria-label="Weekly one versus one challenge">
-        <img src="/competition-v2/challenge-v2.svg" alt="" aria-hidden="true" />
+      <section className="cp2-art cp2-challenge" aria-label="Weekly group challenge">
+        <img src="/competition-v2/challenge-v3.svg" alt="" aria-hidden="true" />
 
         <span className="cp2-week-left">{daysLeft === 0 ? 'LAST DAY' : `${daysLeft}d left`}</span>
 
@@ -70,14 +93,34 @@ export default function CompetitionPage({
         <div className="cp2-stat cp2-stat-focus"><strong>{focusLabel}</strong><span>focus today</span></div>
 
         <div className="cp2-week-progress-label">{stats.scoreXP} / {weeklyMeterTarget} XP</div>
-        <div className="cp2-week-progress-fill" style={{ width: `${weeklyPct * 0.307}%` }} />
+        <div className="cp2-week-progress-fill" style={{ width: `${weeklyPct * 0.291}%` }} />
 
-        <div className="cp2-rival-copy">
-          <strong>No rival yet</strong>
-          <span>Add a friend, then challenge them for the week.</span>
+        <div className="cp2-rivals" aria-label="Challenge friends">
+          {challengeFriends.map((friend, index) => (
+            <button
+              type="button"
+              key={friend?.id || `empty-${index}`}
+              className={`cp2-rival-row${friend ? '' : ' is-empty'}`}
+              onClick={friend ? undefined : openFriends}
+              aria-label={friend ? `${friend.displayName || friend.name || 'Friend'}, ${friendXP(friend)} XP` : `Add friend ${index + 1} to this challenge`}
+            >
+              <span className="cp2-rival-avatar">{friend ? initials(friend.displayName || friend.name) : '+'}</span>
+              <span className="cp2-rival-main">
+                <strong>{friend ? (friend.displayName || friend.name || 'Friend') : 'Add a friend'}</strong>
+                <small>{friend ? `LV ${Math.max(1, Number(friend.level) || 1)} · ${Math.max(0, Number(friend.tasks) || 0)} tasks` : 'Open friend setup'}</small>
+              </span>
+              <strong className="cp2-rival-score">{friend ? `${friendXP(friend)} XP` : 'ADD'}</strong>
+            </button>
+          ))}
         </div>
-        <button type="button" className="cp2-add-friend" onClick={() => { window.location.hash = 'more'; }} aria-label="Add a friend. Friends setup is the next step.">
-          Add a Friend
+
+        <button
+          type="button"
+          className="cp2-add-friend"
+          onClick={openFriends}
+          aria-label="Add another friend to this challenge. Up to three friends can join."
+        >
+          {friends.length >= 3 ? 'Challenge Full' : 'Add Friend'}
         </button>
       </section>
 
@@ -95,7 +138,7 @@ export default function CompetitionPage({
         <img src="/competition-v2/league-v2.svg" alt="" aria-hidden="true" />
         <div className="cp2-league-live">
           {leagueRows.map((row, index) => (
-            <div className={`cp2-league-row${row.self ? ' is-self' : ' is-empty'}`} key={`${row.name}-${index}`}>
+            <div className={`cp2-league-row${row.self ? ' is-self' : row.xp == null ? ' is-empty' : ''}`} key={`${row.name}-${index}`}>
               <span>{row.name}</span>
               <strong>{row.xp == null ? '—' : `${row.xp} XP`}</strong>
             </div>
@@ -105,11 +148,11 @@ export default function CompetitionPage({
 
       <section className="cp2-art cp2-actions" aria-label="Competition actions">
         <img src="/competition-v2/actions-v2.svg" alt="" aria-hidden="true" />
-        <button type="button" className="cp2-action cp2-find" onClick={() => { window.location.hash = 'more'; }} aria-label="Find friends. Friend profiles are the next build step." />
-        <button type="button" className="cp2-action cp2-start" onClick={() => { window.alert('Add a friend first. Friend challenges are the next build step.'); }} aria-label="Start a challenge" />
+        <button type="button" className="cp2-action cp2-find" onClick={openFriends} aria-label="Find friends" />
+        <button type="button" className="cp2-action cp2-start" onClick={() => { window.alert('Friend accounts are the next build step. Weekly challenges already support up to three friends.'); }} aria-label="Start a challenge" />
       </section>
 
-      <p className="cp2-note">Your leaderboard score already uses Quest's balanced credited XP. Friend accounts come next.</p>
+      <p className="cp2-note">Weekly challenges now support you plus up to three friends. Friend accounts and invitations are the next layer.</p>
     </section>
   );
 }
