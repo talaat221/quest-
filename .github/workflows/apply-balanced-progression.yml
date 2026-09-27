@@ -1,18 +1,22 @@
-name: Apply Quest integration
+name: Verify Quest competition
 
 on:
   push:
     branches:
       - feature/quest-redesign-canvas
     paths:
-      - scripts/apply-competition-page.mjs
+      - src/CompetitionPage.jsx
+      - src/competition.js
+      - src/competition.css
+      - tests/competition.test.mjs
+      - public/competition/**
       - .github/workflows/apply-balanced-progression.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -27,9 +31,6 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Apply competition integration
-        run: node scripts/apply-competition-page.mjs
-
       - name: Install dependencies
         run: npm ci
 
@@ -39,17 +40,5 @@ jobs:
       - name: Build production app
         run: npm run build
 
-      - name: Check patch cleanliness
+      - name: Check repository whitespace
         run: git diff --check
-
-      - name: Commit verified source changes
-        run: |
-          if git diff --quiet -- src/quest-dashboard.jsx src/home-finish.js src/HomeFinish.jsx; then
-            echo "No source changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/quest-dashboard.jsx src/home-finish.js src/HomeFinish.jsx
-          git commit -m "Add cozy competition page shell"
-          git push origin HEAD:feature/quest-redesign-canvas
