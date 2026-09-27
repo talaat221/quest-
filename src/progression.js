@@ -1,4 +1,4 @@
-export const PROGRESSION_VERSION = 2;
+export const PROGRESSION_VERSION = 3;
 export const ROUTINE_DAILY_XP_CAP = 20;
 
 export const XP_TIERS = Object.freeze([
@@ -47,12 +47,35 @@ export function recommendTaskXP({ estimatedMinutes, effort = 'normal' } = {}) {
   };
 }
 
+export function closestTierForXP(value) {
+  const xp = Math.max(0, Number(value) || 0);
+  return XP_TIERS.reduce((best, tier) => {
+    const distance = Math.abs(tier.xp - xp);
+    const bestDistance = Math.abs(best.xp - xp);
+    return distance < bestDistance || (distance === bestDistance && tier.xp < best.xp) ? tier : best;
+  }, XP_TIERS[0]);
+}
+
 export function inferEffortForTask(task = {}) {
   const baseIndex = tierIndexForMinutes(task.estimatedMinutes);
   const savedIndex = XP_TIERS.findIndex(tier => tier.xp === Number(task.xp));
   if (savedIndex < 0) return 'normal';
   const shift = clamp(savedIndex - baseIndex, -1, 1);
   return shift < 0 ? 'low' : shift > 0 ? 'high' : 'normal';
+}
+
+export function standardizeLegacyTaskXP(task = {}) {
+  if (!task || task.done) return task;
+  const alreadyTiered = XP_TIERS.find(tier => tier.xp === Number(task.xp));
+  if (alreadyTiered) return task;
+  const recommendation = cleanMinutes(task.estimatedMinutes) !== null
+    ? recommendTaskXP({ estimatedMinutes: task.estimatedMinutes, effort: 'normal' })
+    : { ...closestTierForXP(task.xp), effort: 'normal', source: 'legacy-rounded-v1' };
+  task.xp = recommendation.xp;
+  task.effort = recommendation.effort || 'normal';
+  task.effortTier = recommendation.key;
+  task.xpSource = recommendation.source || 'effort-tier-v1';
+  return task;
 }
 
 export function applyTaskRecommendation(task, { estimatedMinutes = task?.estimatedMinutes, effort = inferEffortForTask(task) } = {}) {
@@ -220,9 +243,15 @@ export function recordTaskAward(existing, { domainId, task, completedAt = Date.n
   if (progression.taskAwards[key]) return { progression, award: progression.taskAwards[key] };
 
   const savedTier = XP_TIERS.find(tier => tier.xp === Number(task.xp));
-  const recommendation = recommendTaskXP({ estimatedMinutes: task.estimatedMinutes, effort: task.effort || inferEffortForTask(task) });
-  const tier = task.effortTier || savedTier?.key || recommendation?.key || 'legacy';
-  const nominalXp = Math.max(0, Math.round(Number(task.xp) || recommendation.xp || 0));
+  const estimate = cleanMinutes(task.estimatedMinutes);
+  const recommendation = estimate !== null
+    ? recommendTaskXP({ estimatedMinutes: estimate, effort: task.effort || inferEffortForTask(task) })
+    : { ...closestTierForXP(task.xp), effort: 'normal', source: 'legacy-rounded-v1' };
+  const finalTier = task.effortTier && XP_TIERS.some(tier => tier.key === task.effortTier)
+    ? XP_TIERS.find(tier => tier.key === task.effortTier)
+    : savedTier || recommendation;
+  const tier = finalTier.key;
+  const nominalXp = finalTier.xp;
   const completedDate = completedAt instanceof Date ? completedAt : new Date(completedAt);
   if (Number.isNaN(completedDate.getTime())) return { progression, award: null };
   const completedIso = completedDate.toISOString();
@@ -240,11 +269,11 @@ export function recordTaskAward(existing, { domainId, task, completedAt = Date.n
     nominalXp,
     creditedXp,
     tier,
-    effort: task.effort || inferEffortForTask(task),
+    effort: task.effort || recommendation.effort || inferEffortForTask(task),
     completedAt: completedIso,
     dayKey,
     weekKey,
-    source: task.xpSource || (savedTier ? 'effort-tier-v1' : 'legacy'),
+    source: task.xpSource || recommendation.source || 'effort-tier-v1',
   };
   progression.taskAwards[key] = award;
   refreshWeekBonus(progression, weekKey);
