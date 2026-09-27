@@ -1,12 +1,11 @@
-name: Apply balanced progression
+name: Apply Quest integration
 
 on:
   push:
     branches:
       - feature/quest-redesign-canvas
     paths:
-      - scripts/apply-balanced-progression.mjs
-      - scripts/refine-balanced-progression.mjs
+      - scripts/apply-competition-page.mjs
       - .github/workflows/apply-balanced-progression.yml
 
 permissions:
@@ -28,17 +27,14 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Apply balanced XP integration
-        run: node scripts/apply-balanced-progression.mjs
-
-      - name: Apply progression refinements
-        run: node scripts/refine-balanced-progression.mjs
+      - name: Apply competition integration
+        run: node scripts/apply-competition-page.mjs
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run progression tests
-        run: node --test tests/progression.test.mjs
+      - name: Run progression and competition tests
+        run: node --test tests/progression.test.mjs tests/competition.test.mjs
 
       - name: Build production app
         run: npm run build
@@ -48,12 +44,12 @@ jobs:
 
       - name: Commit verified source changes
         run: |
-          if git diff --quiet -- src/quest-dashboard.jsx; then
-            echo "No dashboard changes to commit."
+          if git diff --quiet -- src/quest-dashboard.jsx src/home-finish.js src/HomeFinish.jsx; then
+            echo "No source changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/quest-dashboard.jsx
-          git commit -m "Refine balanced XP migration and task editing"
+          git add src/quest-dashboard.jsx src/home-finish.js src/HomeFinish.jsx
+          git commit -m "Add cozy competition page shell"
           git push origin HEAD:feature/quest-redesign-canvas
