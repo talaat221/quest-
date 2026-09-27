@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { competitionWeekStats } from './competition.js';
 import {
   ensureQuestProfile,
   loadAcceptedFriendsWithStats,
   publishCompetitionStats,
 } from './friends.js';
+import {
+  cancelWeeklyChallenge,
+  challengeMemberToFriend,
+  createWeeklyChallenge,
+  inviteWeeklyChallengeMember,
+  loadWeeklyChallenge,
+  respondWeeklyChallenge,
+} from './challenges.js';
 import './competition.css';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -57,6 +65,13 @@ export default function CompetitionPage({
 }) {
   const stats = competitionWeekStats({ progression, weekKey, todayKey });
   const [liveFriends, setLiveFriends] = useState(friends);
+  const [challengeHub, setChallengeHub] = useState({ current: null, invites: [] });
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [challengeBusy, setChallengeBusy] = useState(false);
+  const [challengeError, setChallengeError] = useState('');
+  const [challengeMessage, setChallengeMessage] = useState('');
+
   const focusLabel = formatFocus(focusMinutes);
   const daysLeft = daysLeftInWeek(weekKey, todayKey);
   const weeklyMeterTarget = Math.max(300, Math.ceil(Math.max(1, stats.scoreXP) / 100) * 100);
@@ -65,37 +80,46 @@ export default function CompetitionPage({
   const todayTaskPct = clamp((stats.todayTasks / 5) * 100, 0, 100);
   const focusPct = clamp((focusMinutes / 120) * 100, 0, 100);
 
+  const syncCompetition = async () => {
+    if (!userId) return;
+    await ensureQuestProfile({ id: userId, user_metadata: { display_name: displayName } });
+    await publishCompetitionStats(userId, {
+      weekKey,
+      todayKey,
+      scoreXP: stats.scoreXP,
+      taskXP: stats.taskXP,
+      consistencyXP: stats.consistencyXP,
+      eligibleTasks: stats.eligibleTasks,
+      todayXP: stats.todayXP,
+      todayTasks: stats.todayTasks,
+      focusMinutes,
+      level,
+    });
+    const [nextFriends, nextChallenge] = await Promise.all([
+      loadAcceptedFriendsWithStats(userId, weekKey),
+      loadWeeklyChallenge(weekKey),
+    ]);
+    setLiveFriends(nextFriends);
+    setChallengeHub(nextChallenge);
+  };
+
   useEffect(() => {
     if (!userId) return undefined;
     let cancelled = false;
-
-    const syncFriends = async () => {
+    const sync = async () => {
       try {
-        await ensureQuestProfile({ id: userId, user_metadata: { display_name: displayName } });
-        await publishCompetitionStats(userId, {
-          weekKey,
-          todayKey,
-          scoreXP: stats.scoreXP,
-          taskXP: stats.taskXP,
-          consistencyXP: stats.consistencyXP,
-          eligibleTasks: stats.eligibleTasks,
-          todayXP: stats.todayXP,
-          todayTasks: stats.todayTasks,
-          focusMinutes,
-          level,
-        });
-        const nextFriends = await loadAcceptedFriendsWithStats(userId, weekKey);
-        if (!cancelled) setLiveFriends(nextFriends);
+        await syncCompetition();
       } catch (error) {
-        console.warn('Competition friends could not sync:', error);
+        if (!cancelled) console.warn('Competition could not sync:', error);
       }
     };
-
-    void syncFriends();
-    const onFocus = () => void syncFriends();
+    void sync();
+    const timer = window.setInterval(sync, 20000);
+    const onFocus = () => void sync();
     window.addEventListener('focus', onFocus);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
       window.removeEventListener('focus', onFocus);
     };
   }, [
@@ -113,17 +137,83 @@ export default function CompetitionPage({
     level,
   ]);
 
-  const challengeFriends = Array.from({ length: 3 }, (_, index) => liveFriends[index] || null);
+  const currentChallenge = challengeHub.current;
+  const currentMembers = Array.isArray(currentChallenge?.members) ? currentChallenge.members : [];
+  const currentRivals = currentMembers
+    .filter(member => member.userId !== userId && ['accepted', 'pending'].includes(member.status))
+    .map(challengeMemberToFriend)
+    .filter(Boolean);
+  const challengeFriends = Array.from({ length: 3 }, (_, index) => currentRivals[index] || null);
+  const isCreator = !!currentChallenge && currentChallenge.creatorId === userId;
+  const existingMemberIds = new Set(currentMembers.map(member => member.userId));
+  const availableFriends = liveFriends.filter(friend => !existingMemberIds.has(friend.id));
+
+  const leagueFriends = useMemo(() => [...liveFriends]
+    .sort((a, b) => (friendXP(b) ?? -1) - (friendXP(a) ?? -1))
+    .slice(0, 3), [liveFriends]);
   const leagueRows = [
     { name: displayName, xp: stats.scoreXP, self: true },
-    ...challengeFriends.map(friend => friend
-      ? { name: friend.displayName || friend.name || 'Friend', xp: friendXP(friend), self: false }
-      : { name: 'Invite a friend', xp: null, self: false }),
+    ...Array.from({ length: 3 }, (_, index) => {
+      const friend = leagueFriends[index];
+      return friend
+        ? { name: friend.displayName || friend.name || 'Friend', xp: friendXP(friend), self: false }
+        : { name: 'Invite a friend', xp: null, self: false };
+    }),
   ];
 
   const openFriends = () => {
     window.location.hash = 'friends';
   };
+
+  const runChallenge = async (action, success = '') => {
+    if (challengeBusy) return;
+    setChallengeBusy(true);
+    setChallengeError('');
+    setChallengeMessage('');
+    try {
+      await action();
+      await syncCompetition();
+      setShowPicker(false);
+      setSelectedIds([]);
+      if (success) setChallengeMessage(success);
+    } catch (error) {
+      setChallengeError(error?.message || 'That challenge action did not work.');
+    } finally {
+      setChallengeBusy(false);
+    }
+  };
+
+  const toggleSelected = friendId => {
+    setSelectedIds(current => {
+      if (current.includes(friendId)) return current.filter(id => id !== friendId);
+      if (current.length >= 3) return current;
+      return [...current, friendId];
+    });
+  };
+
+  const openStartPicker = () => {
+    if (!liveFriends.length) return openFriends();
+    setSelectedIds([]);
+    setChallengeError('');
+    setShowPicker(true);
+  };
+
+  const openAddPicker = () => {
+    if (!availableFriends.length) return openFriends();
+    setSelectedIds([]);
+    setChallengeError('');
+    setShowPicker(true);
+  };
+
+  const createChallenge = () => runChallenge(
+    () => createWeeklyChallenge(weekKey, selectedIds),
+    'Challenge invitations sent.'
+  );
+
+  const inviteOne = friendId => runChallenge(
+    () => inviteWeeklyChallengeMember(currentChallenge.id, friendId),
+    'Friend invited to the challenge.'
+  );
 
   return (
     <section className="cp2-page" aria-labelledby="cp2-title">
@@ -132,6 +222,23 @@ export default function CompetitionPage({
       <section className="cp2-art cp2-hero" aria-label="Competition. Sail together.">
         <img src="/competition-v2/hero-v2.svg" alt="" aria-hidden="true" />
       </section>
+
+      {!!challengeHub.invites?.length && (
+        <section className="cp2-invites" aria-label="Challenge invitations">
+          {challengeHub.invites.map(invite => (
+            <div className="cp2-invite" key={invite.id}>
+              <span><strong>{invite.creatorDisplayName}</strong><small>@{invite.creatorUsername} invited you to this week's challenge.</small></span>
+              <div>
+                <button type="button" disabled={challengeBusy} onClick={() => runChallenge(() => respondWeeklyChallenge(invite.id, true), 'Challenge joined.')}>Accept</button>
+                <button type="button" disabled={challengeBusy} onClick={() => runChallenge(() => respondWeeklyChallenge(invite.id, false), 'Challenge declined.')}>Decline</button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {challengeError && <p className="cp2-challenge-status is-error" role="alert">{challengeError}</p>}
+      {challengeMessage && <p className="cp2-challenge-status" role="status">{challengeMessage}</p>}
 
       <section className="cp2-art cp2-challenge" aria-label="Weekly group challenge">
         <img src="/competition-v2/challenge-v4.svg" alt="" aria-hidden="true" />
@@ -150,25 +257,28 @@ export default function CompetitionPage({
         <div className="cp2-week-progress-label">{stats.scoreXP} / {weeklyMeterTarget}</div>
         <div className="cp2-week-progress-fill" style={{ width: `${weeklyPct * 0.291}%` }} />
 
-        <div className="cp2-rivals" aria-label="Challenge friends">
+        <div className="cp2-rivals" aria-label="Challenge rivals">
           {challengeFriends.map((friend, index) => {
             const score = friendXP(friend);
+            const pending = friend?.status === 'pending';
             return (
               <button
                 type="button"
                 key={friend?.id || `empty-${index}`}
-                className={`cp2-rival-row${friend ? '' : ' is-empty'}`}
-                onClick={friend ? undefined : openFriends}
-                aria-label={friend ? `${friend.displayName || friend.name || 'Friend'}, ${score == null ? 'stats not synced yet' : `${score} XP`}` : `Add friend ${index + 1} to this challenge`}
+                className={`cp2-rival-row${friend ? '' : ' is-empty'}${pending ? ' is-pending' : ''}`}
+                onClick={!friend && isCreator ? openAddPicker : undefined}
+                aria-label={friend
+                  ? `${friend.displayName || friend.name || 'Friend'}, ${pending ? 'invited' : score == null ? 'stats not synced yet' : `${score} XP`}`
+                  : isCreator ? `Add friend ${index + 1} to this challenge` : 'Empty challenge slot'}
               >
                 {friend ? (
                   <>
                     <span className="cp2-rival-avatar">{initials(friend.displayName || friend.name)}</span>
                     <span className="cp2-rival-main">
                       <strong>{friend.displayName || friend.name || 'Friend'}</strong>
-                      <small>{friend.tasks == null ? `LV ${Math.max(1, Number(friend.level) || 1)} · waiting for stats` : `LV ${Math.max(1, Number(friend.level) || 1)} · ${friend.tasks} tasks`}</small>
+                      <small>{pending ? 'Invitation pending' : friend.tasks == null ? `LV ${Math.max(1, Number(friend.level) || 1)} · waiting for stats` : `LV ${Math.max(1, Number(friend.level) || 1)} · ${friend.tasks} tasks`}</small>
                     </span>
-                    <strong className="cp2-rival-score">{score == null ? '— XP' : `${score} XP`}</strong>
+                    <strong className="cp2-rival-score">{pending ? 'INVITED' : score == null ? '— XP' : `${score} XP`}</strong>
                   </>
                 ) : null}
               </button>
@@ -179,8 +289,8 @@ export default function CompetitionPage({
         <button
           type="button"
           className="cp2-add-friend"
-          onClick={openFriends}
-          aria-label="Add another friend to this challenge. Up to three friends can join."
+          onClick={currentChallenge && isCreator && currentRivals.length < 3 ? openAddPicker : currentChallenge ? undefined : openFriends}
+          aria-label={currentChallenge ? (isCreator ? 'Add another friend to this challenge' : 'Challenge is active') : 'Find friends'}
         />
       </section>
 
@@ -209,10 +319,66 @@ export default function CompetitionPage({
       <section className="cp2-art cp2-actions" aria-label="Competition actions">
         <img src="/competition-v2/actions-v2.svg" alt="" aria-hidden="true" />
         <button type="button" className="cp2-action cp2-find" onClick={openFriends} aria-label="Find friends" />
-        <button type="button" className="cp2-action cp2-start" onClick={liveFriends.length ? undefined : openFriends} aria-label="Start a challenge" />
+        <button
+          type="button"
+          className="cp2-action cp2-start"
+          onClick={currentChallenge ? undefined : openStartPicker}
+          aria-label={currentChallenge ? 'Weekly challenge active' : 'Start a weekly challenge'}
+        />
       </section>
 
-      <p className="cp2-note">Accepted friends appear here automatically. Up to three are shown in the weekly challenge; all friend stats stay private to accepted friends.</p>
+      <div className="cp2-note">
+        <span>{currentChallenge ? 'Weekly challenge active. Scores update from each traveler’s balanced Quest XP.' : 'Choose up to three friends and start this week’s challenge.'}</span>
+        {currentChallenge && isCreator && (
+          <button type="button" disabled={challengeBusy} onClick={() => {
+            if (window.confirm('End this weekly challenge for everyone?')) {
+              void runChallenge(() => cancelWeeklyChallenge(currentChallenge.id), 'Challenge ended.');
+            }
+          }}>End challenge</button>
+        )}
+      </div>
+
+      {showPicker && (
+        <div className="cp2-picker-backdrop" role="presentation" onMouseDown={event => {
+          if (event.target === event.currentTarget) setShowPicker(false);
+        }}>
+          <section className="cp2-picker" role="dialog" aria-modal="true" aria-labelledby="cp2-picker-title">
+            <button type="button" className="cp2-picker-close" aria-label="Close" onClick={() => setShowPicker(false)}>×</button>
+            <p>SAIL TOGETHER</p>
+            <h2 id="cp2-picker-title">{currentChallenge ? 'Add a rival' : 'Start Weekly Challenge'}</h2>
+            <span>{currentChallenge ? 'Invite one more friend to the current week.' : 'Choose 1–3 friends. The challenge runs through Sunday.'}</span>
+
+            <div className="cp2-picker-list">
+              {(currentChallenge ? availableFriends : liveFriends).map(friend => {
+                const selected = selectedIds.includes(friend.id);
+                return (
+                  <button
+                    type="button"
+                    className={`cp2-picker-friend${selected ? ' is-selected' : ''}`}
+                    key={friend.id}
+                    disabled={challengeBusy}
+                    onClick={() => currentChallenge ? inviteOne(friend.id) : toggleSelected(friend.id)}
+                  >
+                    <b>{initials(friend.displayName)}</b>
+                    <span><strong>{friend.displayName}</strong><small>@{friend.username || 'traveler'}</small></span>
+                    <em>{currentChallenge ? 'Invite' : selected ? 'Selected' : 'Choose'}</em>
+                  </button>
+                );
+              })}
+              {!(currentChallenge ? availableFriends : liveFriends).length && (
+                <p className="cp2-picker-empty">No other friends are available for this challenge.</p>
+              )}
+            </div>
+
+            {!currentChallenge && (
+              <button type="button" className="cp2-picker-start" disabled={challengeBusy || !selectedIds.length} onClick={createChallenge}>
+                {challengeBusy ? 'Starting…' : `Start with ${selectedIds.length || 0} ${selectedIds.length === 1 ? 'friend' : 'friends'}`}
+              </button>
+            )}
+            <button type="button" className="cp2-picker-find" onClick={openFriends}>Find more friends</button>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
