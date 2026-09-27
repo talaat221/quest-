@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="852" height="275" viewBox="0 0 852 275" shape-rendering="crispEdges">
+<defs>
+  <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6f4328"/><stop offset=".55" stop-color="#432b1e"/><stop offset="1" stop-color="#241c17"/></linearGradient>
+  <linearGradient id="card" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#123c58"/><stop offset="1" stop-color="#082b43"/></linearGradient>
+</defs>
+<rect width="852" height="275" fill="#061b2c"/>
+<rect x="12" y="17" width="828" height="246" fill="url(#wood)" stroke="#24170f" stroke-width="8"/>
+<rect x="22" y="27" width="808" height="226" fill="#0b2d45" stroke="#8a5834" stroke-width="3"/>
+<!-- top plank -->
+<rect x="33" y="37" width="786" height="63" fill="#30231e" stroke="#6b4328" stroke-width="4"/>
+<rect x="47" y="47" width="181" height="43" fill="#0c3557"/>
+<g fill="#f0d7a2" font-family="monospace" font-weight="700"><text x="104" y="78" font-size="28">Today</text><text x="548" y="78" font-size="19" fill="#d7c5a5">A small day still counts.</text></g>
+<!-- calendar icon -->
+<g stroke="#f0d7a2" stroke-width="3" fill="none"><rect x="67" y="53" width="27" height="27"/><path d="M67 61h27M73 49v8M88 49v8"/></g>
+<!-- cards -->
+<g><rect x="49" y="114" width="232" height="118" fill="url(#card)" stroke="#5b3a25" stroke-width="6"/><rect x="310" y="114" width="232" height="118" fill="url(#card)" stroke="#5b3a25" stroke-width="6"/><rect x="571" y="114" width="232" height="118" fill="url(#card)" stroke="#5b3a25" stroke-width="6"/></g>
+<g fill="#081f33"><rect x="60" y="125" width="210" height="34"/><rect x="321" y="125" width="210" height="34"/><rect x="582" y="125" width="210" height="34"/></g>
+<!-- icons -->
+<path d="M83 129l6 11 13 2-9 9 2 13-12-6-11 6 2-13-9-9 13-2z" fill="#f0bf58"/>
+<g stroke="#f0d7a2" stroke-width="3" fill="none"><rect x="340" y="132" width="19" height="23"/><path d="M344 138h11M344 145l4 4 8-9"/></g>
+<g fill="#f0d7a2"><circle cx="609" cy="144" r="12"/><rect x="607" y="131" width="4" height="13"/><rect x="609" y="142" width="8" height="4"/></g>
+<!-- static labels -->
+<g font-family="monospace" font-size="18" font-weight="700" fill="#f3dfb5"><text x="110" y="150">XP earned today</text><text x="369" y="150">Tasks done today</text><text x="630" y="150">Focus time today</text></g>
+<!-- blank value beds -->
+<g fill="#0c3651"><rect x="69" y="171" width="192" height="42"/><rect x="330" y="171" width="192" height="42"/><rect x="591" y="171" width="192" height="42"/></g>
+<!-- empty progress tracks -->
+<g><rect x="70" y="217" width="190" height="12" fill="#092133" stroke="#355c70" stroke-width="3"/><rect x="331" y="217" width="190" height="12" fill="#092133" stroke="#355c70" stroke-width="3"/><rect x="592" y="217" width="190" height="12" fill="#092133" stroke="#355c70" stroke-width="3"/></g>
+<!-- little corners -->
+<g fill="#c08a4d"><rect x="17" y="20" width="12" height="6"/><rect x="17" y="20" width="6" height="12"/><rect x="823" y="20" width="12" height="6"/><rect x="829" y="20" width="6" height="12"/><rect x="17" y="248" width="12" height="6"/><rect x="17" y="242" width="6" height="12"/><rect x="823" y="248" width="12" height="6"/><rect x="829" y="242" width="6" height="12"/></g>
+</svg>
