@@ -25,6 +25,7 @@ import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeadi
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 import EffortXP from "./EffortXP.jsx";
+import CompetitionPage from "./CompetitionPage.jsx";
 import { recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
@@ -3428,9 +3429,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const showGoalsPage = page === "goals";
   const showRewardsPage = page === "rewards";
   const showStudyPage = page === "study";
+  const showCompetitionPage = page === "competition";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards", "competition"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const rewardTriggerHandled = useRef(0);
@@ -5028,6 +5030,15 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const levelXPNeeded = progression.requiredXP;
   const thisWeekLevel = currentWeekProgress(progressionState, weekKeyStr);
   const thisWeekLevelXP = thisWeekLevel.taskXP + thisWeekLevel.bonusXP;
+  const competitionFocusMinutes = allTasks().reduce((sum, task) => {
+    if (!task.doneAt || rewardTaskDay(task.doneAt, resetHour) !== todayStr) return sum;
+    return sum + Math.max(0, Number(task.actualMinutes) || 0);
+  }, 0);
+  const competitionName =
+    session?.user?.user_metadata?.display_name ||
+    session?.user?.user_metadata?.full_name ||
+    session?.user?.email?.split("@")[0] ||
+    "You";
 
   const questSummaryStats = {
     activeQuests: state.domains.length,
@@ -5343,6 +5354,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <GoalsPage domains={state.domains} todayStr={todayStr} resetHour={resetHour}
               onAdd={questId => setGoalEditor({ questId })} onEdit={(questId, goal) => setGoalEditor({ questId, goal })}
               onMilestone={toggleGoalMilestone} onProgress={changeGoalProgress} />
+          ) : showCompetitionPage ? (
+            <CompetitionPage progression={progressionState} weekKey={weekKeyStr} todayKey={todayStr}
+              displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} />
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : showRewardsPage ? (
