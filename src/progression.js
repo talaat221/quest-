@@ -1,4 +1,4 @@
-export const PROGRESSION_VERSION = 1;
+export const PROGRESSION_VERSION = 2;
 export const ROUTINE_DAILY_XP_CAP = 20;
 
 export const XP_TIERS = Object.freeze([
@@ -47,7 +47,15 @@ export function recommendTaskXP({ estimatedMinutes, effort = 'normal' } = {}) {
   };
 }
 
-export function applyTaskRecommendation(task, { estimatedMinutes = task?.estimatedMinutes, effort = task?.effort || 'normal' } = {}) {
+export function inferEffortForTask(task = {}) {
+  const baseIndex = tierIndexForMinutes(task.estimatedMinutes);
+  const savedIndex = XP_TIERS.findIndex(tier => tier.xp === Number(task.xp));
+  if (savedIndex < 0) return 'normal';
+  const shift = clamp(savedIndex - baseIndex, -1, 1);
+  return shift < 0 ? 'low' : shift > 0 ? 'high' : 'normal';
+}
+
+export function applyTaskRecommendation(task, { estimatedMinutes = task?.estimatedMinutes, effort = inferEffortForTask(task) } = {}) {
   const recommendation = recommendTaskXP({ estimatedMinutes, effort });
   return {
     ...task,
@@ -130,6 +138,7 @@ export function emptyProgression() {
   return {
     version: PROGRESSION_VERSION,
     legacyXP: 0,
+    legacyTaskKeys: {},
     taskAwards: {},
     weeklyBonuses: {},
     initializedAt: null,
@@ -141,6 +150,7 @@ export function normalizeProgression(value) {
   return {
     version: PROGRESSION_VERSION,
     legacyXP: Math.max(0, Math.round(Number(source.legacyXP) || 0)),
+    legacyTaskKeys: source.legacyTaskKeys && typeof source.legacyTaskKeys === 'object' ? { ...source.legacyTaskKeys } : {},
     taskAwards: source.taskAwards && typeof source.taskAwards === 'object' ? { ...source.taskAwards } : {},
     weeklyBonuses: source.weeklyBonuses && typeof source.weeklyBonuses === 'object' ? { ...source.weeklyBonuses } : {},
     initializedAt: source.initializedAt || null,
@@ -156,15 +166,20 @@ export function currentLegacyXP(domains = [], anchors = []) {
   return Math.round(taskXP + anchorXP);
 }
 
+const taskAwardKey = (domainId, taskId) => `${domainId}:${taskId}`;
+
 export function initializeProgression(existing, domains = [], anchors = [], now = Date.now()) {
   const progression = normalizeProgression(existing);
   if (progression.initializedAt) return progression;
   progression.legacyXP = currentLegacyXP(domains, anchors);
+  for (const domain of domains || []) {
+    for (const task of domain.tasks || []) {
+      if (task.done && task.id) progression.legacyTaskKeys[taskAwardKey(domain.id, task.id)] = true;
+    }
+  }
   progression.initializedAt = new Date(now).toISOString();
   return progression;
 }
-
-const taskAwardKey = (domainId, taskId) => `${domainId}:${taskId}`;
 
 export function taskAwardXP(progression, domainId, taskId) {
   const award = normalizeProgression(progression).taskAwards[taskAwardKey(domainId, taskId)];
@@ -201,16 +216,16 @@ export function recordTaskAward(existing, { domainId, task, completedAt = Date.n
   const progression = normalizeProgression(existing);
   if (!domainId || !task?.id) return { progression, award: null };
   const key = taskAwardKey(domainId, task.id);
+  if (progression.legacyTaskKeys[key]) return { progression, award: null };
   if (progression.taskAwards[key]) return { progression, award: progression.taskAwards[key] };
 
-  const recommendation = task.xpSource === 'effort-tier-v1'
-    ? recommendTaskXP({ estimatedMinutes: task.estimatedMinutes, effort: task.effort })
-    : null;
-  const tier = task.effortTier || recommendation?.key || 'legacy';
-  const nominalXp = task.xpSource === 'effort-tier-v1'
-    ? recommendation.xp
-    : Math.max(0, Math.round(Number(task.xp) || 0));
-  const completedIso = completedAt instanceof Date ? completedAt.toISOString() : new Date(completedAt).toISOString();
+  const savedTier = XP_TIERS.find(tier => tier.xp === Number(task.xp));
+  const recommendation = recommendTaskXP({ estimatedMinutes: task.estimatedMinutes, effort: task.effort || inferEffortForTask(task) });
+  const tier = task.effortTier || savedTier?.key || recommendation?.key || 'legacy';
+  const nominalXp = Math.max(0, Math.round(Number(task.xp) || recommendation.xp || 0));
+  const completedDate = completedAt instanceof Date ? completedAt : new Date(completedAt);
+  if (Number.isNaN(completedDate.getTime())) return { progression, award: null };
+  const completedIso = completedDate.toISOString();
   const dayKey = progressionDayKey(completedIso, resetHour);
   const weekKey = progressionWeekKey(completedIso, resetHour);
   const routineUsed = tier === 'routine' ? creditedRoutineXPForDay(progression, dayKey, key) : 0;
@@ -225,11 +240,11 @@ export function recordTaskAward(existing, { domainId, task, completedAt = Date.n
     nominalXp,
     creditedXp,
     tier,
-    effort: task.effort || null,
+    effort: task.effort || inferEffortForTask(task),
     completedAt: completedIso,
     dayKey,
     weekKey,
-    source: task.xpSource || 'legacy',
+    source: task.xpSource || (savedTier ? 'effort-tier-v1' : 'legacy'),
   };
   progression.taskAwards[key] = award;
   refreshWeekBonus(progression, weekKey);
