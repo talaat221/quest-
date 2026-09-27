@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="853" height="560" viewBox="0 0 853 560" shape-rendering="crispEdges">
+  <rect width="853" height="560" fill="#041727"/>
+  <rect x="18" y="18" width="817" height="524" fill="#08253a" stroke="#e5b865" stroke-width="4"/>
+  <rect x="26" y="26" width="801" height="508" fill="none" stroke="#6e4c2d" stroke-width="3"/>
+  <rect x="36" y="36" width="781" height="488" fill="none" stroke="#244d65" stroke-width="2"/>
+  <rect x="38" y="92" width="777" height="2" fill="#305c72"/>
+  <rect x="52" y="118" width="310" height="314" fill="#071d30" stroke="#31586f" stroke-width="3"/>
+  <rect x="491" y="118" width="310" height="314" fill="#071d30" stroke="#31586f" stroke-width="3"/>
+  <rect x="71" y="140" width="100" height="100" fill="#0d2f46" stroke="#d6a755" stroke-width="3"/>
+  <rect x="682" y="140" width="100" height="100" fill="#0d2f46" stroke="#d6a755" stroke-width="3"/>
+  <rect x="88" y="160" width="66" height="61" fill="#173b52"/>
+  <rect x="699" y="160" width="66" height="61" fill="#173b52"/>
+  <rect x="84" y="266" width="246" height="42" fill="#0b2740"/>
+  <rect x="84" y="316" width="246" height="42" fill="#0b2740"/>
+  <rect x="84" y="366" width="246" height="42" fill="#0b2740"/>
+  <rect x="523" y="266" width="246" height="42" fill="#0b2740"/>
+  <rect x="523" y="316" width="246" height="42" fill="#0b2740"/>
+  <rect x="523" y="366" width="246" height="42" fill="#0b2740"/>
+  <rect x="405" y="147" width="43" height="248" fill="#051523"/>
+  <rect x="423" y="158" width="6" height="226" fill="#173b52"/>
+  <rect x="52" y="466" width="749" height="28" fill="#061e30" stroke="#345c72" stroke-width="2"/>
+  <rect x="61" y="475" width="356" height="10" fill="#19364a"/>
+  <rect x="436" y="475" width="356" height="10" fill="#19364a"/>
+  <g fill="#e2b45e"><rect x="35" y="35" width="10" height="4"/><rect x="35" y="35" width="4" height="10"/><rect x="808" y="35" width="10" height="4"/><rect x="814" y="35" width="4" height="10"/><rect x="35" y="515" width="10" height="4"/><rect x="35" y="509" width="4" height="10"/><rect x="808" y="515" width="10" height="4"/><rect x="814" y="509" width="4" height="10"/></g>
+</svg>
