@@ -55,9 +55,7 @@ export default function CompetitionPage({
   const todayTaskPct = clamp((stats.todayTasks / 5) * 100, 0, 100);
   const focusPct = clamp((focusMinutes / 120) * 100, 0, 100);
 
-  // A weekly challenge is group-ready: you + up to three friends.
-  // The social backend can pass real friend records into this prop later
-  // without changing the visual structure again.
+  // Group competition layout: you + up to three friends.
   const challengeFriends = Array.from({ length: 3 }, (_, index) => friends[index] || null);
   const leagueRows = [
     { name: displayName, xp: stats.scoreXP, self: true },
@@ -79,20 +77,20 @@ export default function CompetitionPage({
       </section>
 
       <section className="cp2-art cp2-challenge" aria-label="Weekly group challenge">
-        <img src="/competition-v2/challenge-v3.svg" alt="" aria-hidden="true" />
+        <img src="/competition-v2/challenge-v4.svg" alt="" aria-hidden="true" />
 
-        <span className="cp2-week-left">{daysLeft === 0 ? 'LAST DAY' : `${daysLeft}d left`}</span>
+        <span className="cp2-week-left">{daysLeft === 0 ? 'LAST DAY' : `${daysLeft} DAYS LEFT`}</span>
 
         <div className="cp2-nameplate">
           <strong>{displayName}</strong>
           <span>LV {level}</span>
         </div>
 
-        <div className="cp2-stat cp2-stat-xp"><strong>{stats.scoreXP} XP</strong><span>this week</span></div>
-        <div className="cp2-stat cp2-stat-tasks"><strong>{stats.eligibleTasks}</strong><span>eligible tasks</span></div>
-        <div className="cp2-stat cp2-stat-focus"><strong>{focusLabel}</strong><span>focus today</span></div>
+        <strong className="cp2-stat-value cp2-stat-xp">{stats.scoreXP} XP</strong>
+        <strong className="cp2-stat-value cp2-stat-tasks">{stats.eligibleTasks}</strong>
+        <strong className="cp2-stat-value cp2-stat-focus">{focusLabel}</strong>
 
-        <div className="cp2-week-progress-label">{stats.scoreXP} / {weeklyMeterTarget} XP</div>
+        <div className="cp2-week-progress-label">{stats.scoreXP} / {weeklyMeterTarget}</div>
         <div className="cp2-week-progress-fill" style={{ width: `${weeklyPct * 0.291}%` }} />
 
         <div className="cp2-rivals" aria-label="Challenge friends">
@@ -104,12 +102,16 @@ export default function CompetitionPage({
               onClick={friend ? undefined : openFriends}
               aria-label={friend ? `${friend.displayName || friend.name || 'Friend'}, ${friendXP(friend)} XP` : `Add friend ${index + 1} to this challenge`}
             >
-              <span className="cp2-rival-avatar">{friend ? initials(friend.displayName || friend.name) : '+'}</span>
-              <span className="cp2-rival-main">
-                <strong>{friend ? (friend.displayName || friend.name || 'Friend') : 'Add a friend'}</strong>
-                <small>{friend ? `LV ${Math.max(1, Number(friend.level) || 1)} · ${Math.max(0, Number(friend.tasks) || 0)} tasks` : 'Open friend setup'}</small>
-              </span>
-              <strong className="cp2-rival-score">{friend ? `${friendXP(friend)} XP` : 'ADD'}</strong>
+              {friend ? (
+                <>
+                  <span className="cp2-rival-avatar">{initials(friend.displayName || friend.name)}</span>
+                  <span className="cp2-rival-main">
+                    <strong>{friend.displayName || friend.name || 'Friend'}</strong>
+                    <small>LV {Math.max(1, Number(friend.level) || 1)} · {Math.max(0, Number(friend.tasks) || 0)} tasks</small>
+                  </span>
+                  <strong className="cp2-rival-score">{friendXP(friend)} XP</strong>
+                </>
+              ) : null}
             </button>
           ))}
         </div>
@@ -119,9 +121,7 @@ export default function CompetitionPage({
           className="cp2-add-friend"
           onClick={openFriends}
           aria-label="Add another friend to this challenge. Up to three friends can join."
-        >
-          {friends.length >= 3 ? 'Challenge Full' : 'Add Friend'}
-        </button>
+        />
       </section>
 
       <section className="cp2-art cp2-today" aria-label="Today's competition progress">
@@ -135,7 +135,7 @@ export default function CompetitionPage({
       </section>
 
       <section className="cp2-art cp2-league" aria-label="Friends League">
-        <img src="/competition-v2/league-v2.svg" alt="" aria-hidden="true" />
+        <img src="/competition-v2/league-v3.svg" alt="" aria-hidden="true" />
         <div className="cp2-league-live">
           {leagueRows.map((row, index) => (
             <div className={`cp2-league-row${row.self ? ' is-self' : row.xp == null ? ' is-empty' : ''}`} key={`${row.name}-${index}`}>
@@ -152,7 +152,7 @@ export default function CompetitionPage({
         <button type="button" className="cp2-action cp2-start" onClick={() => { window.alert('Friend accounts are the next build step. Weekly challenges already support up to three friends.'); }} aria-label="Start a challenge" />
       </section>
 
-      <p className="cp2-note">Weekly challenges now support you plus up to three friends. Friend accounts and invitations are the next layer.</p>
+      <p className="cp2-note">Weekly challenges support you plus up to three friends. Friend accounts and invitations are the next layer.</p>
     </section>
   );
 }
