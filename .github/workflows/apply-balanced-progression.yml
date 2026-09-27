@@ -10,6 +10,7 @@ on:
       - src/competition.css
       - tests/competition.test.mjs
       - public/competition/**
+      - public/competition-v2/**
       - .github/workflows/apply-balanced-progression.yml
 
 permissions:
