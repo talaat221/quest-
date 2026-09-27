@@ -29,6 +29,15 @@ export async function createWeeklyChallenge(weekKey, friendIds) {
   return data;
 }
 
+export async function inviteWeeklyChallengeMember(challengeId, userId) {
+  if (!challengeId || !userId) throw new Error('Choose a friend.');
+  const { error } = await supabase.rpc('invite_quest_weekly_challenge_member', {
+    p_challenge_id: challengeId,
+    p_user_id: userId,
+  });
+  throwIf(error);
+}
+
 export async function respondWeeklyChallenge(challengeId, accept) {
   const { error } = await supabase.rpc('respond_quest_weekly_challenge', {
     p_challenge_id: challengeId,
