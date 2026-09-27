@@ -25,7 +25,7 @@ import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeadi
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 import EffortXP from "./EffortXP.jsx";
-import { recommendTaskXP, inferEffortForTask, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
+import { recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
 // HELPERS
@@ -2261,7 +2261,7 @@ function QuestCard({
               </select>
 
               <div className="qd-task-edit-actions">
-                <button type="button" onClick={saveTaskEdit} disabled={!!editDay && !isTimeInputValid(editHour)}>Save changes</button>
+                <button type="button" onClick={saveTaskEdit} disabled={!Number(editEstimatedMinutes || getLearnedEstimate(domain, editName)) || (!!editDay && !isTimeInputValid(editHour))}>Save changes</button>
                 <button type="button" className="qd-cancel" onClick={cancelTaskEdit}>Cancel</button>
               </div>
             </div>
@@ -3660,6 +3660,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         next.domains,
         next.anchors
       );
+      // Completed work keeps every XP already earned. Only unfinished legacy
+      // tasks are rounded onto the new 5/10/20/35/50 XP scale.
+      for (const domain of next.domains || []) {
+        for (const task of domain.tasks || []) standardizeLegacyTaskXP(task);
+      }
       return next;
     });
   }, [loaded, state?.settings?.progression?.initializedAt]);
