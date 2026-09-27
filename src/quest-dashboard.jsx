@@ -24,6 +24,8 @@ import { getTodayQuestItems } from "./today-quests.js";
 import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, MorePage } from "./HomeFinish";
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
+import EffortXP from "./EffortXP.jsx";
+import { recommendTaskXP, inferEffortForTask, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
 // HELPERS
@@ -2043,7 +2045,7 @@ function QuestCard({
   }, [showAdd, artLayout]);
 
   const [name, setName] = useState("");
-  const [xp, setXp] = useState(20);
+  const [effort, setEffort] = useState("normal");
   const [day, setDay] = useState("");
   const [hour, setHour] = useState("");
   const [estimatedMinutes, setEstimatedMinutes] = useState("");
@@ -2052,7 +2054,7 @@ function QuestCard({
 
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editName, setEditName] = useState("");
-  const [editXp, setEditXp] = useState(20);
+  const [editEffort, setEditEffort] = useState("normal");
   const [editDay, setEditDay] = useState("");
   const [editHour, setEditHour] = useState("");
   const [editEstimatedMinutes, setEditEstimatedMinutes] = useState("");
@@ -2071,17 +2073,18 @@ function QuestCard({
       estimatedMinutes === "" || estimatedMinutes === null
         ? learned
         : Math.max(1, Number(estimatedMinutes) || 1);
+    if (!Number(finalEstimate)) return;
 
     onAddTask({
       name: name.trim(),
-      xp,
+      effort,
       day,
       hour: day ? parseTimeInput(hour) : null,
       estimatedMinutes: finalEstimate,
       flexibility,
     });
     setName("");
-    setXp(20);
+    setEffort("normal");
     setDay("");
     setHour("");
     setEstimatedMinutes("");
@@ -2094,7 +2097,7 @@ function QuestCard({
     playSFX("click");
     setEditingTaskId(task.id);
     setEditName(task.name || "");
-    setEditXp(Number(task.xp) || 10);
+    setEditEffort(inferEffortForTask(task));
     setEditDay(task.day || "");
     setEditHour(task.day ? formatScheduleTime(task.hour) : "");
     setEditEstimatedMinutes(
@@ -2107,7 +2110,7 @@ function QuestCard({
   const cancelTaskEdit = () => {
     setEditingTaskId(null);
     setEditName("");
-    setEditXp(20);
+    setEditEffort("normal");
     setEditDay("");
     setEditHour("");
     setEditEstimatedMinutes("");
@@ -2119,16 +2122,18 @@ function QuestCard({
     if (!editingTaskId || !editName.trim() || (editDay && !isTimeInputValid(editHour))) return;
 
     const learned = getLearnedEstimate(domain, editName);
+    const finalEstimate =
+      editEstimatedMinutes === "" || editEstimatedMinutes === null
+        ? learned
+        : Math.max(1, Number(editEstimatedMinutes) || 1);
+    if (!Number(finalEstimate)) return;
 
     onUpdateTask(editingTaskId, {
       name: editName.trim(),
-      xp: Math.max(1, Number(editXp) || 1),
+      effort: editEffort,
       day: editDay || null,
       hour: editDay ? parseTimeInput(editHour) : null,
-      estimatedMinutes:
-        editEstimatedMinutes === "" || editEstimatedMinutes === null
-          ? learned
-          : Math.max(1, Number(editEstimatedMinutes) || 1),
+      estimatedMinutes: finalEstimate,
       flexibility: editFlexibility,
     });
 
@@ -2207,35 +2212,14 @@ function QuestCard({
                 }}
               />
 
-              <input
-                type="number"
-                min="1"
-                value={editXp}
-                aria-label="Task XP"
-                onChange={(e) => setEditXp(e.target.value)}
+              <EffortXP
+                estimatedMinutes={editEstimatedMinutes}
+                onEstimatedMinutesChange={(value) => { setEditEstimatedMinutes(value); setEditEstimateTouched(true); }}
+                effort={editEffort}
+                onEffortChange={setEditEffort}
+                learnedEstimate={getLearnedEstimate(domain, editName)}
+                learnedSamples={getTimingSampleCount(domain, editName)}
               />
-
-              <div className="qd-estimate-field" style={{ gridColumn: "1 / -1" }}>
-                <input
-                  type="number"
-                  min="1"
-                  step="5"
-                  value={editEstimatedMinutes}
-                  placeholder="Estimate"
-                  aria-label="Estimated minutes"
-                  onChange={(e) => {
-                    setEditEstimatedMinutes(e.target.value);
-                    setEditEstimateTouched(true);
-                  }}
-                />
-                <span className="qd-estimate-unit">estimated minutes</span>
-              </div>
-
-              {getLearnedEstimate(domain, editName) && (
-                <div className="qd-time-hint">
-                  Learned estimate: about {formatMinutes(getLearnedEstimate(domain, editName))} from {getTimingSampleCount(domain, editName)} previous {getTimingSampleCount(domain, editName) === 1 ? "run" : "runs"}. You can override it.
-                </div>
-              )}
 
               <div className="qd-task-date-edit">
                 <input
@@ -2370,37 +2354,14 @@ function QuestCard({
             onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
           />
 
-          <input
-            type="number"
-            placeholder="XP"
-            aria-label="Task XP"
-            value={xp}
-            min="1"
-            onChange={(e) => setXp(e.target.value)}
-            style={{ width: 60 }}
+          <EffortXP
+            estimatedMinutes={estimatedMinutes}
+            onEstimatedMinutesChange={(value) => { setEstimatedMinutes(value); setEstimateTouched(true); }}
+            effort={effort}
+            onEffortChange={setEffort}
+            learnedEstimate={learnedEstimate}
+            learnedSamples={learnedSamples}
           />
-
-          <div className="qd-estimate-field">
-            <input
-              type="number"
-              min="1"
-              step="5"
-              placeholder="Estimate"
-              value={estimatedMinutes}
-              aria-label="Estimated minutes"
-              onChange={(e) => {
-                setEstimatedMinutes(e.target.value);
-                setEstimateTouched(true);
-              }}
-            />
-            <span className="qd-estimate-unit">min estimate</span>
-          </div>
-
-          {learnedEstimate && (
-            <div className="qd-time-hint" style={{ width: "100%" }}>
-              Odyssey learned ~{formatMinutes(learnedEstimate)} for “{name.trim()}” in {domain.name} from {learnedSamples} previous {learnedSamples === 1 ? "run" : "runs"}.
-            </div>
-          )}
 
           <select
             aria-label="Task flexibility"
@@ -2419,7 +2380,7 @@ function QuestCard({
           <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
             Today
           </button>
-          <button type="button" onClick={submitTask} disabled={!!day && !isTimeInputValid(hour)}>Add</button>
+          <button type="button" onClick={submitTask} disabled={!Number(estimatedMinutes || learnedEstimate) || (!!day && !isTimeInputValid(hour))}>Add</button>
           <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
         </div>
       ) : !artLayout && (
@@ -3685,6 +3646,24 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     setLoaded(true);
   }
 
+  // Freeze all XP earned before this system as legacy progress exactly once.
+  // From that point onward new task completions are recorded in a separate
+  // immutable award ledger, so renaming/deleting tasks cannot rewrite history.
+  useEffect(() => {
+    if (!loaded || !state || state.settings?.progression?.initializedAt) return;
+    setState(previous => {
+      if (!previous || previous.settings?.progression?.initializedAt) return previous;
+      const next = clone(previous);
+      next.settings ||= {};
+      next.settings.progression = initializeProgression(
+        next.settings.progression,
+        next.domains,
+        next.anchors
+      );
+      return next;
+    });
+  }, [loaded, state?.settings?.progression?.initializedAt]);
+
   // ====================================================
   // AUTO SAVE
   // ====================================================
@@ -3850,6 +3829,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     return Math.max(completed, protectedXP, scaled);
   };
 
+  const creditedTaskXP = (task) => {
+    const award = state?.settings?.progression?.taskAwards?.[`${task.domainId}:${task.id}`];
+    return award ? Math.max(0, Number(award.creditedXp) || 0) : Math.max(0, Number(task.xp) || 0);
+  };
+
   const dayTaskXP = (ds) =>
     allTasks().reduce(
       (sum, task) =>
@@ -3858,7 +3842,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           task.done &&
           task.doneAt &&
           rewardTaskDay(task.doneAt, resetHour) === ds
-            ? Number(task.xp) || 0
+            ? creditedTaskXP(task)
             : 0
         ),
       0
@@ -3896,7 +3880,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       const completedThisWeek =
         !!task.done && !!completedOn && wDates.includes(completedOn);
 
-      return sum + (completedThisWeek ? Number(task.xp) || 0 : 0);
+      return sum + (completedThisWeek ? creditedTaskXP(task) : 0);
     }, 0);
 
   const weekTaskMax = () =>
@@ -4413,6 +4397,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     if (!task) return;
     if (task.done) {
       updateState(next => {
+        next.settings ||= {};
+        if (next.settings.progression?.initializedAt) {
+          next.settings.progression = removeTaskAward(next.settings.progression, domainId, taskId);
+        }
         const d = next.domains.find(item => item.id === domainId);
         undoTimedTask(d, d?.tasks.find(item => item.id === taskId));
       });
@@ -4422,8 +4410,17 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     const now = Date.now(), previewDomain = clone(domain);
     const summary = completeTimedTask(previewDomain, previewDomain.tasks.find(t => t.id === taskId), now);
     updateState(next => {
+      next.settings ||= {};
+      next.settings.progression = initializeProgression(
+        next.settings.progression, next.domains, next.anchors, now
+      );
       const d = next.domains.find(item => item.id === domainId);
-      completeTimedTask(d, d?.tasks.find(item => item.id === taskId), now);
+      const completedTask = d?.tasks.find(item => item.id === taskId);
+      completeTimedTask(d, completedTask, now);
+      const recorded = recordTaskAward(next.settings.progression, {
+        domainId, task: completedTask, completedAt: completedTask?.doneAt || now, resetHour
+      });
+      next.settings.progression = recorded.progression;
     });
     setCompletionSummary(summary);
     setClockNow(new Date(now));
@@ -4459,7 +4456,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     domainId,
     {
       name,
-      xp,
+      effort = "normal",
       day,
       hour,
       estimatedMinutes,
@@ -4478,13 +4475,17 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
       if (!domain) return;
 
+      const xpRecommendation = recommendTaskXP({ estimatedMinutes, effort });
+
       domain.tasks.push({
         id: taskId,
 
         name,
 
-        xp:
-          Number(xp) || 10,
+        xp: xpRecommendation.xp,
+        effort: xpRecommendation.effort,
+        effortTier: xpRecommendation.key,
+        xpSource: xpRecommendation.source,
 
         day:
           day || null,
@@ -4566,7 +4567,6 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       }
 
       task.name = changes.name;
-      task.xp = Math.max(1, Number(changes.xp) || 1);
       task.day = changes.day || null;
       task.hour =
         changes.hour === "" || changes.hour === null || changes.hour === undefined
@@ -4579,6 +4579,17 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ? null
           : Math.max(1, Math.round(Number(changes.estimatedMinutes) || 1));
       task.flexibility = changes.flexibility === "fixed" ? "fixed" : "flexible";
+      // Earned XP is historical. Only unfinished work can be repriced.
+      if (!task.done) {
+        const xpRecommendation = recommendTaskXP({
+          estimatedMinutes: task.estimatedMinutes,
+          effort: changes.effort || inferEffortForTask(task),
+        });
+        task.xp = xpRecommendation.xp;
+        task.effort = xpRecommendation.effort;
+        task.effortTier = xpRecommendation.key;
+        task.xpSource = xpRecommendation.source;
+      }
     });
 
     playSFX("add");
@@ -5002,23 +5013,17 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       : today.getHours() < 18
       ? "GOOD AFTERNOON"
       : "GOOD EVENING";
-  const lifetimeXP =
-    state.domains.reduce(
-      (total, domain) =>
-        total +
-        domain.tasks.reduce(
-          (taskTotal, task) => taskTotal + (task.done ? Number(task.xp) || 0 : 0),
-          0
-        ),
-      0
-    ) +
-    state.anchors.reduce(
-      (total, anchor) =>
-        total +
-        Object.values(anchor.history || {}).filter(Boolean).length *
-          (Number(anchor.xpPerDay) || 0),
-      0
-    );
+  const progressionState = state.settings?.progression?.initializedAt
+    ? state.settings.progression
+    : initializeProgression(state.settings?.progression, state.domains, state.anchors);
+  const progression = progressionTotals(progressionState);
+  const lifetimeXP = progression.earnedXP;
+  const level = progression.level;
+  const levelXP = progression.currentXP;
+  const levelXPNeeded = progression.requiredXP;
+  const thisWeekLevel = currentWeekProgress(progressionState, weekKeyStr);
+  const thisWeekLevelXP = thisWeekLevel.taskXP + thisWeekLevel.bonusXP;
+
   const questSummaryStats = {
     activeQuests: state.domains.length,
     doneThisMonth: allTasks().filter(
@@ -5030,9 +5035,6 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     remaining: allTasks().filter((task) => !task.done).length,
     totalXP: lifetimeXP,
   };
-
-  const level = Math.max(1, Math.floor(lifetimeXP / 500) + 1);
-  const levelXP = lifetimeXP % 500;
   const recordedJourneyDates = [
     ...state.anchors.flatMap((anchor) =>
       Object.entries(anchor.history || {})
@@ -5329,8 +5331,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ) : showStudyPage ? (
             <StudyRoom domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
               onCreate={({ domainId, name, startNow, pomodoro }) => addTask(domainId, {
-                name, xp: 10, day: todayStr, hour: null,
-                estimatedMinutes: getLearnedEstimate(state.domains.find(domain => domain.id === domainId), name), flexibility: "flexible",
+                name, effort: "normal", day: todayStr, hour: null,
+                estimatedMinutes: getLearnedEstimate(state.domains.find(domain => domain.id === domainId), name) || 20, flexibility: "flexible",
               }, startNow, pomodoro)} />
           ) : showGoalsPage ? (
             <GoalsPage domains={state.domains} todayStr={todayStr} resetHour={resetHour}
@@ -5371,12 +5373,16 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               </div>
             </div>
 
-            <div className="qd-level-card" aria-label={`Level ${level}, ${levelXP} of 500 experience points`}>
+            <div className="qd-level-card" aria-label={`Level ${level}, ${levelXP} of ${levelXPNeeded} experience points`}>
               <div className="qd-level-badge">LV {level}</div>
               <div className="qd-level-track">
-                <div className="qd-level-fill" style={{ width: `${Math.min(100, (levelXP / 500) * 100)}%` }} />
+                <div className="qd-level-fill" style={{ width: `${Math.min(100, levelXPNeeded ? (levelXP / levelXPNeeded) * 100 : 0)}%` }} />
               </div>
-              <div className="qd-level-value">{levelXP} / 500 XP</div>
+              <div className="qd-level-value">{levelXP} / {levelXPNeeded} XP</div>
+              <div className="qd-level-week-note">
+                This week +{thisWeekLevelXP} XP · {thisWeekLevel.tasks} eligible tasks
+                {thisWeekLevel.bonusXP > 0 ? ` · +${thisWeekLevel.bonusXP} consistency` : ""}
+              </div>
             </div>
           </header>
 
