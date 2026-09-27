@@ -53,6 +53,12 @@ function friendXP(friend) {
   return Math.max(0, Math.round(Number(raw) || 0));
 }
 
+function friendTasks(friend) {
+  const raw = friend?.tasks;
+  if (raw == null) return null;
+  return Math.max(0, Math.round(Number(raw) || 0));
+}
+
 export default function CompetitionPage({
   progression,
   weekKey,
@@ -152,12 +158,12 @@ export default function CompetitionPage({
     .sort((a, b) => (friendXP(b) ?? -1) - (friendXP(a) ?? -1))
     .slice(0, 3), [liveFriends]);
   const leagueRows = [
-    { name: displayName, xp: stats.scoreXP, self: true },
+    { name: displayName, xp: stats.scoreXP, tasks: stats.eligibleTasks, self: true },
     ...Array.from({ length: 3 }, (_, index) => {
       const friend = leagueFriends[index];
       return friend
-        ? { name: friend.displayName || friend.name || 'Friend', xp: friendXP(friend), self: false }
-        : { name: 'Invite a friend', xp: null, self: false };
+        ? { name: friend.displayName || friend.name || 'Friend', xp: friendXP(friend), tasks: friendTasks(friend), self: false }
+        : { name: 'Invite a friend', xp: null, tasks: null, self: false };
     }),
   ];
 
@@ -241,7 +247,7 @@ export default function CompetitionPage({
       {challengeMessage && <p className="cp2-challenge-status" role="status">{challengeMessage}</p>}
 
       <section className="cp2-art cp2-challenge" aria-label="Weekly group challenge">
-        <img src="/competition-v2/challenge-v4.svg" alt="" aria-hidden="true" />
+        <img src="/competition-v2/challenge-v5.svg" alt="" aria-hidden="true" />
 
         <span className="cp2-week-left">{daysLeft === 0 ? 'LAST DAY' : `${daysLeft} DAYS LEFT`}</span>
 
@@ -260,6 +266,7 @@ export default function CompetitionPage({
         <div className="cp2-rivals" aria-label="Challenge rivals">
           {challengeFriends.map((friend, index) => {
             const score = friendXP(friend);
+            const tasks = friendTasks(friend);
             const pending = friend?.status === 'pending';
             return (
               <button
@@ -268,7 +275,7 @@ export default function CompetitionPage({
                 className={`cp2-rival-row${friend ? '' : ' is-empty'}${pending ? ' is-pending' : ''}`}
                 onClick={!friend && isCreator ? openAddPicker : undefined}
                 aria-label={friend
-                  ? `${friend.displayName || friend.name || 'Friend'}, ${pending ? 'invited' : score == null ? 'stats not synced yet' : `${score} XP`}`
+                  ? `${friend.displayName || friend.name || 'Friend'}, ${pending ? 'invited' : `${score ?? 0} XP and ${tasks ?? 0} tasks finished`}`
                   : isCreator ? `Add friend ${index + 1} to this challenge` : 'Empty challenge slot'}
               >
                 {friend ? (
@@ -276,11 +283,16 @@ export default function CompetitionPage({
                     <span className="cp2-rival-avatar">{initials(friend.displayName || friend.name)}</span>
                     <span className="cp2-rival-main">
                       <strong>{friend.displayName || friend.name || 'Friend'}</strong>
-                      <small>{pending ? 'Invitation pending' : friend.tasks == null ? `LV ${Math.max(1, Number(friend.level) || 1)} · waiting for stats` : `LV ${Math.max(1, Number(friend.level) || 1)} · ${friend.tasks} tasks`}</small>
+                      <small>{pending ? 'Invitation pending' : `LV ${Math.max(1, Number(friend.level) || 1)}`}</small>
                     </span>
                     <strong className="cp2-rival-score">{pending ? 'INVITED' : score == null ? '— XP' : `${score} XP`}</strong>
+                    {!pending && <strong className="cp2-rival-tasks">{tasks == null ? '— TASKS' : `${tasks} ${tasks === 1 ? 'TASK' : 'TASKS'}`}</strong>}
                   </>
-                ) : null}
+                ) : isCreator ? (
+                  <img className="cp2-rival-empty-art" src="/competition-v2/rival-empty-v1.svg" alt="" aria-hidden="true" />
+                ) : (
+                  <span className="cp2-rival-open">Open slot</span>
+                )}
               </button>
             );
           })}
@@ -309,7 +321,7 @@ export default function CompetitionPage({
         <div className="cp2-league-live">
           {leagueRows.map((row, index) => (
             <div className={`cp2-league-row${row.self ? ' is-self' : row.xp == null ? ' is-empty' : ''}`} key={`${row.name}-${index}`}>
-              <span>{row.name}</span>
+              <span><b>{row.name}</b><small>{row.tasks == null ? 'waiting for stats' : `${row.tasks} ${row.tasks === 1 ? 'task' : 'tasks'}`}</small></span>
               <strong>{row.xp == null ? '—' : `${row.xp} XP`}</strong>
             </div>
           ))}
@@ -328,7 +340,7 @@ export default function CompetitionPage({
       </section>
 
       <div className="cp2-note">
-        <span>{currentChallenge ? 'Weekly challenge active. Scores update from each traveler’s balanced Quest XP.' : 'Choose up to three friends and start this week’s challenge.'}</span>
+        <span>{currentChallenge ? 'Weekly challenge active. Scores update from each traveler’s balanced Quest XP and finished tasks.' : 'Choose up to three friends and start this week’s challenge.'}</span>
         {currentChallenge && isCreator && (
           <button type="button" disabled={challengeBusy} onClick={() => {
             if (window.confirm('End this weekly challenge for everyone?')) {
