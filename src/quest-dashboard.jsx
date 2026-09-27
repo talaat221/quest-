@@ -26,6 +26,7 @@ import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 import EffortXP from "./EffortXP.jsx";
 import CompetitionPage from "./CompetitionPage.jsx";
+import FriendsPage from "./FriendsPage.jsx";
 import { recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
@@ -3430,9 +3431,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const showRewardsPage = page === "rewards";
   const showStudyPage = page === "study";
   const showCompetitionPage = page === "competition";
+  const showFriendsPage = page === "friends";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards", "competition"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards", "competition", "friends"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const rewardTriggerHandled = useRef(0);
@@ -5354,9 +5356,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <GoalsPage domains={state.domains} todayStr={todayStr} resetHour={resetHour}
               onAdd={questId => setGoalEditor({ questId })} onEdit={(questId, goal) => setGoalEditor({ questId, goal })}
               onMilestone={toggleGoalMilestone} onProgress={changeGoalProgress} />
+          ) : showFriendsPage ? (
+            <FriendsPage user={session.user} />
           ) : showCompetitionPage ? (
             <CompetitionPage progression={progressionState} weekKey={weekKeyStr} todayKey={todayStr}
-              displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} />
+              displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} userId={session.user.id} />
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : showRewardsPage ? (

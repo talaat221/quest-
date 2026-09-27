@@ -80,7 +80,7 @@ function NavIcon({ type }) {
 const tabs = [["home", "Home"], ["quests", "Quests"], ["anchors", "Anchors"], ["stats", "Stats"], ["more", "More"]];
 
 export function BottomNavigation({ page }) {
-  const active = page === "today-quests" || page === "study" ? "quests" : page === "goals" || page === "rewards" || page === "competition" ? "more" : page;
+  const active = page === "today-quests" || page === "study" ? "quests" : page === "goals" || page === "rewards" || page === "competition" || page === "friends" ? "more" : page;
   return (
     <div className="qd-bottom-dock">
       <nav className="qd-bottom-navigation" aria-label="Main navigation">
@@ -138,6 +138,7 @@ export function MorePage({ resetHour, onResetHour, onResetAccount, notifications
       <a className="qd-home-page-link gg-more-link" href="#goals"><img src="/garden-scene/v1/12-crop-2-mature.webp" alt="" /><span><strong>Goals Garden</strong><small>Grow your weekly, monthly, and yearly ambitions.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link sr-more-link" href="#study"><img src="/study-room/boy-idle-v2.webp" alt="" /><span><strong>Study with me</strong><small>A cozy room, a quiet companion, and time for your tasks.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link cp-more-link" href="#competition"><img src="/competition/competition-icon-v1.svg" alt="" /><span><strong>Competition</strong><small>Compare balanced XP and challenge friends week by week.</small></span><span aria-hidden="true">›</span></a>
+      <a className="qd-home-page-link gg-more-link cp-more-link" href="#friends"><img src="/competition/competition-icon-v1.svg" alt="" /><span><strong>Friends</strong><small>Find Quest users, accept requests, and build your crew.</small></span><span aria-hidden="true">›</span></a>
       <NotificationSettings notifications={notifications} />
       <section className="qd-home-settings-card" aria-labelledby="qd-more-day-reset">
         <h2 id="qd-more-day-reset">Day reset time</h2>
