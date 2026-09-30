@@ -14,9 +14,15 @@ const recoveryRedirectUrl = () => {
   return url.toString();
 };
 
+const isEmailRateLimitError = (error) =>
+  /email rate limit exceeded|rate limit.*email|email.*rate limit/i.test(error?.message || "");
+
 const friendlyAuthError = (error) => {
   const message = error?.message || "Something went wrong. Please try again.";
   if (/invalid login credentials/i.test(message)) return "Email or password is incorrect.";
+  if (isEmailRateLimitError(error)) {
+    return "Quest’s email service is temporarily at its sending limit. Please wait a little and try again. Your account is safe.";
+  }
   return message;
 };
 
@@ -26,6 +32,7 @@ export default function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isResetRequest, setIsResetRequest] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState("error");
   const [loading, setLoading] = useState(false);
@@ -66,6 +73,14 @@ export default function Login({ onLogin }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (resetCooldown <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setResetCooldown((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resetCooldown]);
+
   const showError = async (text) => {
     setMessageKind("error");
     setMessage(text);
@@ -82,15 +97,23 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    if (resetCooldown > 0) {
+      setMessageKind("info");
+      setMessage(`Please wait ${resetCooldown}s before requesting another recovery email.`);
+      return;
+    }
+
     const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: recoveryRedirectUrl(),
     });
 
     if (error) {
+      if (isEmailRateLimitError(error)) setResetCooldown(60);
       await showError(friendlyAuthError(error));
       return;
     }
 
+    setResetCooldown(60);
     setMessageKind("info");
     setMessage("If that email belongs to a Quest account, a recovery link is on its way. Check your inbox and spam folder.");
   }
@@ -163,6 +186,10 @@ export default function Login({ onLogin }) {
     : isSignUp
       ? "Plant the first seed. Your little world starts here."
       : "Small steps, a brighter tomorrow.";
+
+  const resetButtonLabel = resetCooldown > 0
+    ? `TRY AGAIN IN ${resetCooldown}s`
+    : "SEND RESET LINK";
 
   return (
     <main className={`pixel-login ${feedback === "success" ? "is-leaving" : ""}`}>
@@ -249,17 +276,21 @@ export default function Login({ onLogin }) {
             </p>
           )}
 
-          <button className="login-primary" type="submit" disabled={loading}>
+          <button
+            className="login-primary"
+            type="submit"
+            disabled={loading || (isResetRequest && resetCooldown > 0)}
+          >
             <span>
               {loading
                 ? "LOADING..."
                 : isResetRequest
-                  ? "SEND RESET LINK"
+                  ? resetButtonLabel
                   : isSignUp
                     ? "CREATE FARM"
                     : "LOG IN"}
             </span>
-            {!loading && <b aria-hidden="true">›</b>}
+            {!loading && !(isResetRequest && resetCooldown > 0) && <b aria-hidden="true">›</b>}
           </button>
 
           {isResetRequest ? (
