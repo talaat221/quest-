@@ -106,7 +106,6 @@ export function useQuestNotifications({ state, userId }) {
           page: '#competition',
         });
       }
-      competitionCursor.current = Math.max(competitionCursor.current, Date.now() - 1000);
     };
     const pushed = event => {
       if (event.data?.type !== 'QUEST_REMINDER' || event.data?.payload?.data?.userId !== userId) return;
