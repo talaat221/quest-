@@ -6,15 +6,19 @@ import {
   publishCompetitionStats,
 } from './friends.js';
 import {
+  MAX_CHALLENGE_MEMBERS,
+  MAX_CHALLENGE_RIVALS,
   cancelWeeklyChallenge,
   challengeMemberToFriend,
   createWeeklyChallenge,
-  inviteWeeklyChallengeMember,
+  inviteWeeklyChallengeMembers,
+  leaveWeeklyChallenge,
   loadWeeklyChallenge,
   respondWeeklyChallenge,
 } from './challenges.js';
 import './competition.css';
 
+const WEEKLY_METER_TARGET = 300;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function formatFocus(minutes = 0) {
@@ -54,9 +58,19 @@ function friendXP(friend) {
 }
 
 function friendTasks(friend) {
-  const raw = friend?.tasks;
+  const raw = friend?.tasks ?? friend?.eligibleTasks;
   if (raw == null) return null;
   return Math.max(0, Math.round(Number(raw) || 0));
+}
+
+function sortCompetitors(entries = []) {
+  return [...entries].sort((a, b) => {
+    const xpDiff = (friendXP(b) ?? -1) - (friendXP(a) ?? -1);
+    if (xpDiff) return xpDiff;
+    const taskDiff = (friendTasks(b) ?? -1) - (friendTasks(a) ?? -1);
+    if (taskDiff) return taskDiff;
+    return String(a?.displayName || a?.name || '').localeCompare(String(b?.displayName || b?.name || ''));
+  });
 }
 
 export default function CompetitionPage({
@@ -80,8 +94,7 @@ export default function CompetitionPage({
 
   const focusLabel = formatFocus(focusMinutes);
   const daysLeft = daysLeftInWeek(weekKey, todayKey);
-  const weeklyMeterTarget = Math.max(300, Math.ceil(Math.max(1, stats.scoreXP) / 100) * 100);
-  const weeklyPct = clamp((stats.scoreXP / weeklyMeterTarget) * 100, 0, 100);
+  const weeklyPct = clamp((stats.scoreXP / WEEKLY_METER_TARGET) * 100, 0, 100);
   const todayXPPct = clamp((stats.todayXP / 100) * 100, 0, 100);
   const todayTaskPct = clamp((stats.todayTasks / 5) * 100, 0, 100);
   const focusPct = clamp((focusMinutes / 120) * 100, 0, 100);
@@ -145,27 +158,59 @@ export default function CompetitionPage({
 
   const currentChallenge = challengeHub.current;
   const currentMembers = Array.isArray(currentChallenge?.members) ? currentChallenge.members : [];
-  const currentRivals = currentMembers
-    .filter(member => member.userId !== userId && ['accepted', 'pending'].includes(member.status))
-    .map(challengeMemberToFriend)
-    .filter(Boolean);
-  const challengeFriends = Array.from({ length: 3 }, (_, index) => currentRivals[index] || null);
   const isCreator = !!currentChallenge && currentChallenge.creatorId === userId;
+  const activeMemberCount = currentMembers.filter(member => ['accepted', 'pending'].includes(member.status)).length;
+  const acceptedCount = currentMembers.filter(member => member.status === 'accepted').length;
+  const pendingCount = currentMembers.filter(member => member.status === 'pending').length;
+  const remainingSlots = Math.max(0, MAX_CHALLENGE_MEMBERS - activeMemberCount);
   const existingMemberIds = new Set(currentMembers.map(member => member.userId));
   const availableFriends = liveFriends.filter(friend => !existingMemberIds.has(friend.id));
 
-  const leagueFriends = useMemo(() => [...liveFriends]
-    .sort((a, b) => (friendXP(b) ?? -1) - (friendXP(a) ?? -1))
-    .slice(0, 3), [liveFriends]);
-  const leagueRows = [
-    { name: displayName, xp: stats.scoreXP, tasks: stats.eligibleTasks, self: true },
-    ...Array.from({ length: 3 }, (_, index) => {
-      const friend = leagueFriends[index];
-      return friend
-        ? { name: friend.displayName || friend.name || 'Friend', xp: friendXP(friend), tasks: friendTasks(friend), self: false }
-        : { name: 'Invite a friend', xp: null, tasks: null, self: false };
-    }),
-  ];
+  const acceptedRivals = sortCompetitors(currentMembers
+    .filter(member => member.userId !== userId && member.status === 'accepted')
+    .map(challengeMemberToFriend)
+    .filter(Boolean));
+  const pendingRivals = currentMembers
+    .filter(member => member.userId !== userId && member.status === 'pending')
+    .map(challengeMemberToFriend)
+    .filter(Boolean);
+  const featuredRivals = [...acceptedRivals, ...pendingRivals].slice(0, 3);
+  const challengeFriends = Array.from({ length: 3 }, (_, index) => featuredRivals[index] || null);
+
+  const challengeLeaderboard = useMemo(() => sortCompetitors(
+    currentMembers
+      .filter(member => member.status === 'accepted')
+      .map(member => ({
+        ...challengeMemberToFriend(member),
+        self: member.userId === userId,
+      }))
+      .filter(Boolean)
+  ).map((member, index) => ({ ...member, rank: index + 1 })), [currentMembers, userId]);
+
+  const leagueRows = useMemo(() => {
+    const ranked = sortCompetitors([
+      { id: userId, displayName, scoreXP: stats.scoreXP, tasks: stats.eligibleTasks, self: true },
+      ...liveFriends.map(friend => ({ ...friend, self: false })),
+    ]).map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+      name: entry.displayName || entry.name || 'Friend',
+      xp: friendXP(entry),
+      tasks: friendTasks(entry),
+    }));
+
+    const self = ranked.find(row => row.self);
+    let visible = ranked.slice(0, 4);
+    if (self && !visible.some(row => row.self)) visible = [...ranked.slice(0, 3), self];
+
+    return Array.from({ length: 4 }, (_, index) => visible[index] || {
+      rank: null,
+      name: 'Invite a friend',
+      xp: null,
+      tasks: null,
+      self: false,
+    });
+  }, [liveFriends, displayName, stats.scoreXP, stats.eligibleTasks, userId]);
 
   const openFriends = () => {
     window.location.hash = 'friends';
@@ -189,10 +234,11 @@ export default function CompetitionPage({
     }
   };
 
+  const selectionLimit = currentChallenge ? remainingSlots : MAX_CHALLENGE_RIVALS;
   const toggleSelected = friendId => {
     setSelectedIds(current => {
       if (current.includes(friendId)) return current.filter(id => id !== friendId);
-      if (current.length >= 3) return current;
+      if (current.length >= selectionLimit) return current;
       return [...current, friendId];
     });
   };
@@ -205,6 +251,10 @@ export default function CompetitionPage({
   };
 
   const openAddPicker = () => {
+    if (!remainingSlots) {
+      setChallengeMessage('This competition already has 20 travelers.');
+      return;
+    }
     if (!availableFriends.length) return openFriends();
     setSelectedIds([]);
     setChallengeError('');
@@ -216,10 +266,19 @@ export default function CompetitionPage({
     'Challenge invitations sent.'
   );
 
-  const inviteOne = friendId => runChallenge(
-    () => inviteWeeklyChallengeMember(currentChallenge.id, friendId),
-    'Friend invited to the challenge.'
+  const inviteSelected = () => runChallenge(
+    () => inviteWeeklyChallengeMembers(currentChallenge.id, selectedIds),
+    `${selectedIds.length} challenge ${selectedIds.length === 1 ? 'invitation' : 'invitations'} sent.`
   );
+
+  const leaveChallenge = () => {
+    if (!currentChallenge) return;
+    const message = isCreator
+      ? 'Leave this competition? If another traveler has joined, leadership will pass to them. If you are the only accepted traveler, the challenge will end.'
+      : 'Leave this competition? Your score will be removed from this challenge, but your Quest XP will stay untouched.';
+    if (!window.confirm(message)) return;
+    void runChallenge(() => leaveWeeklyChallenge(currentChallenge.id), 'You left the competition.');
+  };
 
   return (
     <section className="cp2-page" aria-labelledby="cp2-title">
@@ -233,7 +292,10 @@ export default function CompetitionPage({
         <section className="cp2-invites" aria-label="Challenge invitations">
           {challengeHub.invites.map(invite => (
             <div className="cp2-invite" key={invite.id}>
-              <span><strong>{invite.creatorDisplayName}</strong><small>@{invite.creatorUsername} invited you to this week's challenge.</small></span>
+              <span>
+                <strong>{invite.creatorDisplayName}</strong>
+                <small>@{invite.creatorUsername} invited you to this week's challenge · {invite.memberCount || 1}/{invite.maxMembers || MAX_CHALLENGE_MEMBERS} travelers</small>
+              </span>
               <div>
                 <button type="button" disabled={challengeBusy} onClick={() => runChallenge(() => respondWeeklyChallenge(invite.id, true), 'Challenge joined.')}>Accept</button>
                 <button type="button" disabled={challengeBusy} onClick={() => runChallenge(() => respondWeeklyChallenge(invite.id, false), 'Challenge declined.')}>Decline</button>
@@ -260,10 +322,10 @@ export default function CompetitionPage({
         <strong className="cp2-stat-value cp2-stat-tasks">{stats.eligibleTasks}</strong>
         <strong className="cp2-stat-value cp2-stat-focus">{focusLabel}</strong>
 
-        <div className="cp2-week-progress-label">{stats.scoreXP} / {weeklyMeterTarget}</div>
+        <div className="cp2-week-progress-label">{stats.scoreXP} / {WEEKLY_METER_TARGET}</div>
         <div className="cp2-week-progress-fill" style={{ width: `${weeklyPct * 0.291}%` }} />
 
-        <div className="cp2-rivals" aria-label="Challenge rivals">
+        <div className="cp2-rivals" aria-label="Leading challenge rivals">
           {challengeFriends.map((friend, index) => {
             const score = friendXP(friend);
             const tasks = friendTasks(friend);
@@ -273,10 +335,10 @@ export default function CompetitionPage({
                 type="button"
                 key={friend?.id || `empty-${index}`}
                 className={`cp2-rival-row${friend ? '' : ' is-empty'}${pending ? ' is-pending' : ''}`}
-                onClick={!friend && isCreator ? openAddPicker : undefined}
+                onClick={!friend && isCreator && remainingSlots ? openAddPicker : undefined}
                 aria-label={friend
                   ? `${friend.displayName || friend.name || 'Friend'}, ${pending ? 'invited' : `${score ?? 0} XP and ${tasks ?? 0} tasks finished`}`
-                  : isCreator ? `Add friend ${index + 1} to this challenge` : 'Empty challenge slot'}
+                  : isCreator && remainingSlots ? 'Add travelers to this challenge' : 'Empty challenge slot'}
               >
                 {friend ? (
                   <>
@@ -288,7 +350,7 @@ export default function CompetitionPage({
                     <strong className="cp2-rival-score">{pending ? 'INVITED' : score == null ? '— XP' : `${score} XP`}</strong>
                     {!pending && <strong className="cp2-rival-tasks">{tasks == null ? '— TASKS' : `${tasks} ${tasks === 1 ? 'TASK' : 'TASKS'}`}</strong>}
                   </>
-                ) : isCreator ? (
+                ) : isCreator && remainingSlots ? (
                   <img className="cp2-rival-empty-art" src="/competition-v2/rival-empty-v1.svg" alt="" aria-hidden="true" />
                 ) : (
                   <span className="cp2-rival-open">Open slot</span>
@@ -301,10 +363,52 @@ export default function CompetitionPage({
         <button
           type="button"
           className="cp2-add-friend"
-          onClick={currentChallenge && isCreator && currentRivals.length < 3 ? openAddPicker : currentChallenge ? undefined : openFriends}
-          aria-label={currentChallenge ? (isCreator ? 'Add another friend to this challenge' : 'Challenge is active') : 'Find friends'}
+          onClick={currentChallenge && isCreator && remainingSlots ? openAddPicker : currentChallenge ? undefined : openFriends}
+          aria-label={currentChallenge ? (isCreator && remainingSlots ? 'Add travelers to this challenge' : 'Challenge is active') : 'Find friends'}
         />
       </section>
+
+      {currentChallenge && (
+        <section className="cp2-roster" aria-labelledby="cp2-roster-title">
+          <div className="cp2-roster-head">
+            <div>
+              <small>WEEKLY CREW</small>
+              <h2 id="cp2-roster-title">Challenge leaderboard</h2>
+            </div>
+            <span>{acceptedCount} joined{pendingCount ? ` · ${pendingCount} invited` : ''} · {MAX_CHALLENGE_MEMBERS} max</span>
+          </div>
+
+          <div className="cp2-roster-list">
+            {challengeLeaderboard.map(member => {
+              const xp = friendXP(member) ?? 0;
+              const tasks = friendTasks(member) ?? 0;
+              return (
+                <div className={`cp2-roster-row${member.self ? ' is-self' : ''}`} key={member.id}>
+                  <strong className="cp2-roster-rank">#{member.rank}</strong>
+                  <span className="cp2-roster-avatar">{initials(member.displayName)}</span>
+                  <span className="cp2-roster-person">
+                    <b>{member.displayName}{member.self ? ' · YOU' : ''}{member.isCreator ? ' · CAPTAIN' : ''}</b>
+                    <small>{tasks} {tasks === 1 ? 'task' : 'tasks'} completed</small>
+                  </span>
+                  <strong className="cp2-roster-xp">{xp} XP</strong>
+                </div>
+              );
+            })}
+            {pendingRivals.map(member => (
+              <div className="cp2-roster-row is-pending" key={`pending-${member.id}`}>
+                <strong className="cp2-roster-rank">—</strong>
+                <span className="cp2-roster-avatar">{initials(member.displayName)}</span>
+                <span className="cp2-roster-person"><b>{member.displayName}</b><small>Invitation pending</small></span>
+                <strong className="cp2-roster-xp">INVITED</strong>
+              </div>
+            ))}
+          </div>
+
+          {isCreator && remainingSlots > 0 && (
+            <button type="button" className="cp2-roster-add" onClick={openAddPicker}>+ Add travelers ({remainingSlots} slots left)</button>
+          )}
+        </section>
+      )}
 
       <section className="cp2-art cp2-today" aria-label="Today's competition progress">
         <img src="/competition-v2/today-v2.svg" alt="" aria-hidden="true" />
@@ -320,8 +424,11 @@ export default function CompetitionPage({
         <img src="/competition-v2/league-v3.svg" alt="" aria-hidden="true" />
         <div className="cp2-league-live">
           {leagueRows.map((row, index) => (
-            <div className={`cp2-league-row${row.self ? ' is-self' : row.xp == null ? ' is-empty' : ''}`} key={`${row.name}-${index}`}>
-              <span><b>{row.name}</b><small>{row.tasks == null ? 'waiting for stats' : `${row.tasks} ${row.tasks === 1 ? 'task' : 'tasks'}`}</small></span>
+            <div className={`cp2-league-row${row.self ? ' is-self' : row.xp == null ? ' is-empty' : ''}`} key={`${row.id || row.name}-${index}`}>
+              <span>
+                <b>{row.name}</b>
+                <small>{row.rank ? `#${row.rank} · ` : ''}{row.tasks == null ? 'waiting for stats' : `${row.tasks} ${row.tasks === 1 ? 'task' : 'tasks'}`}</small>
+              </span>
               <strong>{row.xp == null ? '—' : `${row.xp} XP`}</strong>
             </div>
           ))}
@@ -333,20 +440,27 @@ export default function CompetitionPage({
         <button type="button" className="cp2-action cp2-find" onClick={openFriends} aria-label="Find friends" />
         <button
           type="button"
-          className="cp2-action cp2-start"
+          className={`cp2-action cp2-start${currentChallenge ? ' is-active' : ''}`}
           onClick={currentChallenge ? undefined : openStartPicker}
           aria-label={currentChallenge ? 'Weekly challenge active' : 'Start a weekly challenge'}
         />
       </section>
 
       <div className="cp2-note">
-        <span>{currentChallenge ? 'Weekly challenge active. Scores update from each traveler’s balanced Quest XP and finished tasks.' : 'Choose up to three friends and start this week’s challenge.'}</span>
-        {currentChallenge && isCreator && (
-          <button type="button" disabled={challengeBusy} onClick={() => {
-            if (window.confirm('End this weekly challenge for everyone?')) {
-              void runChallenge(() => cancelWeeklyChallenge(currentChallenge.id), 'Challenge ended.');
-            }
-          }}>End challenge</button>
+        <span>{currentChallenge
+          ? `Weekly challenge active with ${acceptedCount} traveler${acceptedCount === 1 ? '' : 's'}. Scores update from balanced Quest XP and finished tasks.`
+          : `Choose up to ${MAX_CHALLENGE_RIVALS} friends and start this week’s challenge.`}</span>
+        {currentChallenge && (
+          <div className="cp2-note-actions">
+            <button type="button" className="cp2-leave" disabled={challengeBusy} onClick={leaveChallenge}>Leave competition</button>
+            {isCreator && (
+              <button type="button" className="cp2-end" disabled={challengeBusy} onClick={() => {
+                if (window.confirm('End this weekly challenge for everyone?')) {
+                  void runChallenge(() => cancelWeeklyChallenge(currentChallenge.id), 'Challenge ended.');
+                }
+              }}>End for everyone</button>
+            )}
+          </div>
         )}
       </div>
 
@@ -357,8 +471,10 @@ export default function CompetitionPage({
           <section className="cp2-picker" role="dialog" aria-modal="true" aria-labelledby="cp2-picker-title">
             <button type="button" className="cp2-picker-close" aria-label="Close" onClick={() => setShowPicker(false)}>×</button>
             <p>SAIL TOGETHER</p>
-            <h2 id="cp2-picker-title">{currentChallenge ? 'Add a rival' : 'Start Weekly Challenge'}</h2>
-            <span>{currentChallenge ? 'Invite one more friend to the current week.' : 'Choose 1–3 friends. The challenge runs through Sunday.'}</span>
+            <h2 id="cp2-picker-title">{currentChallenge ? 'Add travelers' : 'Start Weekly Challenge'}</h2>
+            <span>{currentChallenge
+              ? `Choose up to ${remainingSlots} more ${remainingSlots === 1 ? 'traveler' : 'travelers'} for this week.`
+              : `Choose 1–${MAX_CHALLENGE_RIVALS} friends. The challenge runs through Sunday.`}</span>
 
             <div className="cp2-picker-list">
               {(currentChallenge ? availableFriends : liveFriends).map(friend => {
@@ -369,11 +485,11 @@ export default function CompetitionPage({
                     className={`cp2-picker-friend${selected ? ' is-selected' : ''}`}
                     key={friend.id}
                     disabled={challengeBusy}
-                    onClick={() => currentChallenge ? inviteOne(friend.id) : toggleSelected(friend.id)}
+                    onClick={() => toggleSelected(friend.id)}
                   >
                     <b>{initials(friend.displayName)}</b>
                     <span><strong>{friend.displayName}</strong><small>@{friend.username || 'traveler'}</small></span>
-                    <em>{currentChallenge ? 'Invite' : selected ? 'Selected' : 'Choose'}</em>
+                    <em>{selected ? 'Selected' : 'Choose'}</em>
                   </button>
                 );
               })}
@@ -382,11 +498,18 @@ export default function CompetitionPage({
               )}
             </div>
 
-            {!currentChallenge && (
-              <button type="button" className="cp2-picker-start" disabled={challengeBusy || !selectedIds.length} onClick={createChallenge}>
-                {challengeBusy ? 'Starting…' : `Start with ${selectedIds.length || 0} ${selectedIds.length === 1 ? 'friend' : 'friends'}`}
-              </button>
-            )}
+            <button
+              type="button"
+              className="cp2-picker-start"
+              disabled={challengeBusy || !selectedIds.length}
+              onClick={currentChallenge ? inviteSelected : createChallenge}
+            >
+              {challengeBusy
+                ? (currentChallenge ? 'Inviting…' : 'Starting…')
+                : currentChallenge
+                  ? `Invite ${selectedIds.length || 0} ${selectedIds.length === 1 ? 'traveler' : 'travelers'}`
+                  : `Start with ${selectedIds.length || 0} ${selectedIds.length === 1 ? 'friend' : 'friends'}`}
+            </button>
             <button type="button" className="cp2-picker-find" onClick={openFriends}>Find more friends</button>
           </section>
         </div>
