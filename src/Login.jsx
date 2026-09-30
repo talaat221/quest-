@@ -2,14 +2,30 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { playLoginError, playLoginSuccess, playLoginTap } from "./loginSfx";
 import "./Login.css";
+import "./LoginRecovery.css";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const recoveryRedirectUrl = () => {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("mode", "recovery");
+  return url.toString();
+};
+
+const friendlyAuthError = (error) => {
+  const message = error?.message || "Something went wrong. Please try again.";
+  if (/invalid login credentials/i.test(message)) return "Email or password is incorrect.";
+  return message;
+};
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isResetRequest, setIsResetRequest] = useState(false);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState("error");
   const [loading, setLoading] = useState(false);
@@ -59,6 +75,26 @@ export default function Login({ onLogin }) {
     setFeedback("");
   };
 
+  async function handleResetRequest() {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      await showError("Enter your email address first.");
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: recoveryRedirectUrl(),
+    });
+
+    if (error) {
+      await showError(friendlyAuthError(error));
+      return;
+    }
+
+    setMessageKind("info");
+    setMessage("If that email belongs to a Quest account, a recovery link is on its way. Check your inbox and spam folder.");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (loading) return;
@@ -69,12 +105,17 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
+      if (isResetRequest) {
+        await handleResetRequest();
+        return;
+      }
+
       const result = isSignUp
-        ? await supabase.auth.signUp({ email, password })
-        : await supabase.auth.signInWithPassword({ email, password });
+        ? await supabase.auth.signUp({ email: email.trim(), password })
+        : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
       if (result.error) {
-        await showError(result.error.message);
+        await showError(friendlyAuthError(result.error));
       } else if (result.data.session) {
         setFeedback("success");
         playLoginSuccess();
@@ -85,7 +126,7 @@ export default function Login({ onLogin }) {
         setMessage("Your little farm is ready. Check your email to confirm your account.");
       }
     } catch (err) {
-      await showError(err?.message || "Something went wrong. Please try again.");
+      await showError(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -94,9 +135,34 @@ export default function Login({ onLogin }) {
   function toggleMode() {
     playLoginTap();
     setIsSignUp((value) => !value);
+    setIsResetRequest(false);
+    setPassword("");
     setMessage("");
     setFeedback("");
   }
+
+  function openResetRequest() {
+    playLoginTap();
+    setIsResetRequest(true);
+    setIsSignUp(false);
+    setPassword("");
+    setMessage("");
+    setFeedback("");
+  }
+
+  function closeResetRequest() {
+    playLoginTap();
+    setIsResetRequest(false);
+    setMessage("");
+    setFeedback("");
+  }
+
+  const title = isResetRequest ? "RESET PASSWORD" : isSignUp ? "START YOUR FARM" : "WELCOME BACK";
+  const subtitle = isResetRequest
+    ? "We’ll send a recovery key to your email."
+    : isSignUp
+      ? "Plant the first seed. Your little world starts here."
+      : "Small steps, a brighter tomorrow.";
 
   return (
     <main className={`pixel-login ${feedback === "success" ? "is-leaving" : ""}`}>
@@ -110,12 +176,8 @@ export default function Login({ onLogin }) {
       <section className="login-shell" aria-label="Quest login">
         <header className="login-brand">
           <div className="login-brand__mark">QUEST</div>
-          <h1>{isSignUp ? "START YOUR FARM" : "WELCOME BACK"}</h1>
-          <p>
-            {isSignUp
-              ? "Plant the first seed. Your little world starts here."
-              : "Small steps, a brighter tomorrow."}
-          </p>
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
         </header>
 
         <div className={`farm-art ${farmArt ? "is-ready" : ""}`} aria-hidden="true">
@@ -146,28 +208,37 @@ export default function Login({ onLogin }) {
             </div>
           </label>
 
-          <label className="login-field">
-            <span>Password</span>
-            <div className="login-input-shell">
-              <span className="login-input-icon" aria-hidden="true">▣</span>
-              <input
-                type={showPassword ? "text" : "password"}
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                className="login-password-toggle"
-                type="button"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? "◉" : "◎"}
-              </button>
-            </div>
-          </label>
+          {!isResetRequest && (
+            <label className="login-field">
+              <span className="login-field-heading">
+                <span>Password</span>
+                {!isSignUp && (
+                  <button className="login-forgot" type="button" onClick={openResetRequest}>
+                    Forgot password?
+                  </button>
+                )}
+              </span>
+              <div className="login-input-shell">
+                <span className="login-input-icon" aria-hidden="true">▣</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  className="login-password-toggle"
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "◉" : "◎"}
+                </button>
+              </div>
+            </label>
+          )}
 
           {message && (
             <p
@@ -179,13 +250,27 @@ export default function Login({ onLogin }) {
           )}
 
           <button className="login-primary" type="submit" disabled={loading}>
-            <span>{loading ? "LOADING..." : isSignUp ? "CREATE FARM" : "LOG IN"}</span>
+            <span>
+              {loading
+                ? "LOADING..."
+                : isResetRequest
+                  ? "SEND RESET LINK"
+                  : isSignUp
+                    ? "CREATE FARM"
+                    : "LOG IN"}
+            </span>
             {!loading && <b aria-hidden="true">›</b>}
           </button>
 
-          <button className="login-secondary" type="button" onClick={toggleMode}>
-            {isSignUp ? "Already have a farm? Log in" : "New here? Start your farm"}
-          </button>
+          {isResetRequest ? (
+            <button className="login-secondary" type="button" onClick={closeResetRequest}>
+              Back to login
+            </button>
+          ) : (
+            <button className="login-secondary" type="button" onClick={toggleMode}>
+              {isSignUp ? "Already have a farm? Log in" : "New here? Start your farm"}
+            </button>
+          )}
         </form>
 
         <div className="login-sign" aria-hidden="true">
