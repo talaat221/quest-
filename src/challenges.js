@@ -41,6 +41,17 @@ export async function inviteWeeklyChallengeMember(challengeId, userId) {
   throwIf(error);
 }
 
+export async function inviteWeeklyChallengeMembers(challengeId, userIds) {
+  const invited = [...new Set((userIds || []).filter(Boolean))];
+  if (!challengeId || !invited.length) throw new Error('Choose at least one friend.');
+  const { data, error } = await supabase.rpc('invite_quest_weekly_challenge_members', {
+    p_challenge_id: challengeId,
+    p_user_ids: invited,
+  });
+  throwIf(error);
+  return Math.max(0, Number(data) || 0);
+}
+
 export async function respondWeeklyChallenge(challengeId, accept) {
   const { error } = await supabase.rpc('respond_quest_weekly_challenge', {
     p_challenge_id: challengeId,
