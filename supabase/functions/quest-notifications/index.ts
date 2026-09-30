@@ -54,17 +54,38 @@ async function deliver(sub: any, event: any, keys: any) {
     return false;
   }
 }
+function challengeNotification(item: any) {
+  const xp = Math.max(0, Math.round(Number(item?.xp) || 0));
+  const actor = String(item?.actor_display_name || 'Your challenger').slice(0, 40);
+  return {
+    key: `competition:${item?.event_id}`,
+    title: 'Challenge update',
+    body: `${actor} just completed a task for ${xp} XP.`,
+    page: '#competition',
+    due: Date.parse(item?.created_at) || Date.now(),
+    ttl: 3600,
+  };
+}
 async function dispatch(keys: any) {
   let inspected = 0, sent = 0, failed = 0;
   const states = new Map();
+  const challengeEvents = new Map();
+  const oneDayAgo = new Date(Date.now()-86400000).toISOString();
   for (let offset = 0; ; offset += 100) {
     const rows = await checked(admin.from('quest_push_subscriptions').select('*').gt('last_seen_at', new Date(Date.now()-30*86400000).toISOString()).order('id').range(offset,offset+99));
     for (const sub of rows) {
       inspected++;
       if (!states.has(sub.user_id)) states.set(sub.user_id, await checked(admin.rpc('get_quest_push_state', { p_user_id: sub.user_id })));
+      if (!challengeEvents.has(sub.user_id)) {
+        challengeEvents.set(sub.user_id, await checked(admin.rpc('get_quest_competition_push_events', { p_user_id: sub.user_id, p_since: oneDayAgo })));
+      }
       const events = dueReminders(states.get(sub.user_id), { timezone: sub.timezone, preferences: sub.preferences, enabledAt: Date.parse(sub.enabled_at) });
+      const enabledAt = Date.parse(sub.enabled_at) || 0;
+      const competition = (challengeEvents.get(sub.user_id) || [])
+        .filter((item: any) => (Date.parse(item?.created_at) || 0) >= enabledAt)
+        .map(challengeNotification);
       // Separate devices are intentional. The per-device ledger suppresses retries.
-      for (const event of events) { if (await deliver(sub, event, keys)) sent++; else failed++; }
+      for (const event of [...events, ...competition]) { if (await deliver(sub, event, keys)) sent++; else failed++; }
     }
     if (rows.length < 100) break;
   }
