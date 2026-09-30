@@ -51,6 +51,7 @@ export function useQuestNotifications({ state, userId }) {
   const mountedAt = useRef(0);
   const seen = useRef({});
   const subRef = useRef(null);
+  const competitionCursor = useRef(0);
   const canPush = supported();
   const needsInstall = iphone() && !installed();
   const refresh = useCallback(async () => {
@@ -72,6 +73,7 @@ export function useQuestNotifications({ state, userId }) {
     setPreferences({ ...DEFAULT_REMINDERS, inApp: true, ...read(`quest-reminders:${userId}`, {}) });
     seen.current = read(`quest-reminders-seen:${userId}`, {});
     mountedAt.current = Date.now();
+    competitionCursor.current = mountedAt.current - 1000;
     const onRefresh = () => { void refresh().catch(() => {}); };
     onRefresh(); window.addEventListener('focus', onRefresh); window.addEventListener('online', onRefresh);
     return () => { window.removeEventListener('focus', onRefresh); window.removeEventListener('online', onRefresh); };
@@ -89,15 +91,40 @@ export function useQuestNotifications({ state, userId }) {
       if (document.visibilityState === 'hidden') return;
       for (const event of dueReminders(stateRef.current, { timezone: zone(), preferences: prefsRef.current, enabledAt: mountedAt.current - 1000 })) remember(event);
     };
+    const competitionTick = async () => {
+      if (document.visibilityState === 'hidden') return;
+      const since = new Date(Math.max(0, competitionCursor.current - 1000)).toISOString();
+      const { data, error: competitionError } = await supabase.rpc('get_my_quest_competition_events', { p_since: since });
+      if (competitionError) return;
+      for (const item of data || []) {
+        const created = Date.parse(item.created_at) || Date.now();
+        competitionCursor.current = Math.max(competitionCursor.current, created + 1);
+        remember({
+          key: `competition:${item.event_id}`,
+          title: 'Challenge update',
+          body: `${item.actor_display_name || 'Your challenger'} just completed a task for ${Math.max(0, Math.round(Number(item.xp) || 0))} XP.`,
+          page: '#competition',
+        });
+      }
+      competitionCursor.current = Math.max(competitionCursor.current, Date.now() - 1000);
+    };
     const pushed = event => {
       if (event.data?.type !== 'QUEST_REMINDER' || event.data?.payload?.data?.userId !== userId) return;
       const payload = event.data.payload;
       remember({ key: payload.data.eventKey, title: payload.title, body: payload.body, page: new URL(payload.data.url).hash });
     };
     const id = setInterval(tick, 1000);
-    document.addEventListener('visibilitychange', tick);
+    const competitionId = setInterval(() => { void competitionTick(); }, 5000);
+    const onVisible = () => { tick(); void competitionTick(); };
+    document.addEventListener('visibilitychange', onVisible);
     navigator.serviceWorker?.addEventListener('message', pushed);
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); navigator.serviceWorker?.removeEventListener('message', pushed); };
+    void competitionTick();
+    return () => {
+      clearInterval(id);
+      clearInterval(competitionId);
+      document.removeEventListener('visibilitychange', onVisible);
+      navigator.serviceWorker?.removeEventListener('message', pushed);
+    };
   }, [userId]);
   const run = async action => {
     if (busy) return;
