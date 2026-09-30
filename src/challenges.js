@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+export const MAX_CHALLENGE_MEMBERS = 20;
+export const MAX_CHALLENGE_RIVALS = MAX_CHALLENGE_MEMBERS - 1;
+
 function throwIf(error) {
   if (error) throw error;
 }
@@ -17,7 +20,7 @@ export async function loadWeeklyChallenge(weekKey) {
 }
 
 export async function createWeeklyChallenge(weekKey, friendIds) {
-  const invited = [...new Set((friendIds || []).filter(Boolean))].slice(0, 3);
+  const invited = [...new Set((friendIds || []).filter(Boolean))].slice(0, MAX_CHALLENGE_RIVALS);
   if (!weekKey) throw new Error('This week could not be identified.');
   if (!invited.length) throw new Error('Choose at least one friend.');
 
@@ -42,6 +45,14 @@ export async function respondWeeklyChallenge(challengeId, accept) {
   const { error } = await supabase.rpc('respond_quest_weekly_challenge', {
     p_challenge_id: challengeId,
     p_accept: !!accept,
+  });
+  throwIf(error);
+}
+
+export async function leaveWeeklyChallenge(challengeId) {
+  if (!challengeId) throw new Error('Challenge not found.');
+  const { error } = await supabase.rpc('leave_quest_weekly_challenge', {
+    p_challenge_id: challengeId,
   });
   throwIf(error);
 }
