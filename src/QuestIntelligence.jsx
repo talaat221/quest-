@@ -59,7 +59,15 @@ export default function QuestIntelligence({ domains = [], weekDates = [], todayS
     ? insight.overloadedDays.some(day => day.level === 'impossible') ? 'is-danger' : 'is-warning'
     : weekRatio > 0.82 ? 'is-warning' : 'is-good';
 
-  return <section className={`qi-card ${weekLevel}${compact ? ' is-compact' : ''}`} aria-label="Quest Intelligence workload forecast">
+  if (compact) {
+    return <div className={`qi-mini ${weekLevel}`} aria-label={`Quest Intelligence: ${todayCopy.title}`}>
+      <span className="qi-mini-star" aria-hidden="true">✦</span>
+      <span><b>QUEST AI</b><small>{todayCopy.title}</small></span>
+      <strong>{formatMinutes(insight.today?.minutes || 0)} / ~{formatMinutes(insight.capacity.minutes)}</strong>
+    </div>;
+  }
+
+  return <section className={`qi-card ${weekLevel}`} aria-label="Quest Intelligence workload forecast">
     <div className="qi-head">
       <div>
         <small>QUEST INTELLIGENCE</small>
@@ -121,7 +129,7 @@ export function QuestIntelligenceLive({ compact = false }) {
       }
     };
     void load();
-    const timer = window.setInterval(load, 10000);
+    const timer = window.setInterval(load, 8000);
     const onFocus = () => void load();
     window.addEventListener('focus', onFocus);
     return () => {
