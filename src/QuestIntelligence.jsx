@@ -1,11 +1,33 @@
+import { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
 import { buildScheduleIntelligence } from './quest-intelligence.js';
 import { formatMinutes } from './task-timer.js';
 import './quest-intelligence.css';
 
-function dayLabel(dateKey, todayStr) {
-  if (dateKey === todayStr) return 'Today';
-  const date = new Date(`${dateKey}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return dateKey;
+const pad = value => String(value).padStart(2, '0');
+const dateKey = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+function currentQuestDay(resetHour = 0) {
+  const date = new Date();
+  if (date.getHours() < Number(resetHour || 0)) date.setDate(date.getDate() - 1);
+  return date;
+}
+
+function weekKeys(date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day));
+  return Array.from({ length: 7 }, (_, index) => {
+    const next = new Date(start);
+    next.setDate(start.getDate() + index);
+    return dateKey(next);
+  });
+}
+
+function dayLabel(value, todayStr) {
+  if (value === todayStr) return 'Today';
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
@@ -76,4 +98,48 @@ export default function QuestIntelligence({ domains = [], weekDates = [], todayS
       {(insight.learnedPatterns > 0 || insight.timedSamples > 0) && <span> · {insight.learnedPatterns} task {insight.learnedPatterns === 1 ? 'pattern' : 'patterns'} learned</span>}
     </div>
   </section>;
+}
+
+export function QuestIntelligenceLive({ compact = false }) {
+  const [questState, setQuestState] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data: userResult } = await supabase.auth.getUser();
+        const userId = userResult?.user?.id;
+        if (!userId) return;
+        const { data, error } = await supabase
+          .from('quest_data')
+          .select('data')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (!error && !cancelled && data?.data) setQuestState(data.data);
+      } catch {
+        // Intelligence is advisory. A temporary fetch failure should never block Quest.
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 10000);
+    const onFocus = () => void load();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
+  if (!questState) return null;
+  const resetHour = Number(questState?.settings?.dayResetHour || 0);
+  const day = currentQuestDay(resetHour);
+  const todayStr = dateKey(day);
+  return <QuestIntelligence
+    domains={questState.domains || []}
+    weekDates={weekKeys(day)}
+    todayStr={todayStr}
+    resetHour={resetHour}
+    compact={compact}
+  />;
 }
