@@ -18,13 +18,14 @@ export default function EffortXP({
   learnedEstimate = null,
   learnedSamples = 0,
   learnedPattern = '',
-  learnedConfidence = 'none',
+  learnedConfidence = '',
   compact = false,
 }) {
   const recommendation = recommendTaskXP({ estimatedMinutes, effort });
-  const confidenceText = learnedConfidence === 'high'
+  const confidence = learnedConfidence || (learnedSamples >= 5 ? 'high' : learnedSamples >= 2 ? 'medium' : learnedSamples ? 'early' : 'none');
+  const confidenceText = confidence === 'high'
     ? 'high confidence'
-    : learnedConfidence === 'medium'
+    : confidence === 'medium'
       ? 'getting confident'
       : 'early estimate';
 
