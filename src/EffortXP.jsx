@@ -1,6 +1,15 @@
 import { EFFORT_OPTIONS, recommendTaskXP } from './progression.js';
 import './effort-xp.css';
 
+function formatEstimate(minutes) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  if (!value) return '—';
+  if (value < 60) return `${value} min`;
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  return `${hours}h${rest ? ` ${rest}m` : ''}`;
+}
+
 export default function EffortXP({
   estimatedMinutes,
   onEstimatedMinutesChange,
@@ -8,9 +17,16 @@ export default function EffortXP({
   onEffortChange,
   learnedEstimate = null,
   learnedSamples = 0,
+  learnedPattern = '',
+  learnedConfidence = 'none',
   compact = false,
 }) {
   const recommendation = recommendTaskXP({ estimatedMinutes, effort });
+  const confidenceText = learnedConfidence === 'high'
+    ? 'high confidence'
+    : learnedConfidence === 'medium'
+      ? 'getting confident'
+      : 'early estimate';
 
   return <section className={`ex-effort-xp${compact ? ' is-compact' : ''}`} aria-label="Task effort and XP">
     <div className="ex-estimate-row">
@@ -27,7 +43,10 @@ export default function EffortXP({
           aria-label="Estimated minutes"
         /><small>min</small></span>
       </label>
-      {learnedEstimate ? <p>Quest learned about {learnedEstimate} min from {learnedSamples} previous {learnedSamples === 1 ? 'run' : 'runs'}.</p> : null}
+      {learnedEstimate ? <p>
+        <strong>Quest predicts ~{formatEstimate(learnedEstimate)}</strong>
+        {learnedPattern ? ` for “${learnedPattern}”` : ''} · {confidenceText} from {learnedSamples} timed {learnedSamples === 1 ? 'task' : 'tasks'}.
+      </p> : <p>Quest will learn this task type after you time and finish it.</p>}
     </div>
 
     <fieldset className="ex-effort-fieldset">
