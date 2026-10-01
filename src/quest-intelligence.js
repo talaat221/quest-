@@ -104,7 +104,13 @@ function confidenceFor(sampleCount) {
 }
 
 function patternSamples(domain, patternKey) {
-  return validSamples(domain?.taskIntelligence?.patterns?.[patternKey]?.samples || []);
+  const samples = validSamples(domain?.taskIntelligence?.patterns?.[patternKey]?.samples || []);
+  return samples.filter(sample => {
+    const currentTask = (domain?.tasks || []).find(task => task.id === sample.taskId);
+    // Deleted tasks stay useful historical evidence. If the task still exists
+    // but was renamed into another type, do not teach both patterns.
+    return !currentTask || getTaskPatternKey(currentTask.name) === patternKey;
+  });
 }
 
 function legacyPatternSamples(domain, patternKey) {
@@ -282,6 +288,20 @@ export function getDayLoad(domains = [], dateKey, resetHour = 0, options = {}) {
   };
 }
 
+function learningStats(domain) {
+  const patterns = new Set(Object.keys(domain?.taskIntelligence?.patterns || {}));
+  const sampleIds = new Set();
+  for (const [key, pattern] of Object.entries(domain?.taskIntelligence?.patterns || {})) {
+    for (const sample of patternSamples(domain, key)) sampleIds.add(sample.taskId || `${key}:${sample.loggedAt || ''}`);
+  }
+  for (const [legacyKey, profile] of Object.entries(domain?.timingProfiles || {})) {
+    const patternKey = getTaskPatternKey(legacyKey);
+    if (patternKey) patterns.add(patternKey);
+    for (const sample of validSamples(profile?.samples || [])) sampleIds.add(sample.taskId || `${legacyKey}:${sample.loggedAt || ''}`);
+  }
+  return { patterns: patterns.size, samples: sampleIds.size };
+}
+
 export function buildScheduleIntelligence(domains = [], weekDates = [], todayStr, resetHour = 0) {
   const capacity = getLearnedDailyCapacity(domains, resetHour);
   const days = (weekDates || []).map(date => getDayLoad(domains, date, resetHour));
@@ -290,8 +310,12 @@ export function buildScheduleIntelligence(domains = [], weekDates = [], todayStr
   const totalMinutes = remainingDays.reduce((sum, day) => sum + day.minutes, 0);
   const totalCapacity = capacity.minutes * remainingDays.length;
   const overloadedDays = remainingDays.filter(day => day.level === 'overloaded' || day.level === 'impossible');
-  const learnedPatterns = (domains || []).reduce((sum, domain) => sum + Object.keys(domain?.taskIntelligence?.patterns || {}).length, 0);
-  const timedSamples = (domains || []).reduce((sum, domain) => sum + Object.values(domain?.taskIntelligence?.patterns || {}).reduce((inner, pattern) => inner + validSamples(pattern?.samples).length, 0), 0);
+  const stats = (domains || []).reduce((total, domain) => {
+    const domainStats = learningStats(domain);
+    total.patterns += domainStats.patterns;
+    total.samples += domainStats.samples;
+    return total;
+  }, { patterns: 0, samples: 0 });
   return {
     capacity,
     today,
@@ -300,7 +324,7 @@ export function buildScheduleIntelligence(domains = [], weekDates = [], todayStr
     totalMinutes,
     totalCapacity,
     overloadedDays,
-    learnedPatterns,
-    timedSamples,
+    learnedPatterns: stats.patterns,
+    timedSamples: stats.samples,
   };
 }
