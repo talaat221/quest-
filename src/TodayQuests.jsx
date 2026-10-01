@@ -24,7 +24,7 @@ export default function TodayQuests({ items, onToggle, expanded = false }) {
           <span className="qd-anchor-sr-only">View All</span>
         </a>
       )}
-      {expanded && <QuestIntelligenceLive />}
+      <QuestIntelligenceLive compact={!expanded} />
       <div className="qd-today-quests-body" tabIndex={!expanded && items.length > 5 ? 0 : undefined} role={!expanded && items.length > 5 ? "region" : undefined} aria-label={!expanded && items.length > 5 ? "Today's tasks, scroll for more" : undefined}>
         {items.length ? (
           <ul className="qd-today-quests-list">
