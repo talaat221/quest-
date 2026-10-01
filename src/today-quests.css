@@ -50,9 +50,18 @@
   background: transparent;
 }
 
+.qd-root .qd-today-quests:not(.is-expanded) .qi-mini {
+  position: absolute;
+  z-index: 3;
+  top: 15.75%;
+  left: 3.92157%;
+  right: 3.92157%;
+  margin: 0;
+}
+
 .qd-today-quests-body {
   position: absolute;
-  inset: 15.74468% 3.92157% 2.55319%;
+  inset: 25.4% 3.92157% 2.55319%;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;

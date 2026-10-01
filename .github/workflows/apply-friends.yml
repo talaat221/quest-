@@ -1,0 +1,55 @@
+name: Apply Quest friends
+
+on:
+  push:
+    branches:
+      - feature/quest-redesign-canvas
+    paths:
+      - scripts/apply-friends-integration.mjs
+      - .github/workflows/apply-friends.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/quest-redesign-canvas
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply friend page integration
+        run: node scripts/apply-friends-integration.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run social and progression tests
+        run: node --test tests/friends.test.mjs tests/competition.test.mjs tests/progression.test.mjs
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Check patch cleanliness
+        run: git diff --check
+
+      - name: Commit verified integration
+        run: |
+          if git diff --quiet -- src/quest-dashboard.jsx src/home-finish.js src/HomeFinish.jsx; then
+            echo "No friend integration changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/quest-dashboard.jsx src/home-finish.js src/HomeFinish.jsx
+          git commit -m "Wire Quest friends into navigation"
+          git push origin HEAD:feature/quest-redesign-canvas

@@ -1,0 +1,34 @@
+.login-field-heading {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 3px 7px !important;
+}
+
+.login-field-heading > span {
+  color: #e9f1f5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.login-forgot {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #9fc49a;
+  font: 800 12px 'Nunito', system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.login-forgot:hover,
+.login-forgot:focus-visible {
+  color: #c7e6be;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.login-forgot:focus-visible {
+  outline: 2px solid #7fa7c9;
+  outline-offset: 4px;
+}

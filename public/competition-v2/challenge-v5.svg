@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="852" height="620" viewBox="0 0 852 620" shape-rendering="crispEdges">
+<defs>
+  <linearGradient id="parch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecd39a"/><stop offset="1" stop-color="#c8a16a"/></linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#76502f"/><stop offset=".55" stop-color="#4b2f1e"/><stop offset="1" stop-color="#271b14"/></linearGradient>
+  <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#123d59"/><stop offset="1" stop-color="#08283e"/></linearGradient>
+  <pattern id="grain" width="19" height="19" patternUnits="userSpaceOnUse"><rect width="19" height="19" fill="none"/><rect x="3" y="5" width="2" height="1" fill="#fff0bf" opacity=".22"/><rect x="13" y="13" width="3" height="1" fill="#775431" opacity=".15"/></pattern>
+</defs>
+<rect width="852" height="620" fill="#061b2b"/>
+<rect x="10" y="8" width="832" height="604" fill="url(#wood)" stroke="#20160f" stroke-width="8"/>
+<rect x="20" y="18" width="812" height="584" fill="#0f3043" stroke="#9b653d" stroke-width="4"/>
+<g fill="#2e633b"><rect x="20" y="27" width="8" height="86"/><rect x="27" y="34" width="28" height="8"/><rect x="20" y="96" width="30" height="8"/><rect x="824" y="29" width="8" height="83"/><rect x="800" y="39" width="28" height="8"/><rect x="801" y="95" width="29" height="8"/></g>
+<g fill="#5d8d48"><rect x="35" y="36" width="11" height="10"/><rect x="29" y="78" width="12" height="9"/><rect x="807" y="49" width="12" height="9"/><rect x="807" y="84" width="13" height="9"/></g>
+<rect x="48" y="34" width="506" height="74" fill="#123f66" stroke="#071b2e" stroke-width="5"/>
+<g stroke="#f7f0dc" stroke-width="5" fill="none"><path d="M75 55l23 28M98 55L75 83"/><path d="M71 51h11M91 51h11"/></g>
+<text x="116" y="80" fill="#f7f0dc" font-family="monospace" font-weight="900" font-size="29">Weekly Challenge</text>
+<rect x="583" y="34" width="211" height="74" fill="url(#parch)" stroke="#52371f" stroke-width="5"/>
+<rect x="593" y="44" width="191" height="54" fill="url(#grain)"/>
+<text x="688" y="63" text-anchor="middle" fill="#3b2a1c" font-family="monospace" font-weight="900" font-size="20">MON → SUN</text>
+<rect x="48" y="132" width="324" height="426" fill="url(#parch)" stroke="#4f341e" stroke-width="6"/>
+<rect x="58" y="142" width="304" height="406" fill="url(#grain)" opacity=".8"/>
+<text x="210" y="171" text-anchor="middle" font-family="monospace" font-size="18" font-weight="900" fill="#49351f">YOUR VOYAGE</text>
+<rect x="137" y="187" width="146" height="118" fill="#173b52" stroke="#51351f" stroke-width="8"/>
+<rect x="148" y="198" width="124" height="96" fill="#0b2942" stroke="#dcae5c" stroke-width="4"/>
+<g fill="#2b1d18"><rect x="188" y="215" width="48" height="40"/><rect x="181" y="224" width="62" height="24"/></g><rect x="194" y="245" width="36" height="27" fill="#d3a17b"/><rect x="196" y="269" width="33" height="18" fill="#2a475d"/>
+<rect x="88" y="318" width="245" height="60" fill="#e1c28a" stroke="#5c3e24" stroke-width="4"/>
+<rect x="76" y="392" width="270" height="118" fill="url(#navy)" stroke="#244b62" stroke-width="3"/>
+<g fill="#f0bf58"><path d="M104 405l6 12 14 2-10 10 3 14-13-7-13 7 3-14-10-10 14-2z"/></g>
+<g stroke="#f0dfaf" stroke-width="3" fill="none"><rect x="94" y="445" width="20" height="26"/><path d="M98 450h12M99 457l4 4 7-8"/></g>
+<g fill="#f0dfaf"><circle cx="104" cy="490" r="12"/><rect x="102" y="477" width="4" height="13"/><rect x="104" y="488" width="8" height="4"/></g>
+<g fill="#d9e7e4" font-family="monospace" font-weight="700" font-size="17"><text x="132" y="430">XP this week</text><text x="132" y="466">Eligible tasks</text><text x="132" y="496">Focus today</text></g>
+<rect x="87" y="524" width="248" height="22" fill="#132a38" stroke="#3a2b1f" stroke-width="4"/>
+<rect x="372" y="124" width="94" height="442" fill="#0a3550"/>
+<g fill="#205a6f"><rect x="384" y="245" width="70" height="4"/><rect x="391" y="330" width="55" height="4"/><rect x="381" y="440" width="74" height="4"/></g>
+<circle cx="419" cy="323" r="39" fill="#78502c" stroke="#281a11" stroke-width="6"/>
+<circle cx="419" cy="323" r="26" fill="#0d324a" stroke="#c18c49" stroke-width="4"/>
+<text x="419" y="332" text-anchor="middle" font-family="monospace" font-size="24" font-weight="900" fill="#f0d28c">VS</text>
+<g fill="#51341f" stroke="#24170f" stroke-width="3"><rect x="399" y="482" width="40" height="15"/><path d="M394 497h50l-9 18h-32z"/></g><rect x="417" y="451" width="4" height="31" fill="#2b1d16"/><path d="M421 455l20 14h-20z" fill="#e5d2a0"/><path d="M417 460l-18 13h18z" fill="#f0ddb0"/>
+<rect x="466" y="132" width="334" height="426" fill="url(#parch)" stroke="#4f341e" stroke-width="6"/>
+<rect x="476" y="142" width="314" height="406" fill="url(#grain)" opacity=".8"/>
+<text x="633" y="171" text-anchor="middle" font-family="monospace" font-size="18" font-weight="900" fill="#49351f">RIVALS · UP TO 3</text>
+<g>
+ <rect x="492" y="190" width="282" height="90" fill="url(#navy)" stroke="#21475e" stroke-width="3"/>
+ <rect x="492" y="292" width="282" height="90" fill="url(#navy)" stroke="#21475e" stroke-width="3"/>
+ <rect x="492" y="394" width="282" height="90" fill="url(#navy)" stroke="#21475e" stroke-width="3"/>
+</g>
+<rect x="515" y="500" width="236" height="48" fill="#1d5d87" stroke="#173a53" stroke-width="5"/>
+<rect x="523" y="508" width="220" height="32" fill="#2d78a3" stroke="#79afc8" stroke-width="3"/>
+<g fill="#eef3e8" stroke="#173346" stroke-width="2"><circle cx="550" cy="518" r="8"/><path d="M538 538q12-20 24 0z"/><rect x="566" y="518" width="4" height="16"/><rect x="560" y="524" width="16" height="4"/></g>
+<text x="648" y="532" text-anchor="middle" fill="#f4f3df" font-family="monospace" font-weight="900" font-size="19">ADD FRIEND</text>
+<g stroke="#24170e" stroke-width="4"><rect x="813" y="190" width="12" height="122" fill="#4a2f19"/><rect x="794" y="226" width="50" height="57" fill="#6a4222"/><rect x="804" y="236" width="30" height="37" fill="#ffd36a"/><rect x="811" y="242" width="16" height="25" fill="#fff0a4"/></g>
+</svg>

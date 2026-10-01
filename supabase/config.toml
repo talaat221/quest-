@@ -1,0 +1,4 @@
+[functions.quest-notifications]
+# User requests are verified with auth.getUser(). Scheduled calls use a
+# separate 256-bit secret in Vault, checked in the handler before dispatch.
+verify_jwt = false
