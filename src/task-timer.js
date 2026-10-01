@@ -1,15 +1,13 @@
 // Timers use saved timestamps, never interval ticks, so phone sleep and reloads
 // do not drop time. Intervals only repaint the display.
 import { getPomodoro, normalizePomodoro, pomodoroDuration } from './pomodoro.js';
+import { getTaskPrediction, recordTaskLearning, removeTaskLearning } from './quest-intelligence.js';
+
 export const normalizeTaskTimingKey = (name = '') => name.trim().toLowerCase().replace(/[^a-z0-9\u00C0-\u024F\u0600-\u06FF]+/g, ' ').replace(/\s+/g, ' ').trim();
-const profileFor = (domain, name) => domain?.timingProfiles?.[normalizeTaskTimingKey(name)];
-export const getTimingSampleCount = (domain, name) => (profileFor(domain, name)?.samples || []).filter(s => Number(s?.actualMinutes) > 0).length;
+export const getTimingSampleCount = (domain, name) => getTaskPrediction(domain, name)?.samples || 0;
+export const getLearnedPrediction = (domain, name) => getTaskPrediction(domain, name);
 export function getLearnedEstimate(domain, name) {
-  const samples = (profileFor(domain, name)?.samples || []).filter(s => Number(s?.actualMinutes) > 0).slice(-5);
-  if (!samples.length) return null;
-  const weighted = samples.reduce((sum, s, i) => sum + Number(s.actualMinutes) * (i + 1), 0);
-  const value = weighted / samples.reduce((sum, _, i) => sum + i + 1, 0);
-  return value < 10 ? Math.max(1, Math.round(value)) : Math.max(5, Math.round(value / 5) * 5);
+  return getTaskPrediction(domain, name)?.minutes || null;
 }
 export function formatMinutes(minutes) {
   const value = Math.max(0, Math.round(Number(minutes) || 0));
@@ -87,13 +85,25 @@ export function completeTimedTask(domain, task, now = Date.now()) {
     const samples = (domain.timingProfiles[key]?.samples || []).filter(s => s.taskId !== task.id);
     samples.push({ taskId: task.id, actualMinutes: task.actualMinutes, estimatedMinutes: Number(task.estimatedMinutes) || null, loggedAt: task.doneAt });
     domain.timingProfiles[key] = { samples: samples.slice(-20) };
+    recordTaskLearning(domain, task, task.actualMinutes, task.doneAt);
   }
-  return { taskName: task.name, domainName: domain.name, elapsedMs, estimatedMinutes: task.estimatedMinutes, nextEstimate: getLearnedEstimate(domain, task.name) };
+  const prediction = getTaskPrediction(domain, task.name);
+  return {
+    taskName: task.name,
+    domainName: domain.name,
+    elapsedMs,
+    estimatedMinutes: task.estimatedMinutes,
+    nextEstimate: prediction?.minutes || null,
+    learnedPattern: prediction?.patternLabel || null,
+    learnedSamples: prediction?.samples || 0,
+    learnedConfidence: prediction?.confidence || 'none',
+  };
 }
 export function undoTimedTask(domain, task) {
   if (!domain || !task) return;
   const key = task.timingProfileKey || normalizeTaskTimingKey(task.name);
   if (domain.timingProfiles?.[key]?.samples) domain.timingProfiles[key].samples = domain.timingProfiles[key].samples.filter(s => s.taskId !== task.id);
-  task.done = false; task.doneAt = null; task.actualMinutes = null; task.timingProfileKey = null;
+  removeTaskLearning(domain, task);
+  task.done = false; task.doneAt = null; task.actualMinutes = null; task.timingProfileKey = null; task.intelligencePatternKey = null;
   task.workTimer = { elapsedMs: 0, startedAt: null };
 }
