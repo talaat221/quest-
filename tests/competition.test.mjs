@@ -38,3 +38,13 @@ test('ranking is descending and stable by name on ties', () => {
   const rows = rankCompetition([{ name: 'Zed', scoreXP: 20 }, { name: 'Amy', scoreXP: 40 }, { name: 'Ben', scoreXP: 20 }]);
   assert.deepEqual(rows.map(row => [row.rank, row.name]), [[1, 'Amy'], [2, 'Ben'], [3, 'Zed']]);
 });
+
+test('displayed weekly completion total includes capped zero-XP tasks', () => {
+  const stats=competitionWeekStats({weekKey:'2026-10-05',progression:{taskAwards:{
+    a:{weekKey:'2026-10-05',creditedXp:20},
+    b:{weekKey:'2026-10-05',creditedXp:0},
+    c:{weekKey:'2026-09-28',creditedXp:50}
+  }}});
+  assert.equal(stats.completedTasks,2);
+  assert.equal(stats.taskXP,20);
+});

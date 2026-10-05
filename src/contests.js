@@ -22,4 +22,5 @@ export function createContests(form) {
 export const respondToContest = (id, accept, shareTaskNames = false) => call('respond_quest_contest', { p_contest_id: id, p_accept: accept, p_share_task_names: shareTaskNames });
 export const startContest = id => call('start_quest_contest', { p_contest_id: id });
 export const leaveContest = id => call('leave_quest_contest', { p_contest_id: id });
+export const inviteContestMembers = (id, friendIds) => call('invite_quest_contest_members', { p_contest_id: id, p_friend_ids: [...new Set(friendIds)] });
 export const setContestPrivacy = (id, shareTaskNames) => call('set_quest_contest_privacy', { p_contest_id: id, p_share_task_names: shareTaskNames });

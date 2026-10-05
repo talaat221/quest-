@@ -6,7 +6,6 @@
 }
 
 .qd-design-preview .qd-sidebar,
-.qd-design-preview .qd-sync-ui,
 .qd-design-preview .qd-legacy-overlays,
 .qd-design-preview .qd-main-home > :not(.qd-scene):not(.qd-design-canvas) {
   display: none !important;

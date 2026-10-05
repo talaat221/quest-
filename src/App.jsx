@@ -39,7 +39,8 @@ function SyncIndicator() {
     if (sync.state !== 'conflict') setShowConflict(false);
   }, [sync.state]);
 
-  if (!hasSession) return null;
+  // Keep failures actionable on every page without an always-visible badge.
+  if (!hasSession || (sync.state === 'synced' && !sync.pending)) return null;
 
   const labels = {
     synced: '✓ Synced',

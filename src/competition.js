@@ -25,6 +25,7 @@ export function competitionWeekStats({ progression, weekKey, todayKey } = {}) {
   );
 
   return {
+    completedTasks: Object.values(normalized.taskAwards || {}).filter(award => award?.weekKey === weekKey).length,
     scoreXP: xp(week.taskXP) + xp(week.bonusXP),
     taskXP: xp(week.taskXP),
     consistencyXP: xp(week.bonusXP),

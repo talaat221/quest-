@@ -10,7 +10,12 @@ const installed = () => window.matchMedia('(display-mode: standalone)').matches 
 const iphone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const bytes = value => Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0));
 async function api(action, fields = {}) {
-  const { data, error } = await supabase.functions.invoke('quest-notifications', { body: { action, timezone: zone(), ...fields } });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let result;
+  try { result = await supabase.functions.invoke('quest-notifications', { body: { action, timezone: zone(), ...fields }, signal: controller.signal }); }
+  finally { clearTimeout(timeout); }
+  const { data, error } = result;
   if (error || data?.error) {
     let message = data?.error;
     try { if (!message && error?.context) message = (await error.context.json()).error; } catch { /* Keep readable fallback. */ }
@@ -41,6 +46,9 @@ export function useQuestNotifications({ state, userId }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [connectionError, setConnectionError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [feedError, setFeedError] = useState('');
   const [key, setKey] = useState('');
   const [permission, setPermission] = useState(() => typeof Notification === 'undefined' ? 'default' : Notification.permission);
   const [toasts, setToasts] = useState([]);
@@ -52,6 +60,8 @@ export function useQuestNotifications({ state, userId }) {
   const seen = useRef({});
   const subRef = useRef(null);
   const competitionCursor = useRef(0);
+  const account = useRef(userId);
+  useEffect(() => { account.current = userId; return () => { account.current = null; }; }, [userId]);
   const canPush = supported();
   const needsInstall = iphone() && !installed();
   const refresh = useCallback(async () => {
@@ -63,18 +73,34 @@ export function useQuestNotifications({ state, userId }) {
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = await reg?.pushManager.getSubscription(); subRef.current = sub;
     if (sub && Notification.permission === 'granted') {
-      const result = await api('status', { endpoint: sub.endpoint });
+      let result = await api('status', { endpoint: sub.endpoint });
+      // A saved opt-in with a valid provider subscription can be repaired after
+      // a server registration expired. Never create permission without a tap.
+      if (!result.enabled && previous === userId && account.current === userId) {
+        result = await api('subscribe', { subscription: sub.toJSON(), preferences: prefsRef.current });
+      }
+      if (account.current !== userId) return;
       setEnabled(!!result.enabled);
-      if (result.enabled) setPreferences(old => ({ ...old, ...normalizeReminders(result.preferences) }));
+      if (result.enabled) {
+        const next = { ...prefsRef.current, ...normalizeReminders(result.preferences) };
+        prefsRef.current = next; setPreferences(next); write(`quest-reminders:${userId}`, next);
+        write('quest-push-owner', userId);
+      }
     } else setEnabled(false);
   }, [userId, canPush, needsInstall]);
   useEffect(() => {
     if (!userId) { setEnabled(false); setToasts([]); return; }
-    setPreferences({ ...DEFAULT_REMINDERS, inApp: true, ...read(`quest-reminders:${userId}`, {}) });
+    const saved = { ...DEFAULT_REMINDERS, inApp: true, ...read(`quest-reminders:${userId}`, {}) };
+    prefsRef.current = saved; setPreferences(saved); setEnabled(false); setError(''); setToasts([]);
     seen.current = read(`quest-reminders-seen:${userId}`, {});
     mountedAt.current = Date.now();
-    competitionCursor.current = mountedAt.current - 1000;
-    const onRefresh = () => { void refresh().catch(() => {}); };
+    competitionCursor.current = Math.max(mountedAt.current - 86400000, Number(read(`quest-friend-cursor:${userId}`, mountedAt.current - 1000)));
+    const onRefresh = () => {
+      setChecking(true);
+      void refresh().then(() => { if (account.current === userId) setConnectionError(''); })
+        .catch(problem => { if (account.current === userId) setConnectionError(problem.message); })
+        .finally(() => { if (account.current === userId) setChecking(false); });
+    };
     onRefresh(); window.addEventListener('focus', onRefresh); window.addEventListener('online', onRefresh);
     return () => { window.removeEventListener('focus', onRefresh); window.removeEventListener('online', onRefresh); };
   }, [userId, refresh]);
@@ -91,12 +117,21 @@ export function useQuestNotifications({ state, userId }) {
       if (document.visibilityState === 'hidden') return;
       for (const event of dueReminders(stateRef.current, { timezone: zone(), preferences: prefsRef.current, enabledAt: mountedAt.current - 1000 })) remember(event);
     };
+    let polling = false;
     const competitionTick = async () => {
-      if (document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden' || polling) return;
       if (!prefsRef.current.friends) { competitionCursor.current = Date.now(); return; }
+      polling = true;
       const since = new Date(Math.max(0, competitionCursor.current - 1000)).toISOString();
-      const { data, error: competitionError } = await supabase.rpc('get_my_quest_competition_events', { p_since: since });
-      if (competitionError || !prefsRef.current.friends) return;
+      let result;
+      try { result = await supabase.rpc('get_my_quest_competition_events', { p_since: since }); }
+      catch { result = { error: true }; }
+      finally { polling = false; }
+      if (account.current !== userId) return;
+      const { data, error: competitionError } = result;
+      if (competitionError) { setFeedError('Friend updates cannot connect. They will retry when you are online.'); return; }
+      setFeedError('');
+      if (!prefsRef.current.friends) return;
       for (const item of data || []) {
         const created = Date.parse(item.created_at) || Date.now();
         competitionCursor.current = Math.max(competitionCursor.current, created + 1);
@@ -107,6 +142,7 @@ export function useQuestNotifications({ state, userId }) {
           page: '#competition',
         });
       }
+      write(`quest-friend-cursor:${userId}`, competitionCursor.current);
     };
     const pushed = event => {
       if (event.data?.type !== 'QUEST_REMINDER' || event.data?.payload?.data?.userId !== userId) return;
@@ -153,7 +189,7 @@ export function useQuestNotifications({ state, userId }) {
   const update = values => void run(async () => {
     const next = { ...prefsRef.current, ...values };
     if (enabled && subRef.current) await api('preferences', { endpoint: subRef.current.endpoint, preferences: next });
-    if (Object.hasOwn(values, 'friends')) competitionCursor.current = Date.now();
+    if (Object.hasOwn(values, 'friends')) { competitionCursor.current = Date.now(); write(`quest-friend-cursor:${userId}`, competitionCursor.current); }
     prefsRef.current = next;
     setPreferences(next); write(`quest-reminders:${userId}`, next);
   });
@@ -162,5 +198,6 @@ export function useQuestNotifications({ state, userId }) {
     await api('test', { endpoint: subRef.current.endpoint });
     setMessage('Test sent. Check your notification center.');
   });
-  return { preferences, enabled, busy, message, error, permission, needsInstall, canPush, enable, disable, update, test, timezone: zone(), toasts, dismiss: id => setToasts(list => list.filter(item => item.key !== id)) };
+  const reconnect = () => void run(async () => { await refresh(); setConnectionError(''); setMessage('Device connection checked.'); });
+  return { preferences, enabled, busy, checking, message, error: error || connectionError, feedError, reconnect, permission, needsInstall, canPush, enable, disable, update, test, timezone: zone(), toasts, dismiss: id => setToasts(list => list.filter(item => item.key !== id)) };
 }

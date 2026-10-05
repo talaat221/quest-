@@ -53,6 +53,7 @@ export async function updateQuestProfile(userId, { username, displayName }) {
 
   if (error?.code === '23505') throw new Error('That username is already taken.');
   throwIf(error);
+  window.dispatchEvent(new CustomEvent('quest-profile-changed', { detail: data }));
   return data;
 }
 

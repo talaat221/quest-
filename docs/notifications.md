@@ -15,6 +15,7 @@ it is limited to once per minute per device.
   completing, or changing timer settings invalidates old deadlines.
 - A regular work timer reaching its estimate (accumulated work is included).
   This reminder does not automatically stop or complete the task.
+- Optional friend-completion alerts from joined competitions. Enable the Friends' task completions preference on each device. Task titles are never included in lock-screen notifications.
 - Optional daily check-in at a chosen hour when work remains. Off by default.
 
 The same pure engine in `supabase/functions/_shared/reminders.js` runs in the
@@ -81,3 +82,12 @@ mobile layout, in-app alerts, deduplication, and reloads without real-user edits
 The deployed health endpoint checks storage and payload encryption without
 sending to a device. An actual iPhone delivery still requires the owner to
 install the preview, grant permission, and press Send test.
+
+Device troubleshooting: setup errors are shown instead of silently ignored. Use
+Check connection to retry. A valid subscription with a recorded device opt-in is
+re-registered if its server row expired. A newly installed app or new origin
+still needs Enable notifications and the operating-system permission prompt.
+
+The auth listener must never await Supabase queries from `onAuthStateChange`.
+See `src/auth-session.js`: it schedules account loading outside that callback so
+saves, subscription setup and competition polling can all acquire the auth lock.

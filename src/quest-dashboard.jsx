@@ -27,6 +27,8 @@ import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 import EffortXP from "./EffortXP.jsx";
 import CompetitionPage from "./CompetitionPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
+import { ensureQuestProfile } from "./friends.js";
+import { observeQuestSession, questGreeting } from "./auth-session.js";
 import { recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
@@ -3398,6 +3400,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [state, setState] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
+  const [questProfile, setQuestProfile] = useState(null);
+  const currentUserId = useRef(null);
   const notifications = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id });
 
   const [viewOffset, setViewOffset] = useState(0);
@@ -3558,46 +3562,28 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   useEffect(() => {
     let mounted = true;
-
-    async function loadSession() {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      setSession(currentSession);
-
-      if (currentSession) {
-        await loadUserData(currentSession.user.id);
-      } else {
-        setLoaded(true);
-      }
-    }
-
-    loadSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!mounted) return;
-
-        setSession(newSession);
-
-        if (newSession) {
-          await loadUserData(newSession.user.id);
-        } else {
-          setState(null);
-          setLoaded(true);
+    const stop = observeQuestSession(supabase, {
+      onSession: next => {
+        const id = next?.user?.id || null;
+        if (id !== currentUserId.current) {
+          currentUserId.current = id;
+          setState(null); setQuestProfile(null); setLoaded(!id);
         }
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
+        setSession(next);
+        if (!id) setLoaded(true);
+      },
+      onUser: user => {
+        void loadUserData(user.id);
+        void ensureQuestProfile(user).then(profile => {
+          if (mounted && currentUserId.current === user.id) setQuestProfile(profile);
+        }).catch(() => { /* The greeting can fall back to this user's metadata. */ });
+      },
+    });
+    const changed = event => {
+      if (event.detail?.user_id === currentUserId.current) setQuestProfile(event.detail);
     };
+    window.addEventListener('quest-profile-changed', changed);
+    return () => { mounted = false; currentUserId.current = null; stop(); window.removeEventListener('quest-profile-changed', changed); };
   }, []);
 
   async function loadUserData(userId) {
@@ -3610,7 +3596,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
+      if (currentUserId.current !== userId || accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
 
       if (error) {
         console.error(
@@ -3642,7 +3628,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         }
       }
     } catch (error) {
-      if (accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
+      if (currentUserId.current !== userId || accountResetInProgress.current || epoch !== accountResetEpoch.current) return;
       console.error(error);
       setState(clone(DEFAULT_STATE));
     }
@@ -5036,11 +5022,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     if (!task.doneAt || rewardTaskDay(task.doneAt, resetHour) !== todayStr) return sum;
     return sum + Math.max(0, Number(task.actualMinutes) || 0);
   }, 0);
-  const competitionName =
-    session?.user?.user_metadata?.display_name ||
-    session?.user?.user_metadata?.full_name ||
-    session?.user?.email?.split("@")[0] ||
-    "You";
+  const competitionName = questGreeting(questProfile, session?.user);
 
   const questSummaryStats = {
     activeQuests: state.domains.length,
@@ -5360,7 +5342,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <FriendsPage user={session.user} />
           ) : showCompetitionPage ? (
             <CompetitionPage progression={progressionState} weekKey={weekKeyStr} todayKey={todayStr}
-              displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} userId={session.user.id} />
+              displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} userId={session.user.id} notifications={notifications} />
           ) : showStatsPage ? (
             <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : showRewardsPage ? (
@@ -5376,7 +5358,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <div className="qd-topbar">
               <div className="qd-scene-copy">
                 <div className="qd-greeting-kicker">{greeting},</div>
-                <div className="qd-greeting">TALAAT <span aria-hidden="true">🌱</span></div>
+                <div className="qd-greeting" style={{ fontSize: competitionName.length > 12 ? 'clamp(18px, 5vw, 36px)' : undefined, overflowWrap: 'anywhere' }}>{competitionName} <span aria-hidden="true">🌱</span></div>
                 <div className="qd-greeting-sub">
                   {todayAdjustment?.mode === "harbor"
                     ? "Rest is part of the journey."

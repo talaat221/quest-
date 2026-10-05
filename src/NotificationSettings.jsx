@@ -8,11 +8,12 @@ export default function NotificationSettings({ notifications: n }) {
   return <section className="qd-home-settings-card qn-settings" aria-labelledby="qn-heading">
     <h2 id="qn-heading"><Bell /> Notifications</h2>
     <p>Little nudges for your next step.</p>
-    <span className={`qn-status ${n.enabled ? 'is-on' : ''}`}>{n.enabled ? 'Enabled on this device' : 'Phone notifications off'}</span>
+    <span className={`qn-status ${n.enabled ? 'is-on' : ''}`}>{n.checking ? 'Checking this device…' : n.enabled ? 'Enabled on this device' : 'Phone notifications off'}</span>
     {n.needsInstall ? <p>Add Quest to your iPhone Home Screen, open it from its icon, then enable notifications here.</p> : !n.canPush ? <p>This browser cannot receive background notifications. In-app reminders are still available while Quest is open.</p> : n.permission === 'denied' ? <p>Notifications are blocked. Allow Quest in your device or browser notification settings, then reopen it.</p> : <p>Get alerts even when Quest is closed. Each device needs to be enabled separately.</p>}
     <div className="qn-actions">
       <button type="button" disabled={n.busy || (!n.enabled && (!n.canPush || n.needsInstall || n.permission === 'denied'))} onClick={n.enabled ? n.disable : n.enable}>{n.busy ? 'One moment…' : n.enabled ? 'Disable on this device' : 'Enable notifications'}</button>
       {n.enabled && <button type="button" disabled={n.busy} onClick={n.test}>Send test</button>}
+      {n.error && <button type="button" disabled={n.busy || n.checking} onClick={n.reconnect}>Check connection</button>}
     </div>
     <fieldset disabled={n.busy}><legend>Remind me about</legend>
       {[
@@ -28,6 +29,7 @@ export default function NotificationSettings({ notifications: n }) {
     <p className="qn-footnote">Times follow {n.timezone.replaceAll('_',' ')}. Keep changes synced for reminders while the app is closed. Phone alerts may arrive a little after the timer, depending on your connection and Focus settings.</p>
     {n.message && <p role="status" className="qn-message">{n.message}</p>}
     {n.error && <p role="alert" className="qn-error">{n.error}</p>}
+    {n.feedError && <p role="alert" className="qn-error">{n.feedError}</p>}
   </section>;
 }
 export function NotificationToasts({ notifications: n }) {
