@@ -44,3 +44,10 @@
     padding-top: 12px;
   }
 }
+
+/* Usernames vary in length; keep them clear of the calendar on small phones. */
+.qd-root .qd-scene-copy .qd-greeting { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .qd-root .qd-scene-copy .qd-greeting { font-size: 20px !important; }
+  .qd-root .qd-scene-copy .qd-greeting[data-long-name="true"] { font-size: clamp(10px, 3.5vw, 14px) !important; line-height: 1.45 !important; }
+}

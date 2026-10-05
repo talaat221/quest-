@@ -5358,7 +5358,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <div className="qd-topbar">
               <div className="qd-scene-copy">
                 <div className="qd-greeting-kicker">{greeting},</div>
-                <div className="qd-greeting" style={{ fontSize: competitionName.length > 12 ? 'clamp(18px, 5vw, 36px)' : undefined, overflowWrap: 'anywhere' }}>{competitionName} <span aria-hidden="true">🌱</span></div>
+                <div className="qd-greeting" data-long-name={competitionName.length > 7 ? "true" : undefined}>{competitionName} <span aria-hidden="true">🌱</span></div>
                 <div className="qd-greeting-sub">
                   {todayAdjustment?.mode === "harbor"
                     ? "Rest is part of the journey."
