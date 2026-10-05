@@ -19,6 +19,7 @@ export default function NotificationSettings({ notifications: n }) {
         ['anchors','Daily anchors','At their scheduled time, on their active days.'],
         ['tasks','Quest tasks','When a scheduled task is due to start.'],
         ['timers','Pomodoro & task timers','Focus ends, breaks end, or planned work time is up.'],
+        ['friends','Friends’ task completions','When a competitor completes a task. Task names stay off your lock screen.'],
         ['review','Daily check-in','A gentle review if there are unfinished tasks.'],
       ].map(([key,title,description]) => <label className="qn-option" key={key}><input type="checkbox" checked={n.preferences[key]} onChange={event => n.update({[key]:event.target.checked})}/><span><strong>{title}</strong><small>{description}</small></span></label>)}
       {n.preferences.review && <label className="qn-review">Check-in time<select aria-label="Daily check-in time" value={n.preferences.reviewHour} onChange={e => n.update({reviewHour:Number(e.target.value)})}>{Array.from({length:24},(_,hour) => <option key={hour} value={hour}>{String(hour).padStart(2,'0')}:00</option>)}</select></label>}

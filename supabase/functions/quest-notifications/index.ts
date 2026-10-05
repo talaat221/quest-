@@ -76,12 +76,13 @@ async function dispatch(keys: any) {
     for (const sub of rows) {
       inspected++;
       if (!states.has(sub.user_id)) states.set(sub.user_id, await checked(admin.rpc('get_quest_push_state', { p_user_id: sub.user_id })));
-      if (!challengeEvents.has(sub.user_id)) {
+      const friendAlerts = normalizeReminders(sub.preferences).friends;
+      if (friendAlerts && !challengeEvents.has(sub.user_id)) {
         challengeEvents.set(sub.user_id, await checked(admin.rpc('get_quest_competition_push_events', { p_user_id: sub.user_id, p_since: oneDayAgo })));
       }
       const events = dueReminders(states.get(sub.user_id), { timezone: sub.timezone, preferences: sub.preferences, enabledAt: Date.parse(sub.enabled_at) });
       const enabledAt = Date.parse(sub.enabled_at) || 0;
-      const competition = (challengeEvents.get(sub.user_id) || [])
+      const competition = (friendAlerts ? challengeEvents.get(sub.user_id) || [] : [])
         .filter((item: any) => (Date.parse(item?.created_at) || 0) >= enabledAt)
         .map(challengeNotification);
       // Separate devices are intentional. The per-device ledger suppresses retries.

@@ -1,519 +1,157 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { ensureQuestProfile, loadFriendHub } from './friends.js';
+import { otherFriendId } from './friends-core.js';
+import { loadWeeklyChallenge, cancelWeeklyChallenge, leaveWeeklyChallenge, respondWeeklyChallenge } from './challenges.js';
 import { competitionWeekStats } from './competition.js';
-import {
-  ensureQuestProfile,
-  loadAcceptedFriendsWithStats,
-  publishCompetitionStats,
-} from './friends.js';
-import {
-  MAX_CHALLENGE_MEMBERS,
-  MAX_CHALLENGE_RIVALS,
-  cancelWeeklyChallenge,
-  challengeMemberToFriend,
-  createWeeklyChallenge,
-  inviteWeeklyChallengeMembers,
-  leaveWeeklyChallenge,
-  loadWeeklyChallenge,
-  respondWeeklyChallenge,
-} from './challenges.js';
+import { createContests, friendLimit, leaveContest, loadContests, respondToContest, setContestPrivacy, startContest } from './contests.js';
+import { activityLabel, rankedMembers, remainingTime, roundPhase, timeAgo } from './competition-view.js';
 import './competition.css';
 
-const WEEKLY_METER_TARGET = 300;
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-function formatFocus(minutes = 0) {
-  const total = Math.max(0, Math.round(Number(minutes) || 0));
-  if (total < 60) return `${total}m`;
-  const hours = Math.floor(total / 60);
-  const rest = total % 60;
-  return rest ? `${hours}h ${rest}m` : `${hours}h`;
-}
-
-function daysLeftInWeek(weekKey, todayKey) {
-  const parse = value => {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
-    return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : NaN;
+function Icon({ kind = 'cup', ...props }) {
+  const paths = {
+    cup: 'M6 2h12v3h4v8h-4v3h-4v3h4v3H6v-3h4v-3H6v-3H2V5h4Zm0 6H4v3h2Zm12 0v3h2V8Z',
+    friends: 'M4 3h6v7H4Zm10 1h6v6h-6ZM2 12h10v10H2Zm12 0h8v10h-8Z',
+    flag: 'M4 2h2v20H4ZM7 3h14v9H7Z',
+    leaf: 'M12 5h8v7h-6v4h-2v6h-2v-8H4V7h6v5h2Z',
+    lock: 'M7 2h10v3h3v7h2v10H2V12h2V5h3Zm1 3v7h8V5Zm3 10v4h2v-4Z',
+    check: 'M2 11h4v4h3v3h3v-3h3v-3h3V7h4V3h-4v4h-3v3h-3v3H9v-3H6V7H2Z',
+    clock: 'M6 2h12v2h4v16h-4v2H6v-2H2V4h4Zm4 4v8h7v-3h-4V6Z',
+    gift: 'M3 8h7L6 4V1h5l2 4 2-4h5v4l-4 3h6v5h-9v9h-3v-9H1V8Zm0 7h5v7H3Zm12 0h5v7h-5Z',
+    arrow: 'M4 10h11V5h3v3h3v8h-3v3h-3v-5H4Z',
   };
-  const start = parse(weekKey);
-  const today = parse(todayKey);
-  if (!Number.isFinite(start) || !Number.isFinite(today)) return 0;
-  const dayIndex = Math.floor((today - start) / 86400000);
-  return clamp(6 - dayIndex, 0, 6);
+  return <svg {...props} viewBox="0 0 24 24" aria-hidden="true" shapeRendering="crispEdges"><path fill="currentColor" d={paths[kind] || paths.cup}/></svg>;
 }
-
-function initials(value = '') {
-  return String(value || '?')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(part => part[0] || '')
-    .join('')
-    .toUpperCase() || '?';
+function Panel({ as:Tag='section', className='', children, ...props }) {
+  return <Tag className={`cg-panel ${className}`} {...props}>{children}</Tag>;
 }
-
-function friendXP(friend) {
-  const raw = friend?.scoreXP ?? friend?.xp;
-  if (raw == null) return null;
-  return Math.max(0, Math.round(Number(raw) || 0));
+function Toggle({ checked, onChange, title, children, disabled }) {
+  return <label className="cg-toggle"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} disabled={disabled}/><span><strong>{title}</strong>{children && <small>{children}</small>}</span></label>;
 }
-
-function friendTasks(friend) {
-  const raw = friend?.tasks ?? friend?.eligibleTasks;
-  if (raw == null) return null;
-  return Math.max(0, Math.round(Number(raw) || 0));
+function Modal({ title, children, onClose, busy }) {
+  const ref=useRef(null); const heading=useId();
+  useEffect(()=>{ const dialog=ref.current; dialog.showModal(); return ()=>dialog.close(); },[]);
+  return <dialog ref={ref} className="cg-modal" aria-labelledby={heading} onCancel={e=>{e.preventDefault();if(!busy)onClose();}}>
+    <div className="cg-modal-top"><h2 id={heading}>{title}</h2><button type="button" className="cg-close" aria-label="Close dialog" disabled={busy} onClick={onClose}>×</button></div>{children}
+  </dialog>;
 }
-
-function sortCompetitors(entries = []) {
-  return [...entries].sort((a, b) => {
-    const xpDiff = (friendXP(b) ?? -1) - (friendXP(a) ?? -1);
-    if (xpDiff) return xpDiff;
-    const taskDiff = (friendTasks(b) ?? -1) - (friendTasks(a) ?? -1);
-    if (taskDiff) return taskDiff;
-    return String(a?.displayName || a?.name || '').localeCompare(String(b?.displayName || b?.name || ''));
-  });
+function Rules({ round }) {
+  return <div className="cg-rules"><span><Icon kind="clock"/>{round.duration==='month'?'1 month':'7 days'}</span><span><Icon kind="leaf"/>{round.includeAnchors?'Anchors included':'Quest tasks only'}</span>{round.prize && <div className="cg-prize"><Icon kind="gift"/><span><small>WINNER’S TREAT</small><strong>{round.prize}</strong></span></div>}</div>;
 }
-
-export default function CompetitionPage({
-  progression,
-  weekKey,
-  todayKey,
-  displayName = 'You',
-  focusMinutes = 0,
-  level = 1,
-  userId = null,
-  friends = [],
-}) {
-  const stats = competitionWeekStats({ progression, weekKey, todayKey });
-  const [liveFriends, setLiveFriends] = useState(friends);
-  const [challengeHub, setChallengeHub] = useState({ current: null, invites: [] });
-  const [showPicker, setShowPicker] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [challengeBusy, setChallengeBusy] = useState(false);
-  const [challengeError, setChallengeError] = useState('');
-  const [challengeMessage, setChallengeMessage] = useState('');
-
-  const focusLabel = formatFocus(focusMinutes);
-  const daysLeft = daysLeftInWeek(weekKey, todayKey);
-  const weeklyPct = clamp((stats.scoreXP / WEEKLY_METER_TARGET) * 100, 0, 100);
-  const todayXPPct = clamp((stats.todayXP / 100) * 100, 0, 100);
-  const todayTaskPct = clamp((stats.todayTasks / 5) * 100, 0, 100);
-  const focusPct = clamp((focusMinutes / 120) * 100, 0, 100);
-
-  const syncCompetition = async () => {
-    if (!userId) return;
-    await ensureQuestProfile({ id: userId, user_metadata: { display_name: displayName } });
-    await publishCompetitionStats(userId, {
-      weekKey,
-      todayKey,
-      scoreXP: stats.scoreXP,
-      taskXP: stats.taskXP,
-      consistencyXP: stats.consistencyXP,
-      eligibleTasks: stats.eligibleTasks,
-      todayXP: stats.todayXP,
-      todayTasks: stats.todayTasks,
-      focusMinutes,
-      level,
-    });
-    const [nextFriends, nextChallenge] = await Promise.all([
-      loadAcceptedFriendsWithStats(userId, weekKey),
-      loadWeeklyChallenge(weekKey),
-    ]);
-    setLiveFriends(nextFriends);
-    setChallengeHub(nextChallenge);
-  };
-
-  useEffect(() => {
-    if (!userId) return undefined;
-    let cancelled = false;
-    const sync = async () => {
+function CreateRound({ friends, initialMode, onCreate, onClose, busy, error }) {
+  const [step,setStep]=useState(0);
+  const [query,setQuery]=useState('');
+  const [form,setForm]=useState({ mode:initialMode, duration:'week', name:initialMode==='league'?'The harvest league':'A friendly challenge', prize:'', includeAnchors:false, shareTaskNames:false, friendIds:[] });
+  const change=(key,value)=>setForm(old=>({...old,[key]:value,...(key==='mode'?{friendIds:old.friendIds.slice(0,friendLimit(value))}:{})}));
+  const visible=friends.filter(f=>`${f.name} ${f.username}`.toLowerCase().includes(query.toLowerCase()));
+  const selected=friends.filter(f=>form.friendIds.includes(f.id));
+  return <Modal title="Plant a friendly challenge" onClose={onClose} busy={busy}>
+    <ol className="cg-steps" aria-label="Create competition steps">{['The round','Your friends','Review'].map((s,i)=><li key={s} aria-current={step===i?'step':undefined}><span>{i+1}</span>{s}</li>)}</ol>
+    <form onSubmit={e=>{e.preventDefault();if(step<2)setStep(step+1);else onCreate(form);}}>
+      {step===0 && <div className="cg-form-fields">
+        <fieldset><legend>How do you want to compete?</legend><div className="cg-choice-grid">{[['league','A shared league','One leaderboard · 10 people total'],['duel','Individual challenges','You vs each friend · up to 10']].map(([value,title,sub])=><label className="cg-choice" key={value}><input type="radio" name="round-mode" value={value} checked={form.mode===value} onChange={()=>change('mode',value)}/><span><strong>{title}</strong><small>{sub}</small></span></label>)}</div></fieldset>
+        <label className="cg-field">Round name<input value={form.name} required maxLength={60} onChange={e=>change('name',e.target.value)}/></label>
+        <fieldset><legend>Duration from the moment it starts</legend><div className="cg-segment">{[['week','One week'],['month','One month']].map(([value,title])=><label key={value}><input type="radio" name="duration" checked={form.duration===value} onChange={()=>change('duration',value)}/><span>{title}</span></label>)}</div></fieldset>
+        <Toggle checked={form.includeAnchors} onChange={v=>change('includeAnchors',v)} title="Count daily anchors">Include their earned XP along with quest tasks. This rule applies to everyone.</Toggle>
+        <label className="cg-field">Winner’s treat <small>optional</small><input placeholder="e.g. Coffee together, on us" maxLength={160} value={form.prize} onChange={e=>change('prize',e.target.value)}/><small>Everyone sees and agrees to the prize before joining.</small></label>
+      </div>}
+      {step===1 && <div className="cg-form-fields"><p className="cg-help">{form.mode==='league'?'You + up to 9 friends on one board.':'A separate head-to-head round with each selected friend.'}</p>
+        <div className="cg-between"><h3>Choose your friends</h3><span className="cg-count">{form.friendIds.length} / {friendLimit(form.mode)}</span></div>
+        {friends.length>5 && <input type="search" aria-label="Find a friend" placeholder="Find a friend…" value={query} onChange={e=>setQuery(e.target.value)}/>}
+        {!friends.length?<div className="cg-empty"><Icon kind="friends"/><h3>A good rivalry starts with a friend.</h3><p>Add friends to Quest first, then invite them here.</p><a href="#friends" className="cg-button" onClick={onClose}>Find friends</a></div>:<div className="cg-friend-list">{visible.map(f=>{const checked=form.friendIds.includes(f.id);return <label className="cg-friend" key={f.id}><span className="cg-avatar">{f.name.slice(0,1).toUpperCase()}</span><span><strong>{f.name}</strong><small>@{f.username}</small></span><input type="checkbox" aria-label={`Select ${f.name}`} checked={checked} disabled={!checked&&form.friendIds.length>=friendLimit(form.mode)} onChange={()=>change('friendIds',checked?form.friendIds.filter(id=>id!==f.id):[...form.friendIds,f.id])}/></label>;})}</div>}
+        {friends.length>0 && !visible.length && <p>No friends match that name.</p>}
+      </div>}
+      {step===2 && <div className="cg-form-fields"><Panel className="cg-review"><span className="cg-eyebrow">{form.mode==='league'?'SHARED LEAGUE':`${selected.length} INDIVIDUAL ${selected.length===1?'CHALLENGE':'CHALLENGES'}`}</span><h3>{form.name}</h3><Rules round={form}/><p>With {selected.map(f=>f.name).join(', ')}.</p></Panel>
+        <Toggle checked={form.shareTaskNames} onChange={v=>change('shareTaskNames',v)} title="Share my completed task names">Off means others see “A quest task” or “A daily anchor”. Each friend makes their own choice. You can change yours later.</Toggle>
+        <p className="cg-help">Invitations open a lobby. When everyone has answered, you can start the round. Scores begin at zero; only XP earned during the round counts.</p>
+        {form.mode==='duel' && <p className="cg-help">Each friend has their own round and prize. They cannot see your other opponents.</p>}
+      </div>}
+      {error && <p className="cg-error" role="alert">{error}</p>}
+      <div className="cg-modal-actions">{step>0&&<button type="button" className="cg-button is-quiet" disabled={busy} onClick={()=>setStep(step-1)}>Back</button>}<button className="cg-button is-gold" disabled={busy||(step===1&&!form.friendIds.length)||(step===0&&!form.name.trim())} type="submit">{busy?'Sending…':step===2?'Send invitations':'Continue'}<Icon kind="arrow"/></button></div>
+    </form>
+  </Modal>;
+}
+function RoundBoard({ round, userId, now, busy, onAction, onLeave }) {
+  const phase=roundPhase(round,now); const host=round.creatorId===userId;
+  const accepted=rankedMembers(round.members); const pending=round.members.filter(m=>m.status==='pending');
+  const [share,setShare]=useState(false);
+  const joined=round.myStatus==='accepted'; const leaders=accepted.filter(m=>m.rank===1);
+  return <Panel className="cg-round" aria-label={`${round.name} competition`}>
+    <div className="cg-round-heading"><span className="cg-eyebrow">{round.duration==='month'?'MONTHLY':'WEEKLY'} {round.mode==='league'?'LEAGUE':'HEAD TO HEAD'}</span><span className={`cg-status is-${phase}`}>{phase==='active'?remainingTime(round.endsAt,now):phase==='lobby'?'Gathering friends':phase==='finished'?'Finished':phase==='expired'?'Invitation expired':'Cancelled'}</span></div>
+    <h2>{round.name}</h2><Rules round={round}/>
+    {!joined && phase==='lobby'?<div className="cg-invite"><h3>You’re invited.</h3><p>Join {round.members.find(m=>m.id===round.creatorId)?.name||'your friend'} and grow a little further together.</p><Toggle checked={share} onChange={setShare} disabled={busy} title="Share my completed task names">Optional. Your XP and completion count are visible to participants.</Toggle><p className="cg-help">Joining accepts the rules{round.prize?' and winner’s treat':''} above.</p><div className="cg-actions"><button className="cg-button is-gold" disabled={busy} onClick={()=>onAction(()=>respondToContest(round.id,true,share),'You joined the lobby.')}>Accept invitation</button><button className="cg-button is-quiet" disabled={busy} onClick={()=>onAction(()=>respondToContest(round.id,false),'Invitation declined.')}>Decline</button></div></div>:<>
+      {phase==='finished'&&accepted.length>1&&<div className="cg-result"><Icon kind="cup"/><div><strong>{leaders.length>1?'A shared victory!':`${leaders[0].name} wins!`}</strong><p>{leaders.length>1?leaders.map(m=>m.name).join(' & '):'Small steps added up.'}{round.prize&&leaders.length>1?' Share the treat together.':''}</p></div></div>}
+      <div className="cg-board-label"><h3>{phase==='lobby'?'The gathering':'Leaderboard'}</h3><small>{accepted.length+pending.length} / {round.mode==='league'?10:2} travelers</small></div>
+      <ol className="cg-leaderboard">{accepted.map(m=><li key={m.id} className={`${m.id===userId?'is-you':''} ${m.rank===1&&phase!=='lobby'?'is-leading':''}`}><span className="cg-rank">{phase==='lobby'?<Icon kind="check"/>:String(m.rank).padStart(2,'0')}</span><span className="cg-avatar">{m.name.slice(0,1).toUpperCase()}</span><div className="cg-member"><strong>{m.name}{m.id===userId&&<small> you</small>}</strong><span>{phase==='lobby'?'Ready to grow':`${m.tasks||0} ${m.tasks===1?'completion':'completions'}`}{m.id===round.creatorId?' · host':''}</span></div><strong className="cg-score">{phase==='lobby'?'Ready':`${m.xp||0}`}<small>{phase!=='lobby'?'XP':''}</small></strong></li>)}{pending.map(m=><li key={m.id} className="is-pending"><span className="cg-rank"><Icon kind="clock"/></span><span className="cg-avatar">{m.name.slice(0,1).toUpperCase()}</span><div className="cg-member"><strong>{m.name}</strong><span>Invitation sent</span></div><span>Waiting</span></li>)}</ol>
+      {phase==='lobby'&&<div className="cg-lobby-note"><p>{pending.length?`Waiting for ${pending.length} ${pending.length===1?'friend':'friends'} to answer.`:accepted.length<2?'No opponents have joined yet.':host?'Everyone is ready. Start when you are.':'Everyone is ready. Your host can start the round.'}</p>{host&&<button className="cg-button is-gold" disabled={busy||pending.length>0||accepted.length<2} onClick={()=>onAction(()=>startContest(round.id),'The round has started. Good luck!')}><Icon kind="flag"/>Start the round</button>}</div>}
+      {joined&&phase!=='cancelled'&&<details className="cg-sharing"><summary><Icon kind="lock"/>Your sharing · {round.shareTaskNames?'Task names visible':'Task names private'}</summary><Toggle checked={round.shareTaskNames} disabled={busy} title="Share my completed task names" onChange={v=>onAction(()=>setContestPrivacy(round.id,v),v?'Your task names are now shared.':'Your task names are now private.')}>Applies only to your names in this competition, including earlier activity. Phone notifications never include task names.</Toggle></details>}
+      {joined&&phase!=='lobby'&&<div className="cg-feed"><div className="cg-board-label"><h3>Little victories</h3><span className="cg-live">{phase==='active'?'Updates while you’re here':'Round activity'}</span></div>{round.activity.length?<ul>{round.activity.map(e=><li key={e.id}><span className="cg-feed-icon"><Icon kind={e.source==='anchor'?'leaf':'check'}/></span><div><strong>{e.name}{e.userId===userId?' (you)':''}</strong><p>{activityLabel(e)}</p><small>{timeAgo(e.completedAt,now)}{!e.taskName?' · name private':''}</small></div><span className="cg-xp">+{e.xp} XP</span></li>)}</ul>:<div className="cg-feed-empty"><Icon kind="leaf"/><p>The first little victory is still growing.<br/>Completed tasks will appear here.</p></div>}</div>}
+      {joined&&['lobby','active'].includes(phase)&&<div className="cg-footer"><small>{phase==='active'?'Only XP earned during this round counts. Your personal level stays the same.':'The rules and prize lock when invitations are sent.'}</small><button className="cg-text-button" disabled={busy} onClick={()=>onLeave(round)}>{host?'Cancel round':'Leave round'}</button></div>}
+    </>}
+    {!joined && phase!=='lobby' && <p>This invitation is no longer open.</p>}
+  </Panel>;
+}
+function LegacyRounds({ hub, userId, busy, onAction }) {
+  if (!hub.current&&!hub.invites.length) return null;
+  return <Panel className="cg-legacy"><details><summary>Earlier weekly challenge</summary><p>Your original weekly challenge is still saved.</p>{hub.current&&<><h3>Week of {hub.current.weekKey}</h3><ul>{hub.current.members.map(m=><li key={m.userId}>{m.displayName} <span>{m.status==='pending'?'Invited':`${m.scoreXP||0} XP`}</span></li>)}</ul><button className="cg-button is-quiet" disabled={busy} onClick={()=>{if(window.confirm('Leave this earlier weekly challenge?'))onAction(()=>hub.current.creatorId===userId?cancelWeeklyChallenge(hub.current.id):leaveWeeklyChallenge(hub.current.id),'Earlier challenge closed.');}}>Leave earlier challenge</button></>}{hub.invites.map(i=><div key={i.id}><p>{i.creatorDisplayName} invited you to an earlier weekly challenge.</p><div className="cg-actions"><button className="cg-button" disabled={busy} onClick={()=>onAction(()=>respondWeeklyChallenge(i.id,true),'Invitation accepted.')}>Accept</button><button className="cg-button is-quiet" disabled={busy} onClick={()=>onAction(()=>respondWeeklyChallenge(i.id,false),'Invitation declined.')}>Decline</button></div></div>)}</details></Panel>;
+}
+export default function CompetitionPage({ progression, weekKey, todayKey, userId, displayName='You' }) {
+  const stats=competitionWeekStats({progression,weekKey,todayKey});
+  const [hub,setHub]=useState({contests:[]});const [friends,setFriends]=useState([]);const [legacy,setLegacy]=useState({current:null,invites:[]});
+  const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [syncError,setSyncError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
+  const [createMode,setCreateMode]=useState(null);const [selectedId,setSelectedId]=useState(null);const [tab,setTab]=useState('league');const [leaving,setLeaving]=useState(null);
+  const [clock,setClock]=useState(()=>Date.now());const delta=useRef(0);const alive=useRef(false);const inFlight=useRef(null);const busyRef=useRef(false);
+  const refresh=useCallback(async()=>{
+    if(!userId)return;
+    if(inFlight.current)return inFlight.current;
+    const job=(async()=>{
       try {
-        await syncCompetition();
-      } catch (error) {
-        if (!cancelled) console.warn('Competition could not sync:', error);
-      }
-    };
-    void sync();
-    const timer = window.setInterval(sync, 20000);
-    const onFocus = () => void sync();
-    window.addEventListener('focus', onFocus);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [
-    userId,
-    displayName,
-    weekKey,
-    todayKey,
-    stats.scoreXP,
-    stats.taskXP,
-    stats.consistencyXP,
-    stats.eligibleTasks,
-    stats.todayXP,
-    stats.todayTasks,
-    focusMinutes,
-    level,
-  ]);
-
-  const currentChallenge = challengeHub.current;
-  const currentMembers = Array.isArray(currentChallenge?.members) ? currentChallenge.members : [];
-  const isCreator = !!currentChallenge && currentChallenge.creatorId === userId;
-  const activeMemberCount = currentMembers.filter(member => ['accepted', 'pending'].includes(member.status)).length;
-  const acceptedCount = currentMembers.filter(member => member.status === 'accepted').length;
-  const pendingCount = currentMembers.filter(member => member.status === 'pending').length;
-  const remainingSlots = Math.max(0, MAX_CHALLENGE_MEMBERS - activeMemberCount);
-  const existingMemberIds = new Set(currentMembers.map(member => member.userId));
-  const availableFriends = liveFriends.filter(friend => !existingMemberIds.has(friend.id));
-
-  const acceptedRivals = sortCompetitors(currentMembers
-    .filter(member => member.userId !== userId && member.status === 'accepted')
-    .map(challengeMemberToFriend)
-    .filter(Boolean));
-  const pendingRivals = currentMembers
-    .filter(member => member.userId !== userId && member.status === 'pending')
-    .map(challengeMemberToFriend)
-    .filter(Boolean);
-  const featuredRivals = [...acceptedRivals, ...pendingRivals].slice(0, 3);
-  const challengeFriends = Array.from({ length: 3 }, (_, index) => featuredRivals[index] || null);
-
-  const challengeLeaderboard = useMemo(() => sortCompetitors(
-    currentMembers
-      .filter(member => member.status === 'accepted')
-      .map(member => ({
-        ...challengeMemberToFriend(member),
-        self: member.userId === userId,
-      }))
-      .filter(Boolean)
-  ).map((member, index) => ({ ...member, rank: index + 1 })), [currentMembers, userId]);
-
-  const leagueRows = useMemo(() => {
-    const ranked = sortCompetitors([
-      { id: userId, displayName, scoreXP: stats.scoreXP, tasks: stats.eligibleTasks, self: true },
-      ...liveFriends.map(friend => ({ ...friend, self: false })),
-    ]).map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-      name: entry.displayName || entry.name || 'Friend',
-      xp: friendXP(entry),
-      tasks: friendTasks(entry),
-    }));
-
-    const self = ranked.find(row => row.self);
-    let visible = ranked.slice(0, 4);
-    if (self && !visible.some(row => row.self)) visible = [...ranked.slice(0, 3), self];
-
-    return Array.from({ length: 4 }, (_, index) => visible[index] || {
-      rank: null,
-      name: 'Invite a friend',
-      xp: null,
-      tasks: null,
-      self: false,
-    });
-  }, [liveFriends, displayName, stats.scoreXP, stats.eligibleTasks, userId]);
-
-  const openFriends = () => {
-    window.location.hash = 'friends';
+        const [next,friendHub,old]=await Promise.all([loadContests(),loadFriendHub(userId),loadWeeklyChallenge(weekKey)]);
+        if(!alive.current)return;
+        delta.current=Date.parse(next.serverTime)-Date.now()||0;setHub(next);setLegacy(old);
+        setFriends(friendHub.friends.map(f=>({id:otherFriendId(f,userId),name:f.profile?.display_name||f.profile?.username||'Traveler',username:f.profile?.username||''})));setSyncError('');
+      }catch(e){if(alive.current)setSyncError(e.message||'Could not load competitions. Your saved tasks are safe.');}
+      finally{if(alive.current)setLoading(false);}
+    })();
+    inFlight.current=job;
+    try{await job;}finally{inFlight.current=null;}
+  },[userId,weekKey]);
+  useEffect(()=>{
+    alive.current=true;
+    void ensureQuestProfile({id:userId,user_metadata:{display_name:displayName}}).then(refresh).catch(e=>{if(alive.current){setError(e.message);setLoading(false);}});
+    const tick=()=>{setClock(Date.now()+delta.current);if(document.visibilityState!=='hidden')void refresh();};
+    const id=setInterval(tick,10000);window.addEventListener('focus',tick);document.addEventListener('visibilitychange',tick);
+    return()=>{alive.current=false;clearInterval(id);window.removeEventListener('focus',tick);document.removeEventListener('visibilitychange',tick);};
+  },[refresh,userId,displayName]);
+  const action=async(fn,message)=>{
+    if(busyRef.current)return;busyRef.current=true;setBusy(true);setError('');setNotice('');
+    try{const result=await fn();if(!alive.current)return;setCreateMode(null);setLeaving(null);if(result?.ids?.[0])setSelectedId(result.ids[0]);setNotice(message);if(inFlight.current)await inFlight.current;await refresh();}
+    catch(e){if(alive.current)setError(e.message||'That change could not be saved. Try again.');}
+    finally{busyRef.current=false;if(alive.current)setBusy(false);}
   };
-
-  const runChallenge = async (action, success = '') => {
-    if (challengeBusy) return;
-    setChallengeBusy(true);
-    setChallengeError('');
-    setChallengeMessage('');
-    try {
-      await action();
-      await syncCompetition();
-      setShowPicker(false);
-      setSelectedIds([]);
-      if (success) setChallengeMessage(success);
-    } catch (error) {
-      setChallengeError(error?.message || 'That challenge action did not work.');
-    } finally {
-      setChallengeBusy(false);
-    }
-  };
-
-  const selectionLimit = currentChallenge ? remainingSlots : MAX_CHALLENGE_RIVALS;
-  const toggleSelected = friendId => {
-    setSelectedIds(current => {
-      if (current.includes(friendId)) return current.filter(id => id !== friendId);
-      if (current.length >= selectionLimit) return current;
-      return [...current, friendId];
-    });
-  };
-
-  const openStartPicker = () => {
-    if (!liveFriends.length) return openFriends();
-    setSelectedIds([]);
-    setChallengeError('');
-    setShowPicker(true);
-  };
-
-  const openAddPicker = () => {
-    if (!remainingSlots) {
-      setChallengeMessage('This competition already has 20 travelers.');
-      return;
-    }
-    if (!availableFriends.length) return openFriends();
-    setSelectedIds([]);
-    setChallengeError('');
-    setShowPicker(true);
-  };
-
-  const createChallenge = () => runChallenge(
-    () => createWeeklyChallenge(weekKey, selectedIds),
-    'Challenge invitations sent.'
-  );
-
-  const inviteSelected = () => runChallenge(
-    () => inviteWeeklyChallengeMembers(currentChallenge.id, selectedIds),
-    `${selectedIds.length} challenge ${selectedIds.length === 1 ? 'invitation' : 'invitations'} sent.`
-  );
-
-  const leaveChallenge = () => {
-    if (!currentChallenge) return;
-    const message = isCreator
-      ? 'Leave this competition? If another traveler has joined, leadership will pass to them. If you are the only accepted traveler, the challenge will end.'
-      : 'Leave this competition? Your score will be removed from this challenge, but your Quest XP will stay untouched.';
-    if (!window.confirm(message)) return;
-    void runChallenge(() => leaveWeeklyChallenge(currentChallenge.id), 'You left the competition.');
-  };
-
-  return (
-    <section className="cp2-page" aria-labelledby="cp2-title">
-      <h1 id="cp2-title" className="cp2-sr-only">Competition</h1>
-
-      <section className="cp2-art cp2-hero" aria-label="Competition. Sail together.">
-        <img src="/competition-v2/hero-v2.svg" alt="" aria-hidden="true" />
-      </section>
-
-      {!!challengeHub.invites?.length && (
-        <section className="cp2-invites" aria-label="Challenge invitations">
-          {challengeHub.invites.map(invite => (
-            <div className="cp2-invite" key={invite.id}>
-              <span>
-                <strong>{invite.creatorDisplayName}</strong>
-                <small>@{invite.creatorUsername} invited you to this week's challenge · {invite.memberCount || 1}/{invite.maxMembers || MAX_CHALLENGE_MEMBERS} travelers</small>
-              </span>
-              <div>
-                <button type="button" disabled={challengeBusy} onClick={() => runChallenge(() => respondWeeklyChallenge(invite.id, true), 'Challenge joined.')}>Accept</button>
-                <button type="button" disabled={challengeBusy} onClick={() => runChallenge(() => respondWeeklyChallenge(invite.id, false), 'Challenge declined.')}>Decline</button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {challengeError && <p className="cp2-challenge-status is-error" role="alert">{challengeError}</p>}
-      {challengeMessage && <p className="cp2-challenge-status" role="status">{challengeMessage}</p>}
-
-      <section className="cp2-art cp2-challenge" aria-label="Weekly group challenge">
-        <img src="/competition-v2/challenge-v5.svg" alt="" aria-hidden="true" />
-
-        <span className="cp2-week-left">{daysLeft === 0 ? 'LAST DAY' : `${daysLeft} DAYS LEFT`}</span>
-
-        <div className="cp2-nameplate">
-          <strong>{displayName}</strong>
-          <span>LV {level}</span>
-        </div>
-
-        <strong className="cp2-stat-value cp2-stat-xp">{stats.scoreXP} XP</strong>
-        <strong className="cp2-stat-value cp2-stat-tasks">{stats.eligibleTasks}</strong>
-        <strong className="cp2-stat-value cp2-stat-focus">{focusLabel}</strong>
-
-        <div className="cp2-week-progress-label">{stats.scoreXP} / {WEEKLY_METER_TARGET}</div>
-        <div className="cp2-week-progress-fill" style={{ width: `${weeklyPct * 0.291}%` }} />
-
-        <div className="cp2-rivals" aria-label="Leading challenge rivals">
-          {challengeFriends.map((friend, index) => {
-            const score = friendXP(friend);
-            const tasks = friendTasks(friend);
-            const pending = friend?.status === 'pending';
-            return (
-              <button
-                type="button"
-                key={friend?.id || `empty-${index}`}
-                className={`cp2-rival-row${friend ? '' : ' is-empty'}${pending ? ' is-pending' : ''}`}
-                onClick={!friend && isCreator && remainingSlots ? openAddPicker : undefined}
-                aria-label={friend
-                  ? `${friend.displayName || friend.name || 'Friend'}, ${pending ? 'invited' : `${score ?? 0} XP and ${tasks ?? 0} tasks finished`}`
-                  : isCreator && remainingSlots ? 'Add travelers to this challenge' : 'Empty challenge slot'}
-              >
-                {friend ? (
-                  <>
-                    <span className="cp2-rival-avatar">{initials(friend.displayName || friend.name)}</span>
-                    <span className="cp2-rival-main">
-                      <strong>{friend.displayName || friend.name || 'Friend'}</strong>
-                      <small>{pending ? 'Invitation pending' : `LV ${Math.max(1, Number(friend.level) || 1)}`}</small>
-                    </span>
-                    <strong className="cp2-rival-score">{pending ? 'INVITED' : score == null ? '— XP' : `${score} XP`}</strong>
-                    {!pending && <strong className="cp2-rival-tasks">{tasks == null ? '— TASKS' : `${tasks} ${tasks === 1 ? 'TASK' : 'TASKS'}`}</strong>}
-                  </>
-                ) : isCreator && remainingSlots ? (
-                  <img className="cp2-rival-empty-art" src="/competition-v2/rival-empty-v1.svg" alt="" aria-hidden="true" />
-                ) : (
-                  <span className="cp2-rival-open">Open slot</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          className="cp2-add-friend"
-          onClick={currentChallenge && isCreator && remainingSlots ? openAddPicker : currentChallenge ? undefined : openFriends}
-          aria-label={currentChallenge ? (isCreator && remainingSlots ? 'Add travelers to this challenge' : 'Challenge is active') : 'Find friends'}
-        />
-      </section>
-
-      {currentChallenge && (
-        <section className="cp2-roster" aria-labelledby="cp2-roster-title">
-          <div className="cp2-roster-head">
-            <div>
-              <small>WEEKLY CREW</small>
-              <h2 id="cp2-roster-title">Challenge leaderboard</h2>
-            </div>
-            <span>{acceptedCount} joined{pendingCount ? ` · ${pendingCount} invited` : ''} · {MAX_CHALLENGE_MEMBERS} max</span>
-          </div>
-
-          <div className="cp2-roster-list">
-            {challengeLeaderboard.map(member => {
-              const xp = friendXP(member) ?? 0;
-              const tasks = friendTasks(member) ?? 0;
-              return (
-                <div className={`cp2-roster-row${member.self ? ' is-self' : ''}`} key={member.id}>
-                  <strong className="cp2-roster-rank">#{member.rank}</strong>
-                  <span className="cp2-roster-avatar">{initials(member.displayName)}</span>
-                  <span className="cp2-roster-person">
-                    <b>{member.displayName}{member.self ? ' · YOU' : ''}{member.isCreator ? ' · CAPTAIN' : ''}</b>
-                    <small>{tasks} {tasks === 1 ? 'task' : 'tasks'} completed</small>
-                  </span>
-                  <strong className="cp2-roster-xp">{xp} XP</strong>
-                </div>
-              );
-            })}
-            {pendingRivals.map(member => (
-              <div className="cp2-roster-row is-pending" key={`pending-${member.id}`}>
-                <strong className="cp2-roster-rank">—</strong>
-                <span className="cp2-roster-avatar">{initials(member.displayName)}</span>
-                <span className="cp2-roster-person"><b>{member.displayName}</b><small>Invitation pending</small></span>
-                <strong className="cp2-roster-xp">INVITED</strong>
-              </div>
-            ))}
-          </div>
-
-          {isCreator && remainingSlots > 0 && (
-            <button type="button" className="cp2-roster-add" onClick={openAddPicker}>+ Add travelers ({remainingSlots} slots left)</button>
-          )}
-        </section>
-      )}
-
-      <section className="cp2-art cp2-today" aria-label="Today's competition progress">
-        <img src="/competition-v2/today-v2.svg" alt="" aria-hidden="true" />
-        <strong className="cp2-today-value cp2-today-xp">{stats.todayXP} XP</strong>
-        <strong className="cp2-today-value cp2-today-tasks">{stats.todayTasks} {stats.todayTasks === 1 ? 'task' : 'tasks'}</strong>
-        <strong className="cp2-today-value cp2-today-focus">{focusLabel}</strong>
-        <i className="cp2-today-fill cp2-fill-xp" style={{ width: `${todayXPPct * 0.223}%` }} />
-        <i className="cp2-today-fill cp2-fill-tasks" style={{ width: `${todayTaskPct * 0.223}%` }} />
-        <i className="cp2-today-fill cp2-fill-focus" style={{ width: `${focusPct * 0.223}%` }} />
-      </section>
-
-      <section className="cp2-art cp2-league" aria-label="Friends League">
-        <img src="/competition-v2/league-v3.svg" alt="" aria-hidden="true" />
-        <div className="cp2-league-live">
-          {leagueRows.map((row, index) => (
-            <div className={`cp2-league-row${row.self ? ' is-self' : row.xp == null ? ' is-empty' : ''}`} key={`${row.id || row.name}-${index}`}>
-              <span>
-                <b>{row.name}</b>
-                <small>{row.rank ? `#${row.rank} · ` : ''}{row.tasks == null ? 'waiting for stats' : `${row.tasks} ${row.tasks === 1 ? 'task' : 'tasks'}`}</small>
-              </span>
-              <strong>{row.xp == null ? '—' : `${row.xp} XP`}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="cp2-art cp2-actions" aria-label="Competition actions">
-        <img src="/competition-v2/actions-v2.svg" alt="" aria-hidden="true" />
-        <button type="button" className="cp2-action cp2-find" onClick={openFriends} aria-label="Find friends" />
-        <button
-          type="button"
-          className={`cp2-action cp2-start${currentChallenge ? ' is-active' : ''}`}
-          onClick={currentChallenge ? undefined : openStartPicker}
-          aria-label={currentChallenge ? 'Weekly challenge active' : 'Start a weekly challenge'}
-        />
-      </section>
-
-      <div className="cp2-note">
-        <span>{currentChallenge
-          ? `Weekly challenge active with ${acceptedCount} traveler${acceptedCount === 1 ? '' : 's'}. Scores update from balanced Quest XP and finished tasks.`
-          : `Choose up to ${MAX_CHALLENGE_RIVALS} friends and start this week’s challenge.`}</span>
-        {currentChallenge && (
-          <div className="cp2-note-actions">
-            <button type="button" className="cp2-leave" disabled={challengeBusy} onClick={leaveChallenge}>Leave competition</button>
-            {isCreator && (
-              <button type="button" className="cp2-end" disabled={challengeBusy} onClick={() => {
-                if (window.confirm('End this weekly challenge for everyone?')) {
-                  void runChallenge(() => cancelWeeklyChallenge(currentChallenge.id), 'Challenge ended.');
-                }
-              }}>End for everyone</button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {showPicker && (
-        <div className="cp2-picker-backdrop" role="presentation" onMouseDown={event => {
-          if (event.target === event.currentTarget) setShowPicker(false);
-        }}>
-          <section className="cp2-picker" role="dialog" aria-modal="true" aria-labelledby="cp2-picker-title">
-            <button type="button" className="cp2-picker-close" aria-label="Close" onClick={() => setShowPicker(false)}>×</button>
-            <p>SAIL TOGETHER</p>
-            <h2 id="cp2-picker-title">{currentChallenge ? 'Add travelers' : 'Start Weekly Challenge'}</h2>
-            <span>{currentChallenge
-              ? `Choose up to ${remainingSlots} more ${remainingSlots === 1 ? 'traveler' : 'travelers'} for this week.`
-              : `Choose 1–${MAX_CHALLENGE_RIVALS} friends. The challenge runs through Sunday.`}</span>
-
-            <div className="cp2-picker-list">
-              {(currentChallenge ? availableFriends : liveFriends).map(friend => {
-                const selected = selectedIds.includes(friend.id);
-                return (
-                  <button
-                    type="button"
-                    className={`cp2-picker-friend${selected ? ' is-selected' : ''}`}
-                    key={friend.id}
-                    disabled={challengeBusy}
-                    onClick={() => toggleSelected(friend.id)}
-                  >
-                    <b>{initials(friend.displayName)}</b>
-                    <span><strong>{friend.displayName}</strong><small>@{friend.username || 'traveler'}</small></span>
-                    <em>{selected ? 'Selected' : 'Choose'}</em>
-                  </button>
-                );
-              })}
-              {!(currentChallenge ? availableFriends : liveFriends).length && (
-                <p className="cp2-picker-empty">No other friends are available for this challenge.</p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="cp2-picker-start"
-              disabled={challengeBusy || !selectedIds.length}
-              onClick={currentChallenge ? inviteSelected : createChallenge}
-            >
-              {challengeBusy
-                ? (currentChallenge ? 'Inviting…' : 'Starting…')
-                : currentChallenge
-                  ? `Invite ${selectedIds.length || 0} ${selectedIds.length === 1 ? 'traveler' : 'travelers'}`
-                  : `Start with ${selectedIds.length || 0} ${selectedIds.length === 1 ? 'friend' : 'friends'}`}
-            </button>
-            <button type="button" className="cp2-picker-find" onClick={openFriends}>Find more friends</button>
-          </section>
-        </div>
-      )}
-    </section>
-  );
+  const isPast=c=>['finished','expired','cancelled'].includes(roundPhase(c,clock));
+  const invitations=hub.contests.filter(c=>c.myStatus==='pending'&&!isPast(c));
+  const rounds=hub.contests.filter(c=>c.myStatus==='accepted'&&(tab==='past'?isPast(c):c.mode===tab&&!isPast(c)));
+  const selected=rounds.find(c=>c.id===selectedId)||rounds[0];
+  return <div className="cg-page" aria-label="Competition">
+    <header className="cg-hero"><img src="/competition-v3/tournament-garden-v1.webp" alt="" className="cg-hero-art" fetchPriority="high"/><div className="cg-hero-copy"><span className="cg-eyebrow">THE VILLAGE GATHERING</span><h1>Grow together.<br/>Go further.</h1><p>A friendly race. A shared little victory.</p></div><a className="cg-friends-link" href="#friends"><Icon kind="friends"/>Friends<Icon kind="arrow"/></a></header>
+    <div className="cg-welcome"><div><span className="cg-eyebrow">COMPETITION</span><h2>Your next adventure</h2></div><div className="cg-week-score"><strong>{stats.scoreXP}</strong><span>XP this week</span></div></div>
+    <div className="cg-launch"><button type="button" className="cg-launch-card" onClick={()=>{setError('');setCreateMode('league');}}><Icon kind="cup"/><span><strong>Create a league</strong><small>One board. Up to 10 people.</small></span><Icon kind="arrow"/></button><button type="button" className="cg-launch-card" onClick={()=>{setError('');setCreateMode('duel');}}><Icon kind="flag"/><span><strong>Challenge friends</strong><small>Separate one-on-one rounds.</small></span><Icon kind="arrow"/></button></div>
+    {notice&&<p role="status" className="cg-notice">{notice}</p>}{(syncError||(error&&!createMode))&&<p role="alert" className="cg-error">{syncError||error} <button type="button" className="cg-text-button" onClick={()=>void refresh()}>Retry</button></p>}
+    {invitations.length>0&&<section className="cg-invitations" aria-label="Competition invitations"><h2>Your invitations <span>{invitations.length}</span></h2>{invitations.map(c=><RoundBoard key={c.id} round={c} userId={userId} now={clock} busy={busy} onAction={action}/>)}</section>}
+    <div className="cg-tabs" role="tablist" aria-label="Competition type" onKeyDown={e=>{
+      const values=['league','duel','past'];let index=values.indexOf(tab);
+      if(e.key==='ArrowRight')index=(index+1)%3;else if(e.key==='ArrowLeft')index=(index+2)%3;else if(e.key==='Home')index=0;else if(e.key==='End')index=2;else return;
+      e.preventDefault();setTab(values[index]);setSelectedId(null);e.currentTarget.querySelectorAll('[role="tab"]')[index].focus();
+    }}>{[['league','Leagues'],['duel','One on one'],['past','Past rounds']].map(([value,title])=><button key={value} id={`cg-tab-${value}`} type="button" role="tab" aria-selected={tab===value} tabIndex={tab===value?0:-1} aria-controls="cg-rounds" onClick={()=>{setTab(value);setSelectedId(null);}}>{title}</button>)}</div>
+    <div id="cg-rounds" role="tabpanel" aria-labelledby={`cg-tab-${tab}`} aria-busy={loading}>
+      {loading?<Panel className="cg-empty"><Icon kind="leaf"/><p>Opening the village board…</p></Panel>:rounds.length?<>
+        {rounds.length>1&&<div className="cg-round-picker" aria-label="Choose a competition">{rounds.map(c=><button type="button" key={c.id} aria-pressed={selected?.id===c.id} onClick={()=>setSelectedId(c.id)}><strong>{c.mode==='duel'?c.members.find(m=>m.id!==userId)?.name||c.name:c.name}</strong><small>{roundPhase(c,clock)==='active'?remainingTime(c.endsAt,clock):roundPhase(c,clock)}</small></button>)}</div>}
+        <RoundBoard key={selected.id} round={selected} userId={userId} now={clock} busy={busy} onAction={action} onLeave={setLeaving}/>
+      </>:<Panel className="cg-empty"><Icon kind={tab==='past'?'clock':tab==='league'?'cup':'flag'}/><span className="cg-eyebrow">{tab==='past'?'YOUR STORY IS STILL GROWING':'A LITTLE FRIENDLY MOTIVATION'}</span><h2>{tab==='past'?'Memories go here.':tab==='league'?'A place for your people.':'Side by side. One on one.'}</h2><p>{tab==='past'?'Finished rounds will stay here with their results.':tab==='league'?'Gather your friends, choose a week or a month, and turn small steps into a shared adventure.':'Choose your friends and give each rivalry its own little story. No shared league needed.'}</p>{tab!=='past'&&<button className="cg-button is-gold" type="button" onClick={()=>{setError('');setCreateMode(tab);}}>Start a {tab==='league'?'league':'challenge'}<Icon kind="arrow"/></button>}</Panel>}
+    </div>
+    <LegacyRounds hub={legacy} userId={userId} busy={busy} onAction={action}/>
+    <p className="cg-page-note"><Icon kind="leaf"/>A little encouragement, at your own pace.<a href="#more">Friend notifications in More ›</a></p>
+    {createMode&&<CreateRound key={createMode} initialMode={createMode} friends={friends} busy={busy} error={error} onClose={()=>{setCreateMode(null);setError('');}} onCreate={form=>{setTab(form.mode);void action(()=>createContests(form),'Invitations sent. Your round is waiting in the lobby.');}}/>}
+    {leaving&&<Modal title={leaving.creatorId===userId?'Cancel this round?':'Leave this round?'} onClose={()=>setLeaving(null)} busy={busy}><p>{leaving.creatorId===userId?'This ends the round for everyone.':'You’ll leave the scoreboard and stop receiving its updates.'} Your tasks and personal XP stay saved.</p>{error&&<p role="alert" className="cg-error">{error}</p>}<div className="cg-modal-actions"><button className="cg-button is-quiet" disabled={busy} onClick={()=>setLeaving(null)}>Keep playing</button><button className="cg-button" disabled={busy} onClick={()=>void action(()=>leaveContest(leaving.id),'You left the round.')}>Confirm</button></div></Modal>}
+  </div>;
 }

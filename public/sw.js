@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v31-reward-wheel';
+const CACHE_NAME = 'quest-shell-v32-competition-garden';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
@@ -10,6 +10,7 @@ const APP_SHELL = [
   '/favicon-32x32.png?v=quest-cottage-v1',
   '/odyssey-sea.jpg',
   '/pixel-garden-hero.webp',
+  '/competition-v3/tournament-garden-v1.webp',
   '/xp-frame-mobile.png',
   '/daily-anchors/panel-v1.webp',
   '/today-quests/panel-v1.webp',

@@ -1,9 +1,9 @@
 // Shared by the browser and the background worker. All times are timestamps,
 // never timer ticks. No task or account data is changed by a reminder.
-export const DEFAULT_REMINDERS = Object.freeze({ anchors: true, tasks: true, timers: true, review: false, reviewHour: 21 });
+export const DEFAULT_REMINDERS = Object.freeze({ anchors: true, tasks: true, timers: true, friends: false, review: false, reviewHour: 21 });
 export function normalizeReminders(value = {}) {
   return { anchors: value.anchors !== false, tasks: value.tasks !== false, timers: value.timers !== false,
-    review: value.review === true, reviewHour: Number.isInteger(Number(value.reviewHour)) ? Math.min(23, Math.max(0, Number(value.reviewHour))) : 21 };
+    friends: value.friends === true, review: value.review === true, reviewHour: Number.isInteger(Number(value.reviewHour)) ? Math.min(23, Math.max(0, Number(value.reviewHour))) : 21 };
 }
 const formatters = new Map();
 const zonedTimes = new Map();

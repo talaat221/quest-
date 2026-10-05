@@ -93,9 +93,10 @@ export function useQuestNotifications({ state, userId }) {
     };
     const competitionTick = async () => {
       if (document.visibilityState === 'hidden') return;
+      if (!prefsRef.current.friends) { competitionCursor.current = Date.now(); return; }
       const since = new Date(Math.max(0, competitionCursor.current - 1000)).toISOString();
       const { data, error: competitionError } = await supabase.rpc('get_my_quest_competition_events', { p_since: since });
-      if (competitionError) return;
+      if (competitionError || !prefsRef.current.friends) return;
       for (const item of data || []) {
         const created = Date.parse(item.created_at) || Date.now();
         competitionCursor.current = Math.max(competitionCursor.current, created + 1);
@@ -110,6 +111,7 @@ export function useQuestNotifications({ state, userId }) {
     const pushed = event => {
       if (event.data?.type !== 'QUEST_REMINDER' || event.data?.payload?.data?.userId !== userId) return;
       const payload = event.data.payload;
+      if (String(payload.data.eventKey).startsWith('competition:') && !prefsRef.current.friends) return;
       remember({ key: payload.data.eventKey, title: payload.title, body: payload.body, page: new URL(payload.data.url).hash });
     };
     const id = setInterval(tick, 1000);
@@ -151,6 +153,8 @@ export function useQuestNotifications({ state, userId }) {
   const update = values => void run(async () => {
     const next = { ...prefsRef.current, ...values };
     if (enabled && subRef.current) await api('preferences', { endpoint: subRef.current.endpoint, preferences: next });
+    if (Object.hasOwn(values, 'friends')) competitionCursor.current = Date.now();
+    prefsRef.current = next;
     setPreferences(next); write(`quest-reminders:${userId}`, next);
   });
   const test = () => void run(async () => {
