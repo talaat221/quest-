@@ -415,3 +415,23 @@
 .login-username-status.is-taken,
 .login-username-status.is-invalid { color: #efb08b; }
 .login-username-status.is-checking { color: #b8cee0; }
+
+
+.login-legal {
+  margin: 18px auto 0;
+  max-width: 340px;
+  color: #8fa8b7;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.login-legal a {
+  color: #a9cf9f;
+  text-underline-offset: 3px;
+}
+
+.login-legal--single {
+  margin-top: 15px;
+}
