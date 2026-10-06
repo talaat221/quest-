@@ -6,13 +6,7 @@ import "./LoginRecovery.css";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const recoveryRedirectUrl = () => {
-  const url = new URL(window.location.href);
-  url.search = "";
-  url.hash = "";
-  url.searchParams.set("mode", "recovery");
-  return url.toString();
-};
+const recoveryRedirectUrl = () => `${window.location.origin}/reset-password`;
 
 const isEmailRateLimitError = (error) =>
   /email rate limit exceeded|rate limit.*email|email.*rate limit/i.test(error?.message || "");
