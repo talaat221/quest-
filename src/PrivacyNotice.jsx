@@ -82,7 +82,7 @@ export default function PrivacyNotice() {
               <p>
                 Quest منتج مستقل في مرحلة ما قبل الإطلاق ومقره التشغيلي في مصر. قبل الإطلاق العام، ستُستكمل هنا هوية المشغّل القانوني الكاملة وبيانات الاتصال المطلوبة.
               </p>
-              <p><strong>المشغّل القانوني:</strong> [الاسم القانوني للمشغّل — يُستكمل قبل الإطلاق العام]</p>
+              <p><strong>المشغّل القانوني:</strong> عبدالرحمن محمد طلعت محمد، بصفته فردًا مقيمًا في مصر.</p>
               <p><strong>البريد المخصص للخصوصية:</strong> <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></p>
               <p>
                 لم يتم تعيين مسؤول حماية بيانات مستقل في مرحلة ما قبل الإطلاق. إذا أصبح تعيينه مطلوبًا أو تم تعيينه لاحقًا، فسنضيف بياناته إلى هذا الإشعار.
@@ -227,7 +227,7 @@ export default function PrivacyNotice() {
               <p>
                 Quest is an independent pre-launch product operated from Egypt. Before public launch, this section will be completed with the full legal identity and required contact details of the operator.
               </p>
-              <p><strong>Legal operator:</strong> [Legal operator name — to be completed before public launch]</p>
+              <p><strong>Legal operator:</strong> Abdelrahman Mohamed Talaat Mohamed, an individual based in Egypt.</p>
               <p><strong>Privacy contact:</strong> <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></p>
               <p>
                 Quest has not appointed a separate Data Protection Officer at the pre-launch stage. If one is required or appointed later, the contact details will be added here.
