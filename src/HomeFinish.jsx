@@ -3,6 +3,7 @@ import { supabase, flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync, res
 import "./home-finish.css";
 import "./day-pause.css";
 import AccountResetCard from "./AccountResetCard.jsx";
+import AccountDeleteCard from "./AccountDeleteCard.jsx";
 import NotificationSettings from "./NotificationSettings.jsx";
 import { disconnectNotifications } from "./notifications.js";
 import { RewardChest } from "./RewardsPage.jsx";
@@ -119,7 +120,8 @@ export function MorePage({ resetHour, onResetHour, onResetAccount, notifications
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [resetting, setResetting] = useState(false);
-  const locked = busy || resetting;
+  const [deleting, setDeleting] = useState(false);
+  const locked = busy || resetting || deleting;
   useEffect(() => subscribeQuestSync(setSync), []);
   const run = async (action) => {
     if (locked) return;
@@ -159,7 +161,8 @@ export function MorePage({ resetHour, onResetHour, onResetAccount, notifications
         </> : <button type="button" disabled={locked || sync.state === "syncing"} onClick={() => void run(flushQuestSync)}>{busy ? "Checking…" : "Sync now"}</button>}
         {error && <p role="alert">{error}</p>}
       </section>
-      <AccountResetCard onReset={onResetAccount} disabled={busy} onBusyChange={setResetting} />
+      <AccountResetCard onReset={onResetAccount} disabled={busy || deleting} onBusyChange={setResetting} />
+      <AccountDeleteCard disabled={busy || resetting} onBusyChange={setDeleting} />
       <button className="qd-more-sign-out" type="button" disabled={locked} onClick={() => void run(async () => { await disconnectNotifications(); const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw signOutError; })}>Log out</button>
     </>
   );
