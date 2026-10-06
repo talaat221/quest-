@@ -139,6 +139,7 @@ export function MorePage({ resetHour, onResetHour, onResetAccount, notifications
       <a className="qd-home-page-link gg-more-link sr-more-link" href="#study"><img src="/study-room/boy-idle-v2.webp" alt="" /><span><strong>Study with me</strong><small>A cozy room, a quiet companion, and time for your tasks.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link cp-more-link" href="#competition"><img src="/competition/competition-icon-v1.svg" alt="" /><span><strong>Competition</strong><small>Compare balanced XP and challenge friends week by week.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link cp-more-link" href="#friends"><img src="/competition/competition-icon-v1.svg" alt="" /><span><strong>Friends</strong><small>Find Quest users, accept requests, and build your crew.</small></span><span aria-hidden="true">›</span></a>
+      <a className="qd-home-page-link gg-more-link" href="/privacy?lang=en"><span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 44, height: 44, fontSize: 25 }}>🔒</span><span><strong>Privacy Notice</strong><small>See what Quest collects, why we use it, and your privacy choices.</small></span><span aria-hidden="true">›</span></a>
       <NotificationSettings notifications={notifications} />
       <section className="qd-home-settings-card" aria-labelledby="qd-more-day-reset">
         <h2 id="qd-more-day-reset">Day reset time</h2>
