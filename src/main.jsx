@@ -21,7 +21,7 @@ function isRecoveryLocation() {
 }
 
 const recoveryMode = isRecoveryLocation()
-const privacyMode = (window.location.pathname.replace(/\\/+$/, '') || '/') === '/privacy'
+const privacyMode = (window.location.pathname.replace(/\/+$/, '') || '/') === '/privacy'
 
 function leaveRecovery() {
   window.history.replaceState({}, '', '/')
