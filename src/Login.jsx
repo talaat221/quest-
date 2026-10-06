@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { playLoginError, playLoginSuccess, playLoginTap } from "./loginSfx";
+import { isValidFriendUsername, normalizeFriendUsername } from "./friends-core.js";
 import "./Login.css";
 import "./LoginRecovery.css";
 
@@ -22,6 +23,8 @@ const friendlyAuthError = (error) => {
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState("idle");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -75,6 +78,44 @@ export default function Login({ onLogin }) {
     return () => window.clearInterval(timer);
   }, [resetCooldown]);
 
+  useEffect(() => {
+    if (!isSignUp) {
+      setUsernameStatus("idle");
+      return undefined;
+    }
+
+    const cleanUsername = normalizeFriendUsername(username);
+    if (!cleanUsername) {
+      setUsernameStatus("idle");
+      return undefined;
+    }
+    if (!isValidFriendUsername(cleanUsername)) {
+      setUsernameStatus("invalid");
+      return undefined;
+    }
+
+    let cancelled = false;
+    setUsernameStatus("checking");
+    const timer = window.setTimeout(() => {
+      void supabase
+        .rpc("is_quest_username_available", { username_input: cleanUsername })
+        .then(({ data, error }) => {
+          if (cancelled) return;
+          if (error) {
+            console.warn("Username availability check failed:", error);
+            setUsernameStatus("idle");
+            return;
+          }
+          setUsernameStatus(data ? "available" : "taken");
+        });
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isSignUp, username]);
+
   const showError = async (text) => {
     setMessageKind("error");
     setMessage(text);
@@ -127,8 +168,39 @@ export default function Login({ onLogin }) {
         return;
       }
 
+      const cleanUsername = normalizeFriendUsername(username);
+
+      if (isSignUp) {
+        if (!isValidFriendUsername(cleanUsername)) {
+          await showError("Username must be 3–20 characters using letters, numbers, or _.");
+          return;
+        }
+
+        const { data: available, error: usernameError } = await supabase
+          .rpc("is_quest_username_available", { username_input: cleanUsername });
+
+        if (usernameError) {
+          await showError("Quest could not check that username. Please try again.");
+          return;
+        }
+        if (!available) {
+          setUsernameStatus("taken");
+          await showError("That username is already taken.");
+          return;
+        }
+      }
+
       const result = isSignUp
-        ? await supabase.auth.signUp({ email: email.trim(), password })
+        ? await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              data: {
+                username: cleanUsername,
+                display_name: cleanUsername,
+              },
+            },
+          })
         : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
       if (result.error) {
@@ -140,7 +212,7 @@ export default function Login({ onLogin }) {
         onLogin(result.data.session);
       } else if (isSignUp) {
         setMessageKind("info");
-        setMessage("Your little farm is ready. Check your email to confirm your account.");
+        setMessage(`Your little farm is ready as @${cleanUsername}. Check your email to confirm your account.`);
       }
     } catch (err) {
       await showError(friendlyAuthError(err));
@@ -228,6 +300,39 @@ export default function Login({ onLogin }) {
               />
             </div>
           </label>
+
+          {isSignUp && !isResetRequest && (
+            <label className="login-field">
+              <span>Username</span>
+              <div className="login-input-shell">
+                <span className="login-input-icon" aria-hidden="true">@</span>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  placeholder="your_username"
+                  value={username}
+                  onChange={(e) => setUsername(normalizeFriendUsername(e.target.value))}
+                  minLength={3}
+                  maxLength={20}
+                  required
+                />
+              </div>
+              {usernameStatus !== "idle" && (
+                <small className={`login-username-status is-${usernameStatus}`}>
+                  {usernameStatus === "checking"
+                    ? "Checking username…"
+                    : usernameStatus === "available"
+                      ? "Username available ✓"
+                      : usernameStatus === "taken"
+                        ? "That username is already taken."
+                        : "Use 3–20 letters, numbers, or _."}
+                </small>
+              )}
+            </label>
+          )}
 
           {!isResetRequest && (
             <label className="login-field">
