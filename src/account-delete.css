@@ -1,0 +1,142 @@
+.qd-root .qd-account-delete-card {
+  border-color: #9a514e;
+  margin-top: 14px;
+}
+
+.qd-root button.qd-account-delete-danger {
+  color: #fff2e7;
+  border-color: #d06f68;
+  background: #712f31;
+}
+
+.qd-account-delete-dialog {
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 28px));
+  max-height: calc(100dvh - 30px);
+  margin: auto;
+  padding: clamp(18px, 5vw, 28px);
+  overflow-y: auto;
+  border: 3px solid #a65e58;
+  box-shadow: inset 0 0 0 3px #061723, 0 14px 52px #000a;
+  background: #0a2031;
+  color: #edf3f6;
+  font: 20px/1.3 "VT323", monospace;
+  text-align: left;
+}
+
+.qd-account-delete-dialog::backdrop { background: #020c19e8; }
+
+.qd-root .qd-account-delete-dialog h2 {
+  margin: 4px 0 16px;
+  color: #ffc39d;
+  font: 30px/1.1 "VT323", monospace;
+}
+
+.qd-root .qd-account-delete-dialog p {
+  margin: 0 0 14px;
+  color: #b9ccda;
+  font: 20px/1.3 "VT323", monospace;
+}
+
+.qd-root .qd-account-delete-dialog .qd-account-delete-eyebrow {
+  color: #ea8d83;
+  font-size: 17px;
+}
+
+.qd-account-delete-dialog fieldset {
+  margin: 20px 0 14px;
+  padding: 14px;
+  border: 2px solid #486d82;
+}
+
+.qd-account-delete-dialog legend,
+.qd-account-delete-dialog > form > label {
+  display: block;
+  margin: 18px 0 7px;
+  color: #edf3f6;
+}
+
+.qd-root .qd-account-delete-dialog .qd-account-delete-helper {
+  margin-bottom: 10px;
+  color: #8eabbc;
+  font-size: 17px;
+}
+
+.qd-account-delete-reasons {
+  display: grid;
+  gap: 8px;
+}
+
+.qd-account-delete-reasons label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  color: #d9e5eb;
+  cursor: pointer;
+}
+
+.qd-account-delete-reasons input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin-top: 4px;
+  accent-color: #d06f68;
+}
+
+.qd-account-delete-dialog input[type="password"],
+.qd-account-delete-dialog input[type="text"],
+.qd-account-delete-dialog > form > input,
+.qd-account-delete-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 9px 12px;
+  border: 2px solid #638399;
+  border-radius: 0;
+  background: #061523;
+  color: #fff2dd;
+  font: 20px/1.2 "VT323", monospace;
+}
+
+.qd-account-delete-dialog textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+.qd-account-delete-dialog small {
+  display: block;
+  margin-top: 5px;
+  color: #7998aa;
+  text-align: right;
+}
+
+.qd-account-delete-dialog label > span { color: #819dad; }
+
+.qd-account-delete-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.qd-root .qd-account-delete-dialog .qd-account-delete-actions button {
+  width: 100%;
+  margin: 0;
+  min-height: 48px;
+  padding: 12px;
+  font: 21px/1.15 "VT323", monospace;
+  white-space: normal;
+}
+
+.qd-root .qd-account-delete-dialog .qd-account-delete-error {
+  margin-top: 12px;
+  color: #ffc0a6;
+}
+
+.qd-account-delete-dialog input:focus-visible,
+.qd-account-delete-dialog textarea:focus-visible,
+.qd-account-delete-card button:focus-visible {
+  outline: 2px solid #ffc39d;
+  outline-offset: 3px;
+}
