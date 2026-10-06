@@ -400,3 +400,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+
+.login-username-status {
+  display: block;
+  margin: 7px 3px 0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #9fb7c7;
+}
+
+.login-username-status.is-available { color: #a9d79f; }
+.login-username-status.is-taken,
+.login-username-status.is-invalid { color: #efb08b; }
+.login-username-status.is-checking { color: #b8cee0; }
