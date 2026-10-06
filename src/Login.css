@@ -435,3 +435,30 @@
 .login-legal--single {
   margin-top: 15px;
 }
+
+
+.login-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 360px;
+  margin: 17px auto 0;
+  color: #b8cad5;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.login-consent input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin: 1px 0 0;
+  accent-color: #6f995f;
+  cursor: pointer;
+}
+
+.login-consent a {
+  color: #a9cf9f;
+  text-underline-offset: 3px;
+}
