@@ -365,7 +365,9 @@ export default function Login({ onLogin }) {
                       ? "Username available ✓"
                       : usernameStatus === "taken"
                         ? "That username is already taken."
-                        : "Use 3–20 letters, numbers, or _."}
+                        : usernameStatus === "limited"
+                          ? "Too many checks. Wait a minute and try again."
+                          : "Use 3–20 letters, numbers, or _."}
                 </small>
               )}
             </label>
