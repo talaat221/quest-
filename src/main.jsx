@@ -6,6 +6,7 @@ import './iphone-modal-fix.css'
 import App from './App.jsx'
 import PasswordRecovery from './PasswordRecovery.jsx'
 import PrivacyNotice from './PrivacyNotice.jsx'
+import TermsOfService from './TermsOfService.jsx'
 
 function isRecoveryLocation() {
   const search = new URLSearchParams(window.location.search)
@@ -22,6 +23,7 @@ function isRecoveryLocation() {
 
 const recoveryMode = isRecoveryLocation()
 const privacyMode = (window.location.pathname.replace(/\/+$/, '') || '/') === '/privacy'
+const termsMode = (window.location.pathname.replace(/\/+$/, '') || '/') === '/terms'
 
 function leaveRecovery() {
   window.history.replaceState({}, '', '/')
@@ -32,6 +34,8 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     {privacyMode ? (
       <PrivacyNotice />
+    ) : termsMode ? (
+      <TermsOfService />
     ) : recoveryMode ? (
       <PasswordRecovery onComplete={leaveRecovery} onCancel={leaveRecovery} />
     ) : (
