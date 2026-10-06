@@ -213,3 +213,41 @@ export async function loadAcceptedFriendsWithStats(userId, weekKey) {
     };
   });
 }
+
+
+export async function loadBlockedUsers() {
+  const { data, error } = await supabase.rpc('get_my_quest_blocks');
+  throwIf(error);
+  return (data || []).map(row => ({
+    user_id: row.blocked_id,
+    username: row.username || '',
+    display_name: row.display_name || row.username || 'Blocked user',
+    blocked_at: row.created_at,
+  }));
+}
+
+export async function blockQuestUser(userId) {
+  if (!userId) throw new Error('Choose a Quest user to block.');
+  const { error } = await supabase.rpc('block_quest_user', { p_blocked_id: userId });
+  throwIf(error);
+}
+
+export async function unblockQuestUser(userId) {
+  if (!userId) throw new Error('Choose a Quest user to unblock.');
+  const { error } = await supabase.rpc('unblock_quest_user', { p_blocked_id: userId });
+  throwIf(error);
+}
+
+export async function reportQuestUser(userId, { reason, details = '', contextType = 'friends', contextId = null } = {}) {
+  if (!userId) throw new Error('Choose a Quest user to report.');
+  if (!reason) throw new Error('Choose a report reason.');
+  const { data, error } = await supabase.rpc('report_quest_user', {
+    p_reported_user_id: userId,
+    p_reason_code: reason,
+    p_details: String(details || '').trim().slice(0, 1000) || null,
+    p_context_type: contextType,
+    p_context_id: contextId || null,
+  });
+  throwIf(error);
+  return data;
+}
