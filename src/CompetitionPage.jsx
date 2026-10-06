@@ -100,7 +100,20 @@ function ConnectionStatus({ sync, notifications:n, busy, onSync }) {
     </details>}
   </section>;
 }
-function RoundBoard({ round, userId, now, busy, onAction, onLeave, onInvite }) {
+function CompetitionSafetyMenu({ member, busy, onReport, onBlock }) {
+  if (!member?.id) return null;
+  return (
+    <details className="qs-safety-menu cg-safety-menu">
+      <summary aria-label={`Safety options for ${member.name || member.username || 'traveler'}`}>•••</summary>
+      <div className="qs-safety-popover">
+        <button type="button" disabled={busy} onClick={() => onReport(member)}>Report</button>
+        <button type="button" className="is-danger" disabled={busy} onClick={() => onBlock(member)}>Block</button>
+      </div>
+    </details>
+  );
+}
+
+function RoundBoard({ round, userId, now, busy, onAction, onLeave, onInvite, onReport, onBlock }) {
   const phase=roundPhase(round,now); const host=round.creatorId===userId;
   const accepted=rankedMembers(round.members); const pending=round.members.filter(m=>m.status==='pending');
   const [share,setShare]=useState(false);
