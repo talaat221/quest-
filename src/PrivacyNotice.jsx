@@ -163,10 +163,13 @@ export default function PrivacyNotice() {
 
             <Section title="9. نقل البيانات خارج مصر">
               <p>
-                لأن Quest يستخدم مزودي بنية تحتية دوليين، قد تُنقل أو تُعالج بيانات خارج مصر، بما في ذلك أيرلندا والولايات المتحدة. ما زلنا في مرحلة ما قبل الإطلاق ونقوم بمراجعة المتطلبات المصرية الخاصة بالنقل عبر الحدود والتراخيص أو التصاريح ذات الصلة.
+                يعتمد Quest حاليًا على بنية تحتية دولية، ولذلك قد يتم نقل أو تخزين أو معالجة بياناتك الشخصية خارج مصر. قاعدة بيانات Quest الأساسية على Supabase موجودة حاليًا في منطقة أيرلندا (eu-west-1)، بينما تحتفظ Resend ببيانات خدمتها في الولايات المتحدة، وقد تقوم Vercel بالمعالجة في الولايات المتحدة ومواقع أخرى تستخدمها أو يستخدمها مزودوها.
+              </p>
+              <p>
+                قبل إنشاء حساب جديد، يطلب Quest موافقة منفصلة وواضحة على هذا النقل والمعالجة عبر الحدود. يمكنك سحب موافقتك لاحقًا عن طريق التواصل معنا، ولكن لأن البنية التحتية الحالية لـ Quest تعتمد على خدمات خارج مصر، فقد لا نتمكن من الاستمرار في تقديم الحساب بعد سحب هذه الموافقة.
               </p>
               <p className="pn-note">
-                يجب استكمال الأساس القانوني/التصريح المصري المحدد للنقل عبر الحدود قبل الإطلاق العام، وسيتم تحديث هذا القسم عند استكمال المراجعة.
+                تخضع عمليات النقل عبر الحدود أيضًا لمتطلبات الترخيص أو التصريح لدى مركز حماية البيانات الشخصية المصري. Quest في مرحلة ما قبل الإطلاق ويجري استكمال هذا المسار التنظيمي قبل اعتبار هذا الإشعار نسخته القانونية النهائية.
               </p>
             </Section>
 
@@ -308,10 +311,13 @@ export default function PrivacyNotice() {
 
             <Section title="9. International transfers">
               <p>
-                Because Quest uses international infrastructure providers, information may be transferred to or processed outside Egypt, including in Ireland and the United States. Quest is still pre-launch and we are reviewing the Egyptian legal requirements for cross-border transfers, licences and permits.
+                Quest currently relies on international infrastructure, so personal data may be transferred to, stored in or processed outside Egypt. Quest's primary Supabase database is currently in Ireland (eu-west-1). Resend stores its service data in the United States, and Vercel may process data in the United States and other locations used by Vercel or its providers.
+              </p>
+              <p>
+                Before a new account is created, Quest asks for separate, explicit consent to this cross-border transfer and processing. You may later withdraw that consent by contacting us. Because Quest's current infrastructure depends on services outside Egypt, withdrawing this consent may mean we can no longer continue providing the account.
               </p>
               <p className="pn-note">
-                The specific Egyptian legal transfer basis/permit must be finalized before public launch. This section will be updated after that review.
+                Cross-border processing is also subject to Egyptian PDPC licensing or permit requirements. Quest is still pre-launch and is completing this regulatory step before this notice is treated as the final launch version.
               </p>
             </Section>
 
