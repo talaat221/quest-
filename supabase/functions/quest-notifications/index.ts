@@ -3,8 +3,8 @@ import webpush from 'npm:web-push@3.6.7';
 import { dueReminders, normalizeReminders, validTimezone } from '../_shared/reminders.js';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
-const allowedOrigin = (value: string) => value === 'https://quest-alpha-fawn.vercel.app' || /^https:\/\/quest(?:-[a-z0-9-]+)?-quest18\.vercel\.app$/.test(value) || value === 'http://localhost:5173';
-const cors = (origin: string) => ({ 'Access-Control-Allow-Origin': allowedOrigin(origin) ? origin : 'https://quest-alpha-fawn.vercel.app', 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'POST, OPTIONS' });
+const allowedOrigin = (value: string) => value === 'https://myquests.me' || value === 'https://www.myquests.me' || value === 'https://quest-alpha-fawn.vercel.app' || /^https:\/\/quest(?:-[a-z0-9-]+)?-quest18\.vercel\.app$/.test(value) || value === 'http://localhost:5173';
+const cors = (origin: string) => ({ 'Access-Control-Allow-Origin': allowedOrigin(origin) ? origin : 'https://myquests.me', 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'POST, OPTIONS' });
 const reply = (origin: string, data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 async function checked(result: any) { const {data, error} = await result; if (error) throw new Error('Notification storage is temporarily unavailable.'); return data; }
 async function secrets() {
@@ -32,7 +32,7 @@ async function send(sub: any, event: any, keys: any) {
     data: { url: `${sub.origin}/${event.page}`, eventKey: event.key, userId: sub.user_id, due: event.due }, icon: '/icon-192.png?v=quest-cottage-v1' });
   const request = webpush.generateRequestDetails(sub.subscription, payload, {
     TTL: event.ttl || 120, urgency: 'high', topic: tag.slice(0, 32),
-    vapidDetails: { subject: 'https://quest-alpha-fawn.vercel.app', ...keys },
+    vapidDetails: { subject: 'https://myquests.me', ...keys },
   });
   const response = await fetch(request.endpoint, { method: request.method, headers: request.headers, body: request.body, redirect: 'error', signal: AbortSignal.timeout(8000) });
   await response.body?.cancel();
@@ -108,7 +108,7 @@ Deno.serve(async req => {
         const ecdh = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
         const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
         const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/quest-self-test', keys: { p256dh: b64(new Uint8Array(await crypto.subtle.exportKey('raw',ecdh.publicKey))), auth: b64(crypto.getRandomValues(new Uint8Array(16))) } };
-        const encrypted = webpush.generateRequestDetails(subscription,'Quest encryption test',{ vapidDetails: {subject:'https://quest-alpha-fawn.vercel.app',...config.vapid} });
+        const encrypted = webpush.generateRequestDetails(subscription,'Quest encryption test',{ vapidDetails: {subject:'https://myquests.me',...config.vapid} });
         const snapshot = await checked(admin.from('quest_push_subscriptions').select('id', { count: 'exact', head: false }).limit(1));
         return reply(origin, { healthy: true, encryptedPayload: encrypted.body.length > 0, databaseReady: Array.isArray(snapshot) });
       }
