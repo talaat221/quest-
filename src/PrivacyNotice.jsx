@@ -100,6 +100,7 @@ export default function PrivacyNotice() {
                 ["المنافسات", "المشاركة في المنافسات، XP، عدد المهام، دقائق التركيز، المستوى ونتائج المنافسة."],
                 ["بيانات المزرعة", "اسم المزرعة، النباتات، الاكتشافات، مستوى النمو، السجل اليومي والصناديق."],
                 ["الإشعارات", "إعدادات الإشعارات، المنطقة الزمنية، اشتراك Push ومعلومات التسليم."],
+                ["ملاحظات حذف الحساب", "سبب الحذف الذي تختاره وأي تعليق اختياري. بعد حذف الحساب نخزن هذه الملاحظات دون معرّف المستخدم أو البريد الإلكتروني."],
                 ["بيانات تقنية", "معلومات الجلسة والمزامنة، سجلات تشغيلية لازمة للأمان والاعتمادية، وبيانات تخزين محلي لازمة للعمل دون اتصال."],
               ]} />
               <p className="pn-note">
@@ -121,6 +122,7 @@ export default function PrivacyNotice() {
                 ["الأمان ومنع إساءة الاستخدام", "لحماية الحسابات، التحقيق في الأعطال أو إساءة الاستخدام، وتحسين موثوقية Quest. نعتمد على مصالح مشروعة لا تتغلب على حقوقك، وقد نعتمد على التزامات قانونية عند الحاجة."],
                 ["الإشعارات الاختيارية", "لإرسال إشعارات Push عندما تقوم بتمكينها. يمكنك إيقافها من الإعدادات أو المتصفح/الجهاز."],
                 ["طلبات قانونية", "عندما يكون ذلك ضروريًا للامتثال لالتزام قانوني أو أمر صادر عن جهة مختصة."],
+                ["ملاحظات المغادرة", "لفهم أسباب ترك المستخدمين للخدمة وتحسين Quest. نخزن اختيار السبب والتعليق الاختياري بصورة منفصلة عن الحساب المحذوف ودون معرّف المستخدم أو البريد الإلكتروني."],
               ]} />
             </Section>
 
@@ -178,7 +180,10 @@ export default function PrivacyNotice() {
                 نحتفظ ببيانات الحساب الأساسية وبيانات Quest طالما كان حسابك قائمًا وبالقدر اللازم لتقديم الخدمة. قد نحتفظ ببعض السجلات التشغيلية أو الأمنية لمدة محدودة عندما تكون ضرورية للأمان، حل النزاعات أو الالتزامات القانونية.
               </p>
               <p>
-                عند حذف الحساب، سنهدف إلى إزالة البيانات من الأنظمة النشطة، مع ملاحظة أن بعض النسخ الاحتياطية أو سجلات مزودي الخدمة قد تستمر حتى تنتهي دورة الاحتفاظ الخاصة بها. سنحدد سياسة الحذف الفنية النهائية قبل الإطلاق العام.
+                يمكنك حذف حسابك نهائيًا من داخل Quest عبر More → Delete account. بعد التأكيد، نحذف حساب المصادقة والبيانات المرتبطة به من أنظمتنا النشطة، بما في ذلك المهام والتقدم والملف الاجتماعي والمزرعة واشتراكات الإشعارات. قد تستمر بعض النسخ الاحتياطية أو سجلات مزودي الخدمة حتى تنتهي دورة الاحتفاظ الخاصة بها.
+              </p>
+              <p>
+                إذا اخترت تقديم سبب للحذف أو تعليق، فسيتم الاحتفاظ بهذه الملاحظات بصورة منفصلة دون معرّف المستخدم أو البريد الإلكتروني لأغراض تحسين المنتج. لا تضع معلومات تعريفية أو حساسة داخل التعليق الاختياري.
               </p>
             </Section>
 
@@ -248,6 +253,7 @@ export default function PrivacyNotice() {
                 ["Competition information", "Competition membership, XP, task counts, focus minutes, level and results."],
                 ["Farm information", "Farm name, plants, discoveries, growth XP, care history and chests."],
                 ["Notification information", "Notification preferences, timezone, push subscription and delivery information."],
+                ["Account-deletion feedback", "The deletion reason you select and any optional comment. After deletion, this feedback is stored without your user ID or email address."],
                 ["Technical information", "Session and sync information, operational records needed for security/reliability, and local browser data needed for offline operation."],
               ]} />
               <p className="pn-note">
@@ -269,6 +275,7 @@ export default function PrivacyNotice() {
                 ["Security and reliability", "To protect accounts, investigate faults or abuse, and keep Quest reliable. We rely on legitimate interests that do not override your rights, and on legal obligations where applicable."],
                 ["Optional notifications", "To send push notifications when you enable them. You can disable them in Quest or through your browser/device."],
                 ["Legal requirements", "Where processing is necessary to comply with a legal obligation or a valid order from a competent authority."],
+                ["Departure feedback", "To understand why people stop using Quest and improve the product. The selected reason and optional comment are stored separately from the deleted account without the user ID or email address."],
               ]} />
             </Section>
 
@@ -326,7 +333,10 @@ export default function PrivacyNotice() {
                 Core account and Quest data is generally kept while your account remains active and for as long as needed to provide the service. Some operational or security records may be kept for a limited period where needed for security, dispute handling or legal obligations.
               </p>
               <p>
-                When an account is deleted, we intend to remove account data from active systems, although backups and provider logs may remain until their normal retention cycles expire. The final technical deletion and backup-retention procedure will be completed before public launch.
+                You can permanently delete your account inside Quest through More → Delete account. After confirmation, Quest deletes the authentication account and associated active-system data, including tasks, progress, social profile, farm information and notification subscriptions. Some provider backups or operational logs may remain until their normal retention cycles expire.
+              </p>
+              <p>
+                If you provide a deletion reason or optional comment, that feedback is retained separately without your user ID or email address for product-improvement purposes. Please do not include identifying or sensitive information in the optional comment.
               </p>
             </Section>
 
