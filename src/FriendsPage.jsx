@@ -35,7 +35,7 @@ function SafetyMenu({ target, busy, blocked = false, onReport, onBlock, onUnbloc
   if (!target?.user_id) return null;
   return (
     <details className="qs-safety-menu">
-      <summary aria-label={\`Safety options for \${target.display_name || target.username || 'user'}\`}>•••</summary>
+      <summary aria-label={`Safety options for ${target.display_name || target.username || 'user'}`}>•••</summary>
       <div className="qs-safety-popover">
         <button type="button" disabled={busy} onClick={() => onReport(target)}>Report</button>
         {blocked ? (
@@ -142,24 +142,24 @@ export default function FriendsPage({ user }) {
   const add = target => run(async () => {
     await sendFriendRequest(userId, target.user_id);
     setQuery(''); setResults([]);
-  }, \`Friend request sent to @\${target.username}.\`);
+  }, `Friend request sent to @${target.username}.`);
 
   const block = target => {
-    const label = target?.username ? \`@\${target.username}\` : target?.display_name || 'this user';
+    const label = target?.username ? `@${target.username}` : target?.display_name || 'this user';
     const okay = window.confirm(
-      \`Block \${label}? You will no longer be friends, you will not appear in each other's friend search, and you cannot join the same new competitions while the block is active.\`
+      `Block ${label}? You will no longer be friends, you will not appear in each other's friend search, and you cannot join the same new competitions while the block is active.`
     );
     if (!okay) return;
     void run(async () => {
       await blockQuestUser(target.user_id);
       setQuery('');
       setResults([]);
-    }, \`\${label} blocked.\`);
+    }, `${label} blocked.`);
   };
 
   const unblock = target => run(
     () => unblockQuestUser(target.user_id),
-    \`@\${target.username || 'user'} unblocked. You can find each other again, but the old friendship is not restored automatically.\`
+    `@${target.username || 'user'} unblocked. You can find each other again, but the old friendship is not restored automatically.`
   );
 
   const submitReport = async (id, payload) => {
