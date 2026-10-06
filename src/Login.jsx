@@ -25,6 +25,7 @@ export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState("idle");
+  const [crossBorderConsent, setCrossBorderConsent] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -171,6 +172,11 @@ export default function Login({ onLogin }) {
       const cleanUsername = normalizeFriendUsername(username);
 
       if (isSignUp) {
+        if (!crossBorderConsent) {
+          await showError("Please confirm the international data transfer consent to create your Quest account.");
+          return;
+        }
+
         if (!isValidFriendUsername(cleanUsername)) {
           await showError("Username must be 3–20 characters using letters, numbers, or _.");
           return;
@@ -198,6 +204,9 @@ export default function Login({ onLogin }) {
               data: {
                 username: cleanUsername,
                 display_name: cleanUsername,
+                cross_border_transfer_consent: true,
+                cross_border_transfer_consent_at: new Date().toISOString(),
+                privacy_notice_version: "2026-10-06",
               },
             },
           })
@@ -226,6 +235,7 @@ export default function Login({ onLogin }) {
     setIsSignUp((value) => !value);
     setIsResetRequest(false);
     setPassword("");
+    setCrossBorderConsent(false);
     setMessage("");
     setFeedback("");
   }
@@ -403,10 +413,24 @@ export default function Login({ onLogin }) {
           )}
 
           {isSignUp && !isResetRequest && (
-            <p className="login-legal">
-              By creating an account, you acknowledge that you have read the{" "}
-              <a href="/privacy?lang=en">Privacy Notice</a>.
-            </p>
+            <>
+              <label className="login-consent">
+                <input
+                  type="checkbox"
+                  checked={crossBorderConsent}
+                  onChange={(e) => setCrossBorderConsent(e.target.checked)}
+                  required
+                />
+                <span>
+                  I consent to Quest transferring and processing my personal data outside Egypt,
+                  including in Ireland and the United States, as described in the{" "}
+                  <a href="/privacy?lang=en" target="_blank" rel="noreferrer">Privacy Notice</a>.
+                </span>
+              </label>
+              <p className="login-legal">
+                By creating an account, you also acknowledge that you have read the Privacy Notice.
+              </p>
+            </>
           )}
           {!isSignUp && !isResetRequest && (
             <p className="login-legal login-legal--single">
