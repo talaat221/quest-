@@ -401,6 +401,18 @@ export default function Login({ onLogin }) {
               {isSignUp ? "Already have a farm? Log in" : "New here? Start your farm"}
             </button>
           )}
+
+          {isSignUp && !isResetRequest && (
+            <p className="login-legal">
+              By creating an account, you acknowledge that you have read the{" "}
+              <a href="/privacy?lang=en">Privacy Notice</a>.
+            </p>
+          )}
+          {!isSignUp && !isResetRequest && (
+            <p className="login-legal login-legal--single">
+              <a href="/privacy?lang=en">Privacy Notice</a>
+            </p>
+          )}
         </form>
 
         <div className="login-sign" aria-hidden="true">
