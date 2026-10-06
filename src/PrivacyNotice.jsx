@@ -207,7 +207,7 @@ export default function PrivacyNotice() {
 
             <Section title="13. العمر">
               <p>
-                النسخة العامة الأولى من Quest مخصصة للمستخدمين بعمر 18 عامًا أو أكثر. سنضيف خطوة تأكيد العمر إلى التسجيل قبل الإطلاق العام. إذا تغيرت هذه السياسة أو أطلقنا تجربة مخصصة للأصغر سنًا، فسنحدّث الإشعار ونطبق ضوابط موافقة ولي الأمر المطلوبة قبل ذلك.
+                Quest مخصص حاليًا للمستخدمين بعمر 18 عامًا أو أكثر. عند إنشاء حساب جديد، يطلب Quest من المستخدم تأكيد أنه يبلغ 18 عامًا أو أكثر، ويسجل وقت هذا التأكيد ضمن بيانات الحساب. لا نطلب تاريخ الميلاد الكامل حاليًا لتقليل البيانات التي نجمعها. إذا علمنا أن حسابًا يخص شخصًا دون 18 عامًا، فقد نقيّد الحساب أو نحذفه. وإذا تغيرت هذه السياسة أو أطلقنا تجربة مخصصة للأصغر سنًا، فسنحدّث هذا الإشعار ونطبق الضوابط المطلوبة أولًا.
               </p>
             </Section>
 
@@ -360,7 +360,7 @@ export default function PrivacyNotice() {
 
             <Section title="13. Age">
               <p>
-                Quest's initial public beta is intended for users aged 18 and over. An age-confirmation step will be added before public launch. If we later change this policy or build an experience for younger users, we will update this notice and implement any required guardian-consent safeguards first.
+                Quest is currently intended for users aged 18 and over. When a new account is created, Quest asks the user to confirm that they are at least 18 and records the time of that confirmation in the account metadata. We do not currently ask for a full date of birth, which helps us minimize the personal data we collect. If we learn that an account belongs to someone under 18, we may restrict or delete that account. If we later change this policy or build an experience for younger users, we will update this notice and implement the required safeguards first.
               </p>
             </Section>
 
