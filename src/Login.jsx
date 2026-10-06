@@ -106,7 +106,11 @@ export default function Login({ onLogin }) {
           if (cancelled) return;
           if (error) {
             console.warn("Username availability check failed:", error);
-            setUsernameStatus("idle");
+            setUsernameStatus(
+              String(error?.message || "").includes("QUEST_RATE_LIMIT:username_check_")
+                ? "limited"
+                : "idle"
+            );
             return;
           }
           setUsernameStatus(data ? "available" : "taken");
@@ -198,7 +202,12 @@ export default function Login({ onLogin }) {
           .rpc("is_quest_username_available", { username_input: cleanUsername });
 
         if (usernameError) {
-          await showError("Quest could not check that username. Please try again.");
+          const usernameMessage = String(usernameError?.message || "");
+          await showError(
+            usernameMessage.includes("QUEST_RATE_LIMIT:username_check_")
+              ? "Too many username checks from this connection. Wait a minute and try again."
+              : "Quest could not check that username. Please try again."
+          );
           return;
         }
         if (!available) {
