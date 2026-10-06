@@ -22,16 +22,35 @@ export async function ensureQuestProfile(user) {
   throwIf(readError);
   if (existing) return existing;
 
+  const metadataUsername = normalizeFriendUsername(user?.user_metadata?.username || '');
   const profile = {
     user_id: user.id,
-    username: fallbackFriendUsername(user.id),
+    username: isValidFriendUsername(metadataUsername)
+      ? metadataUsername
+      : fallbackFriendUsername(user.id),
     display_name: friendDisplayName(user),
   };
-  const { data, error } = await supabase
+
+  let { data, error } = await supabase
     .from('quest_profiles')
     .insert(profile)
     .select('user_id, username, display_name')
     .single();
+
+  // A very old/legacy client may reach this fallback after the requested
+  // signup username has already been claimed. Keep the account usable with
+  // its deterministic traveler name rather than breaking the Friends page.
+  if (error?.code === '23505' && profile.username !== fallbackFriendUsername(user.id)) {
+    ({ data, error } = await supabase
+      .from('quest_profiles')
+      .insert({
+        ...profile,
+        username: fallbackFriendUsername(user.id),
+      })
+      .select('user_id, username, display_name')
+      .single());
+  }
+
   throwIf(error);
   return data;
 }
@@ -53,6 +72,19 @@ export async function updateQuestProfile(userId, { username, displayName }) {
 
   if (error?.code === '23505') throw new Error('That username is already taken.');
   throwIf(error);
+
+  // Keep auth metadata aligned with the Friends profile so account creation,
+  // future profile recovery, and the social system all refer to one username.
+  const { error: metadataError } = await supabase.auth.updateUser({
+    data: {
+      username: cleanUsername,
+      display_name: cleanName,
+    },
+  });
+  if (metadataError) {
+    console.warn('Quest profile metadata could not be synchronized:', metadataError);
+  }
+
   window.dispatchEvent(new CustomEvent('quest-profile-changed', { detail: data }));
   return data;
 }
