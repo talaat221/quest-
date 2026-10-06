@@ -4,7 +4,12 @@ export const MAX_CHALLENGE_MEMBERS = 20;
 export const MAX_CHALLENGE_RIVALS = MAX_CHALLENGE_MEMBERS - 1;
 
 function throwIf(error) {
-  if (error) throw error;
+  if (!error) return;
+  const message = String(error?.message || '');
+  if (message.includes('QUEST_RATE_LIMIT:social_invite_')) {
+    throw new Error('You’ve sent a lot of challenge invitations. Wait a little before inviting more people.');
+  }
+  throw error;
 }
 
 export async function loadWeeklyChallenge(weekKey) {
