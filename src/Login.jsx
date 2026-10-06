@@ -26,6 +26,7 @@ export default function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState("idle");
   const [crossBorderConsent, setCrossBorderConsent] = useState(false);
+  const [age18Confirmed, setAge18Confirmed] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -172,6 +173,11 @@ export default function Login({ onLogin }) {
       const cleanUsername = normalizeFriendUsername(username);
 
       if (isSignUp) {
+        if (!age18Confirmed) {
+          await showError("Quest is currently for people aged 18 or older. Please confirm your age to create an account.");
+          return;
+        }
+
         if (!crossBorderConsent) {
           await showError("Please confirm the international data transfer consent to create your Quest account.");
           return;
@@ -204,6 +210,8 @@ export default function Login({ onLogin }) {
               data: {
                 username: cleanUsername,
                 display_name: cleanUsername,
+                age_18_confirmed: true,
+                age_18_confirmed_at: new Date().toISOString(),
                 cross_border_transfer_consent: true,
                 cross_border_transfer_consent_at: new Date().toISOString(),
                 privacy_notice_version: "2026-10-06",
@@ -236,6 +244,7 @@ export default function Login({ onLogin }) {
     setIsResetRequest(false);
     setPassword("");
     setCrossBorderConsent(false);
+    setAge18Confirmed(false);
     setMessage("");
     setFeedback("");
   }
@@ -414,6 +423,17 @@ export default function Login({ onLogin }) {
 
           {isSignUp && !isResetRequest && (
             <>
+              <label className="login-consent">
+                <input
+                  type="checkbox"
+                  checked={age18Confirmed}
+                  onChange={(e) => setAge18Confirmed(e.target.checked)}
+                  required
+                />
+                <span>
+                  I confirm that I am 18 years old or older.
+                </span>
+              </label>
               <label className="login-consent">
                 <input
                   type="checkbox"
