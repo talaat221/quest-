@@ -8,8 +8,22 @@ import {
   splitFriendships,
 } from './friends-core.js';
 
+function friendlySocialError(error) {
+  const message = String(error?.message || '');
+  if (message.includes('QUEST_RATE_LIMIT:profile_search_')) {
+    return new Error('You’re searching very quickly. Wait a minute and try again.');
+  }
+  if (message.includes('QUEST_RATE_LIMIT:friend_request_')) {
+    return new Error('You’ve sent a lot of friend requests. Try again a little later.');
+  }
+  if (message.includes('QUEST_RATE_LIMIT:block_change_')) {
+    return new Error('You’ve changed your block list many times. Wait a little and try again.');
+  }
+  return error;
+}
+
 function throwIf(error) {
-  if (error) throw error;
+  if (error) throw friendlySocialError(error);
 }
 
 export async function ensureQuestProfile(user) {
