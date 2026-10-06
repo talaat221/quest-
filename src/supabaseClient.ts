@@ -407,6 +407,10 @@ const flatTasks = (state: any) =>
           day: task?.day || null,
           hour: task?.hour ?? null,
           estimatedMinutes: task?.estimatedMinutes ?? null,
+          plannedWeek: task?.plannedWeek || null,
+          effort: task?.effort || null,
+          effortTier: task?.effortTier || null,
+          xpSource: task?.xpSource || null,
           actualMinutes: task?.actualMinutes ?? null,
           timingProfileKey: task?.timingProfileKey || null,
           workTimer: task?.workTimer || { elapsedMs: 0, startedAt: null },
@@ -425,6 +429,9 @@ const anchorShells = (state: any) =>
       name: anchor?.name ?? "Untitled Anchor",
       emoji: anchor?.emoji ?? null,
       xpPerDay: Number(anchor?.xpPerDay) || 1,
+      estimatedMinutes: anchor?.estimatedMinutes ?? 15,
+      effort: anchor?.effort || null,
+      xpSource: anchor?.xpSource || null,
       category: anchor?.category || "General",
       activeWeekdays:
         Array.isArray(anchor?.activeWeekdays) && anchor.activeWeekdays.length

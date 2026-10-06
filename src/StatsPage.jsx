@@ -155,13 +155,13 @@ function ProgressGraph({ rows, previous, metric, style, grouping, sources, compa
   </>;
 }
 
-export default function StatsPage({ anchors = EMPTY_ITEMS, domains = EMPTY_ITEMS, todayStr, resetHour = 0, voyageAdjustments = EMPTY_ADJUSTMENTS }) {
+export default function StatsPage({ anchors = EMPTY_ITEMS, domains = EMPTY_ITEMS, todayStr, resetHour = 0, voyageAdjustments = EMPTY_ADJUSTMENTS, progression }) {
   const headingId = useId(), progressId = useId();
   const [period, setPeriod] = useState("week"), [offset, setOffset] = useState(0);
   const [metric, setMetric] = useState("tasks"), [style, setStyle] = useState("bars"), [grouping, setGrouping] = useState("day");
   const [sources, setSources] = useState(["anchor", "quest"]), [scope, setScope] = useState("all"), [selected, setSelected] = useState([]);
   const [compare, setCompare] = useState(false), [pickerOpen, setPickerOpen] = useState(false);
-  const model = useMemo(() => buildStatsModel({ anchors, domains, todayStr, resetHour, voyageAdjustments }), [anchors, domains, todayStr, resetHour, voyageAdjustments]);
+  const model = useMemo(() => buildStatsModel({ anchors, domains, todayStr, resetHour, voyageAdjustments, progression }), [anchors, domains, todayStr, resetHour, voyageAdjustments, progression]);
   const range = useMemo(() => getStatsPeriod(period, offset, todayStr, model.firstDay), [period, offset, todayStr, model.firstDay]);
   const filters = useMemo(() => ({ sources, scope, selected }), [sources, scope, selected]);
   const summary = useMemo(() => summarizeStats(model, range, filters), [model, range, filters]);

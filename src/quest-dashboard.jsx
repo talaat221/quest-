@@ -24,12 +24,14 @@ import { getTodayQuestItems } from "./today-quests.js";
 import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, MorePage } from "./HomeFinish";
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
-import EffortXP from "./EffortXP.jsx";
+import EffortXP, { LevelDetails } from "./EffortXP.jsx";
+import WeeklyPlanner, { TaskWeekField } from "./WeeklyPlanner.jsx";
+import { applyWeeklyPlan, weekOf } from "./weekly-planner.js";
 import CompetitionPage from "./CompetitionPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
-import { recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
+import { PROGRESSION_VERSION, recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, upgradeProgression, recordAnchorAward, removeAnchorAward, anchorAwardXP, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
 // HELPERS
@@ -2054,6 +2056,7 @@ function QuestCard({
   const [hour, setHour] = useState("");
   const [estimatedMinutes, setEstimatedMinutes] = useState("");
   const [estimateTouched, setEstimateTouched] = useState(false);
+  const [plannedWeek, setPlannedWeek] = useState(() => weekOf(todayStr));
   const [flexibility, setFlexibility] = useState("flexible");
 
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -2063,6 +2066,7 @@ function QuestCard({
   const [editHour, setEditHour] = useState("");
   const [editEstimatedMinutes, setEditEstimatedMinutes] = useState("");
   const [editEstimateTouched, setEditEstimateTouched] = useState(false);
+  const [editPlannedWeek, setEditPlannedWeek] = useState(() => weekOf(todayStr));
   const [editFlexibility, setEditFlexibility] = useState("flexible");
 
   const status = questStatus(domain, today);
@@ -2077,7 +2081,7 @@ function QuestCard({
       estimatedMinutes === "" || estimatedMinutes === null
         ? learned
         : Math.max(1, Number(estimatedMinutes) || 1);
-    if (!Number(finalEstimate)) return;
+    if (!Number.isFinite(Number(finalEstimate)) || Number(finalEstimate) < 1 || Number(finalEstimate) > 1440) return;
 
     onAddTask({
       name: name.trim(),
@@ -2085,6 +2089,7 @@ function QuestCard({
       day,
       hour: day ? parseTimeInput(hour) : null,
       estimatedMinutes: finalEstimate,
+      plannedWeek: day ? weekOf(day) : plannedWeek,
       flexibility,
     });
     setName("");
@@ -2103,6 +2108,7 @@ function QuestCard({
     setEditName(task.name || "");
     setEditEffort(inferEffortForTask(task));
     setEditDay(task.day || "");
+    setEditPlannedWeek(task.plannedWeek || (task.day ? weekOf(task.day) : weekOf(todayStr)));
     setEditHour(task.day ? formatScheduleTime(task.hour) : "");
     setEditEstimatedMinutes(
       task.estimatedMinutes ?? getLearnedEstimate(domain, task.name) ?? ""
@@ -2130,7 +2136,7 @@ function QuestCard({
       editEstimatedMinutes === "" || editEstimatedMinutes === null
         ? learned
         : Math.max(1, Number(editEstimatedMinutes) || 1);
-    if (!Number(finalEstimate)) return;
+    if (!Number.isFinite(Number(finalEstimate)) || Number(finalEstimate) < 1 || Number(finalEstimate) > 1440) return;
 
     onUpdateTask(editingTaskId, {
       name: editName.trim(),
@@ -2138,6 +2144,7 @@ function QuestCard({
       day: editDay || null,
       hour: editDay ? parseTimeInput(editHour) : null,
       estimatedMinutes: finalEstimate,
+      plannedWeek: editDay ? weekOf(editDay) : editPlannedWeek,
       flexibility: editFlexibility,
     });
 
@@ -2225,6 +2232,7 @@ function QuestCard({
                 learnedSamples={getTimingSampleCount(domain, editName)}
               />
 
+              {!editDay && <TaskWeekField value={editPlannedWeek} onChange={setEditPlannedWeek} todayStr={todayStr} />}
               <div className="qd-task-date-edit">
                 <input
                   type="date" aria-label="Task date"
@@ -2295,7 +2303,7 @@ function QuestCard({
                 <span className="qd-task-unscheduled">Unscheduled</span>
               )}
 
-              <span className="qd-task-xp">{t.xp} XP</span>
+              <span className="qd-task-xp">{t.creditedXP ?? t.xp} XP</span>
               <span className={"qd-flex-chip" + (getTaskFlexibility(t) === "fixed" ? " fixed" : "")}>
                 {getTaskFlexibility(t) === "fixed" ? "Fixed" : "Flexible"}
               </span>
@@ -2377,6 +2385,7 @@ function QuestCard({
             <option value="fixed">Fixed · must stay on its date</option>
           </select>
 
+          {!day && <TaskWeekField value={plannedWeek} onChange={setPlannedWeek} todayStr={todayStr} />}
           <input type="date" aria-label="Task date" value={day} onChange={(e) => { setDay(e.target.value); if (!e.target.value) setHour(""); }} />
 
           <TimeInput value={hour} onChange={setHour} disabled={!day} />
@@ -2384,7 +2393,7 @@ function QuestCard({
           <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
             Today
           </button>
-          <button type="button" onClick={submitTask} disabled={!Number(estimatedMinutes || learnedEstimate) || (!!day && !isTimeInputValid(hour))}>Add</button>
+          <button type="button" onClick={submitTask} disabled={!Number(estimatedMinutes || learnedEstimate) || Number(estimatedMinutes || learnedEstimate) > 1440 || (!!day && !isTimeInputValid(hour))}>Add</button>
           <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
         </div>
       ) : !artLayout && (
@@ -2421,7 +2430,7 @@ function QuestGlyph({ name, ...props }) {
 }
 
 function getQuestTaskDate(task, todayStr) {
-  if (!task.day) return "Unscheduled";
+  if (!task.day) return task.plannedWeek ? `Week of ${new Date(`${task.plannedWeek}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Flexible` : "This week · Flexible";
   const date = new Date(`${task.day}T12:00:00`);
   const label = task.day === todayStr ? "Today" : Number.isNaN(date.getTime())
     ? task.day : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -2475,7 +2484,7 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onStart, onPaus
             : `Estimated: ${formatMinutes(minutes)}`}><QuestGlyph name="clock" />{actual ? "" : "~"}{durationLabel}{actual ? " actual" : ""}</span>}
         </div>
       </div>
-      <span className="qd-task-xp">{task.xp} XP</span>
+      <span className="qd-task-xp">{task.creditedXP ?? task.xp} XP</span>
       <div className="qd-rpg-task-actions">
         <button type="button" className="qd-rpg-icon-button" onClick={onEdit} aria-label={`Edit ${task.name}`} title="Edit task"><QuestGlyph name="pencil" /></button>
         <div ref={menuRef} className="qd-rpg-task-options">
@@ -2494,10 +2503,10 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onStart, onPaus
 
 function QuestShellCard({
   domain, today, todayStr, onToggleTask, onAddTask, onUpdateTask,
-  onDeleteTask, onTargetChange, onDeleteDomain, todayAdjustment, defaultOpen = false,
+  onDeleteTask, onTargetChange, onDeleteDomain, todayAdjustment,
   onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0,
 }) {
-  const [expanded, setExpanded] = useState(defaultOpen);
+  const [expanded, setExpanded] = useState(false);
   const [showQuestMenu, setShowQuestMenu] = useState(false);
   const cardRef = useRef(null);
   const questMenuRef = useRef(null);
@@ -2509,7 +2518,7 @@ function QuestShellCard({
   const harbor = todayAdjustment?.mode === "harbor";
   const hasImportantWork = harbor && domain.tasks.some(task => isSafeHarborTask(task, domain.id, todayAdjustment, todayStr));
   const monthXP = domain.tasks.filter(task => task.done && task.doneAt && isSameMonth(String(task.doneAt).slice(0, 10), today))
-    .reduce((sum, task) => sum + (Number(task.xp) || 0), 0);
+    .reduce((sum, task) => sum + (Number(task.creditedXP ?? task.xp) || 0), 0);
   const hasFixed = domain.tasks.some(task => getTaskFlexibility(task) === "fixed");
   const hasFlexible = domain.tasks.some(task => getTaskFlexibility(task) !== "fixed");
   const flexibilityLabel = hasFixed ? (hasFlexible ? "Mixed" : "Fixed") : "Flexible";
@@ -3424,6 +3433,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [handledRewardEvent, setHandledRewardEvent] = useState(0);
   const [rewardSpins, setRewardSpins] = useState([]);
   const [completionSummary, setCompletionSummary] = useState(null);
+  const [showLevelDetails, setShowLevelDetails] = useState(false);
   const [showVoyageAdjustment, setShowVoyageAdjustment] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
   const [page, setPage] = useState(
@@ -3640,24 +3650,21 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   // From that point onward new task completions are recorded in a separate
   // immutable award ledger, so renaming/deleting tasks cannot rewrite history.
   useEffect(() => {
-    if (!loaded || !state || state.settings?.progression?.initializedAt) return;
+    if (!loaded || !state || (state.settings?.progression?.version >= PROGRESSION_VERSION && state.settings.progression.anchorTrackingInitializedAt)) return;
     setState(previous => {
-      if (!previous || previous.settings?.progression?.initializedAt) return previous;
+      if (!previous || (previous.settings?.progression?.version >= PROGRESSION_VERSION && previous.settings.progression.anchorTrackingInitializedAt)) return previous;
       const next = clone(previous);
       next.settings ||= {};
-      next.settings.progression = initializeProgression(
-        next.settings.progression,
-        next.domains,
-        next.anchors
+      next.settings.progression = upgradeProgression(
+        next.settings.progression, next.domains, next.anchors, Date.now(), next.settings.dayResetHour || 0
       );
-      // Completed work keeps every XP already earned. Only unfinished legacy
-      // tasks are rounded onto the new 5/10/20/35/50 XP scale.
+      // Reprice unfinished work once. Completed awards retain their historical XP.
       for (const domain of next.domains || []) {
         for (const task of domain.tasks || []) standardizeLegacyTaskXP(task);
       }
       return next;
     });
-  }, [loaded, state?.settings?.progression?.initializedAt]);
+  }, [loaded, state?.settings?.progression?.version, state?.settings?.progression?.anchorTrackingInitializedAt]);
 
   // ====================================================
   // AUTO SAVE
@@ -3777,7 +3784,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           (sum, anchor) =>
             sum +
             (anchor.history?.[ds]
-              ? Number(anchor.xpPerDay) || 0
+              ? anchorAwardXP(state.settings?.progression, anchor, ds)
               : 0),
           0
         )
@@ -3861,8 +3868,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   // Weekly XP formula:
   // Earned = anchors completed this week + every task completed this week.
-  // Available = only the anchor days actually scheduled this week + every unfinished task + tasks completed this week.
-  // Assigned dates do not matter for the weekly task pool.
+  // Available = this week’s anchors and task pool, including flexible tasks.
+  // Moving a task to another week must also move its reward requirement.
   const weekAnchorXP = () =>
     wDates.reduce((sum, d) => sum + dayAnchorXP(d), 0);
 
@@ -3883,7 +3890,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       const completedOn = rewardTaskDay(task.doneAt, resetHour);
       const completedThisWeek =
         !!task.done && !!completedOn && wDates.includes(completedOn);
-      const activeThisWeek = !task.done || completedThisWeek;
+      const taskWeek = task.day ? weekOf(task.day) : task.plannedWeek || weekKeyStr;
+      const activeThisWeek = (!task.done && taskWeek === weekKeyStr) || completedThisWeek;
 
       return sum + (activeThisWeek ? Number(task.xp) || 0 : 0);
     }, 0);
@@ -4250,10 +4258,14 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       const adjustment = getVoyageAdjustment(next, ds);
       if (!anchor.history[ds] && adjustment?.mode === "harbor" && !getSafeHarborActiveAnchorIds(next, adjustment).includes(id)) return;
 
+      next.settings ||= {};
+      next.settings.progression = upgradeProgression(next.settings.progression, next.domains, next.anchors, Date.now(), resetHour);
       if (anchor.history[ds]) {
         delete anchor.history[ds];
+        next.settings.progression = removeAnchorAward(next.settings.progression, id, ds);
       } else {
         anchor.history[ds] = true;
+        next.settings.progression = recordAnchorAward(next.settings.progression, { anchor, dayKey: ds }).progression;
       }
     });
 
@@ -4268,7 +4280,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const addAnchor = ({
     name,
     emoji,
-    xpPerDay,
+    xpPerDay, estimatedMinutes, effort, xpSource,
     category,
     activeWeekdays,
     hour,
@@ -4300,6 +4312,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             ? null
             : Number(hour),
 
+        estimatedMinutes: Math.min(1440, Math.max(1, Number(estimatedMinutes) || 15)),
+        effort: effort || "normal",
+        xpSource: xpSource || null,
         history: {},
       });
     });
@@ -4318,6 +4333,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
       if (!anchor) return;
 
+      if (changes.estimatedMinutes !== undefined) anchor.estimatedMinutes = Math.min(1440, Math.max(1, Number(changes.estimatedMinutes) || 15));
+      if (changes.effort !== undefined) anchor.effort = changes.effort;
+      if (changes.xpSource !== undefined) anchor.xpSource = changes.xpSource;
       anchor.name = changes.name;
       anchor.emoji = changes.emoji || "⭐";
       anchor.xpPerDay =
@@ -4394,7 +4412,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       updateState(next => {
         next.settings ||= {};
         if (next.settings.progression?.initializedAt) {
-          next.settings.progression = removeTaskAward(next.settings.progression, domainId, taskId);
+          next.settings.progression = removeTaskAward(next.settings.progression, domainId, taskId, task);
         }
         const d = next.domains.find(item => item.id === domainId);
         undoTimedTask(d, d?.tasks.find(item => item.id === taskId));
@@ -4404,6 +4422,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     }
     const now = Date.now(), previewDomain = clone(domain);
     const summary = completeTimedTask(previewDomain, previewDomain.tasks.find(t => t.id === taskId), now);
+    const before = upgradeProgression(state.settings?.progression, state.domains, state.anchors, now, resetHour);
+    const previewReward = recordTaskAward(before, { domainId, task, completedAt: now, resetHour });
+    const after = progressionTotals(previewReward.progression);
+    Object.assign(summary, { earnedXP: previewReward.award?.creditedXp || 0,
+      nominalXP: previewReward.award?.nominalXp || 0, level: after.level,
+      levelledUp: after.level > progressionTotals(before).level, remainingXP: after.remainingXP });
     updateState(next => {
       next.settings ||= {};
       next.settings.progression = initializeProgression(
@@ -4455,6 +4479,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       day,
       hour,
       estimatedMinutes,
+      plannedWeek,
       flexibility,
     },
     startImmediately = false,
@@ -4482,6 +4507,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         effortTier: xpRecommendation.key,
         xpSource: xpRecommendation.source,
 
+        plannedWeek: day ? weekOf(day) : plannedWeek || weekKeyStr,
         day:
           day || null,
 
@@ -4495,7 +4521,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         estimatedMinutes:
           estimatedMinutes === "" || estimatedMinutes === null || estimatedMinutes === undefined
             ? null
-            : Math.max(1, Math.round(Number(estimatedMinutes) || 1)),
+            : xpRecommendation.estimatedMinutes,
         actualMinutes: null,
         timingProfileKey: null,
         workTimer: { elapsedMs: 0, startedAt: null },
@@ -4563,6 +4589,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
       task.name = changes.name;
       task.day = changes.day || null;
+      task.plannedWeek = task.day ? weekOf(task.day) : changes.plannedWeek || task.plannedWeek || weekKeyStr;
       task.hour =
         changes.hour === "" || changes.hour === null || changes.hour === undefined
           ? null
@@ -4968,7 +4995,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       name: anchor.name,
       emoji: anchor.emoji,
       hour: anchor.hour,
-      xpPerDay: anchor.xpPerDay,
+      xpPerDay: anchor.history?.[todayStr] ? anchorAwardXP(state.settings?.progression, anchor, todayStr) : anchor.xpPerDay,
       done: !!anchor.history?.[todayStr],
       paused: todayAdjustment?.mode === "harbor" && !todayActiveAnchorIds.includes(anchor.id),
       safeActive: todayAdjustment?.mode === "harbor" && todayActiveAnchorIds.includes(anchor.id),
@@ -4978,7 +5005,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const todayQuestTasks = viewTasks;
   const homeQuestItems = getTodayQuestItems({
     anchors: todayTimelineAnchors,
-    tasks: allTasks(),
+    tasks: allTasks().map(task => task.done ? { ...task, xp: creditedTaskXP(task) } : task),
     todayStr,
     resetHour,
     adjustment: todayAdjustment,
@@ -5017,7 +5044,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const levelXP = progression.currentXP;
   const levelXPNeeded = progression.requiredXP;
   const thisWeekLevel = currentWeekProgress(progressionState, weekKeyStr);
-  const thisWeekLevelXP = thisWeekLevel.taskXP + thisWeekLevel.bonusXP;
+  const thisWeekLevelXP = thisWeekLevel.taskXP + thisWeekLevel.anchorXP + thisWeekLevel.bonusXP;
   const competitionFocusMinutes = allTasks().reduce((sum, task) => {
     if (!task.doneAt || rewardTaskDay(task.doneAt, resetHour) !== todayStr) return sum;
     return sum + Math.max(0, Number(task.actualMinutes) || 0);
@@ -5078,7 +5105,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               {state.domains.map((domain) => (
                 <QuestCard
                   key={domain.id}
-                  domain={domain}
+                  domain={{ ...domain, tasks: domain.tasks.map(task => ({ ...task, creditedXP: task.done ? creditedTaskXP({ ...task, domainId: domain.id }) : task.xp })) }}
                   today={today}
                   todayStr={todayStr}
                   onToggleTask={(taskId) => toggleTask(domain.id, taskId)}
@@ -5201,7 +5228,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
         <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showRewardsPage ? " qd-main-rewards" : showStudyPage ? " qd-main-study" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showRewardsPage ? "rewards" : showStudyPage ? "study" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
-            <DailyAnchorsPage
+            <DailyAnchorsPage progression={progressionState}
               anchors={state.anchors}
               todayStr={todayStr}
               now={clockNow}
@@ -5243,6 +5270,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   }}
 />
 
+<WeeklyPlanner state={state} todayStr={todayStr} onApply={plan => {
+  const planned = applyWeeklyPlan(state, plan);
+  setState(previous => previous === state ? planned : applyWeeklyPlan(previous, plan));
+}} />
 <a className="gg-quest-garden-link" href="#goals">Visit Goals Garden <span aria-hidden="true">›</span></a>
 <a className="sr-quest-entry" href="#study">Study with me <span aria-hidden="true">›</span></a>
 {showAddDomain && (
@@ -5297,13 +5328,12 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 )}
               <div className="qd-quest-redesign-canvas">
   <div className="qd-redesign-quest-list">
-    {state.domains.map((domain, index) => (
+    {state.domains.map((domain) => (
       <QuestShellCard
         key={domain.id}
-        domain={domain}
+        domain={{ ...domain, tasks: domain.tasks.map(task => ({ ...task, creditedXP: task.done ? creditedTaskXP({ ...task, domainId: domain.id }) : task.xp })) }}
         today={today}
         todayStr={todayStr}
-        defaultOpen={index === 0}
         onStartTask={taskId => startWorking(domain.id, taskId)} onPauseTask={taskId => pauseWorking(domain.id, taskId)}
         onAddGoal={() => setGoalEditor({ questId: domain.id })} onEditGoal={goal => setGoalEditor({ questId: domain.id, goal })} resetHour={resetHour}
         onToggleTask={(taskId) =>
@@ -5344,7 +5374,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <CompetitionPage progression={progressionState} weekKey={weekKeyStr} todayKey={todayStr}
               displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} userId={session.user.id} notifications={notifications} />
           ) : showStatsPage ? (
-            <StatsPage anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
+            <StatsPage progression={progressionState} anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
           ) : showRewardsPage ? (
             <RewardsPage rewards={state.rewards} claimed={state.claimed} periods={rewardPeriods}
               onSave={saveReward} onDelete={removeReward} onClaim={openRewardChest}
@@ -5378,7 +5408,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               </div>
             </div>
 
-            <div className="qd-level-card" aria-label={`Level ${level}, ${levelXP} of ${levelXPNeeded} experience points`}>
+            <div className="qd-level-card" role="button" tabIndex={0}
+              onClick={() => setShowLevelDetails(true)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowLevelDetails(true); } }}
+              aria-label={`Level ${level}, ${levelXP} of ${levelXPNeeded} experience points. View XP details`}>
               <div className="qd-level-badge">LV {level}</div>
               <div className="qd-level-track">
                 <div className="qd-level-fill" style={{ width: `${Math.min(100, levelXPNeeded ? (levelXP / levelXPNeeded) * 100 : 0)}%` }} />
@@ -5701,6 +5733,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       {workingTask && !showStudyPage && <FocusTimerBar task={workingTask} domain={workingDomain}
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
+      {showLevelDetails && <LevelDetails progression={progression} week={thisWeekLevel} onClose={() => setShowLevelDetails(false)} />}
       {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage) && <BottomNavigation page={page} />}
       <NotificationToasts notifications={notifications} />
     </div>

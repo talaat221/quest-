@@ -1,3 +1,4 @@
+import { anchorAwardXP } from './progression.js';
 // Read-only views of Quest's saved records. Nothing here writes task state.
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 
@@ -33,7 +34,7 @@ const add = (a, b) => { a.completed += b.completed; a.xp += b.xp; a.planned += b
 export const rateOf = (counts) => counts.planned ? counts.completed / counts.planned * 100 : null;
 export const metricOf = (counts, metric) => metric === "xp" ? counts.xp : metric === "rate" ? rateOf(counts) : counts.completed;
 
-export function buildStatsModel({ anchors = [], domains = [], todayStr, resetHour = 0, voyageAdjustments = {} }) {
+export function buildStatsModel({ anchors = [], domains = [], todayStr, resetHour = 0, voyageAdjustments = {}, progression }) {
   const items = [], events = [], tasks = [], undated = [], starts = [todayStr];
   for (const anchor of anchors) {
     const history = Object.entries(anchor.history || {}).filter(([day, done]) => done && validPast(day, todayStr)).map(([day]) => day).sort();
@@ -43,14 +44,14 @@ export function buildStatsModel({ anchors = [], domains = [], todayStr, resetHou
     const key = `anchor:${anchor.id}`;
     items.push({ key, source: "anchor", id: anchor.id, name: anchor.name || "Untitled anchor", emoji: anchor.emoji || "⚓", category: anchor.category || "Daily anchor", start, inferredStart: !created, weekdays: weekdays(anchor), record: anchor });
     starts.push(start);
-    for (const day of history) events.push({ key, source: "anchor", day, xp: positive(anchor.xpPerDay) });
+    for (const day of history) events.push({ key, source: "anchor", day, xp: anchorAwardXP(progression, anchor, day) });
   }
   for (const domain of domains) {
     const key = `quest:${domain.id}`;
     items.push({ key, source: "quest", id: domain.id, name: domain.name || "Untitled quest", emoji: domain.emoji || "📜", category: "Quest", record: domain });
     for (const task of domain.tasks || []) {
       const day = task.done ? completionQuestDay(task.doneAt, resetHour) : null;
-      const record = { ...task, key, source: "quest", domainId: domain.id, completionDay: day, xp: positive(task.xp) };
+      const record = { ...task, key, source: "quest", domainId: domain.id, completionDay: day, xp: positive(progression?.taskAwards?.[`${domain.id}:${task.id}`]?.creditedXp ?? task.xp) };
       tasks.push(record);
       if (validPast(task.day, todayStr)) starts.push(task.day);
       if (task.done && validPast(day, todayStr)) { events.push({ key, source: "quest", day, xp: record.xp }); starts.push(day); }

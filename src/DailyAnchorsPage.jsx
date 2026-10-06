@@ -1,4 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
+import EffortXP from './EffortXP.jsx';
+import { recommendTaskXP, inferEffortForTask, anchorAwardXP } from './progression.js';
+import { formatMinutes } from './task-timer.js';
 import TimeInput from "./TimeInput.jsx";
 import { formatScheduleTime, isTimeInputValid, parseTimeInput } from "./schedule-time.js";
 import { PixelAnchorSymbol, PixelTaskIcon } from "./DailyAnchors.jsx";
@@ -223,6 +226,7 @@ function AnchorRoutineCard({ item, dateStr, todayStr, days, adjustments, onToggl
     <div className="dap-routine-meta">
       <span className="dap-category" style={{ "--dap-category": categoryColor?.(item.category) || "#92d1ef" }}>{item.category || "General"}</span>
       <span>{count === 7 ? "Every day" : count + " days/week"}</span>
+      <span>~{formatMinutes(item.estimatedMinutes || 15)}</span>
       {item.protected && <strong className="dap-important">Important</strong>}
     </div>
     <div className="dap-week" role="group" aria-label={item.name + " weekly history"}>
@@ -249,7 +253,9 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
   const id = useId();
   const [draft, setDraft] = useState(() => ({
     emoji: anchor?.emoji || "⭐", name: anchor?.name || "",
-    category: anchor?.category || "", xpPerDay: anchor?.xpPerDay ?? 10,
+    category: anchor?.category || "",
+    estimatedMinutes: anchor?.estimatedMinutes ?? 15,
+    effort: anchor?.effort || inferEffortForTask({ estimatedMinutes: anchor?.estimatedMinutes ?? 15, xp: anchor?.xpPerDay }),
     activeWeekdays: anchorDays(anchor || {}),
     hour: formatScheduleTime(anchor?.hour) || "08:00",
     timed: anchor?.hour !== null && anchor?.hour !== undefined,
@@ -275,6 +281,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
       ? days.length === 1 ? days : days.filter((value) => value !== day)
       : [...days, day].sort((a, b) => a - b) };
   });
+  const reward = recommendTaskXP(draft);
   const preview = { ...draft, hour: draft.timed ? parseTimeInput(draft.hour) : null };
   return <dialog ref={dialogRef} className="dap-editor" aria-labelledby={id + "-title"}
     onCancel={(event) => { event.preventDefault(); onClose(); }}>
@@ -282,8 +289,8 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
     <form onSubmit={(event) => {
       event.preventDefault();
       if (!draft.name.trim()) { setError("Give your anchor a name."); return; }
-      if (!Number.isFinite(Number(draft.xpPerDay)) || Number(draft.xpPerDay) < 1) {
-        setError("Choose at least 1 XP per completion."); return;
+      if (!Number.isFinite(Number(draft.estimatedMinutes)) || Number(draft.estimatedMinutes) < 1 || Number(draft.estimatedMinutes) > 1440) {
+        setError("Choose a duration between 1 and 1440 minutes."); return;
       }
       if (draft.timed && !isTimeInputValid(draft.hour, true)) {
         setError("Enter a time from 00:00 to 23:59, like 10:20."); return;
@@ -291,7 +298,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
       onSave({
         name: draft.name.trim(), emoji: draft.emoji.trim() || "⭐",
         category: draft.category.trim() || "General",
-        xpPerDay: Number(draft.xpPerDay), activeWeekdays: draft.activeWeekdays,
+        xpPerDay: reward.xp, estimatedMinutes: reward.estimatedMinutes, effort: reward.effort, xpSource: reward.source, activeWeekdays: draft.activeWeekdays,
         hour: draft.timed ? parseTimeInput(draft.hour) : null,
       });
     }}>
@@ -320,11 +327,10 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
           <input id={id + "-category"} value={draft.category} maxLength={80} placeholder="Write your own"
             onChange={(event) => patch("category", event.target.value)} />
         </label>
-        <label htmlFor={id + "-xp"}>XP per completion
-          <input id={id + "-xp"} type="number" inputMode="numeric" min="1" step="1" required value={draft.xpPerDay}
-            onChange={(event) => patch("xpPerDay", event.target.value)} />
-        </label>
       </div>
+      <EffortXP estimatedMinutes={draft.estimatedMinutes} onEstimatedMinutesChange={value => patch("estimatedMinutes", value)}
+        effort={draft.effort} onEffortChange={value => patch("effort", value)} anchor />
+      <p className="dap-field-note">This duration reserves space in your weekly plan. XP is based on time and effort; previous completions keep their reward.</p>
       <fieldset className="dap-editor-section">
         <legend>SCHEDULE</legend>
         <div className="dap-schedule-mode" role="group" aria-label="Schedule type">
@@ -349,7 +355,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
       <div className="dap-editor-preview">
         <PanelArt /><AnchorPicture anchor={preview} /><div><strong>{draft.name.trim() || "Your new anchor"}</strong>
           <small>{anchorTimeLabel(preview.hour)} · {draft.category.trim() || "General"}</small></div>
-        <span>+{draft.xpPerDay || 0} XP</span>
+        <span>+{reward.xp} XP</span>
       </div>
       {error && <p className="dap-form-error" role="alert">{error}</p>}
       <button className="dap-wood-button dap-save" type="submit"><WoodArt /><span>{anchor ? "Save changes" : "Add anchor"}</span></button>
@@ -361,7 +367,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
 }
 
 export default function DailyAnchorsPage({
-  anchors, todayStr, now, resetHour = 0, voyageAdjustments = {},
+  anchors, todayStr, now, resetHour = 0, voyageAdjustments = {}, progression,
   onToggle, onAdd, onUpdate, onDelete, categoryColor,
 }) {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -370,9 +376,9 @@ export default function DailyAnchorsPage({
   const days = anchorWeek(dateStr);
   const adjustment = voyageAdjustments[dateStr];
   const harbor = adjustment?.mode === "harbor";
-  const items = anchorPageItems(anchors, { dateStr, todayStr, now, resetHour, adjustment });
+  const items = anchorPageItems(anchors, { dateStr, todayStr, now, resetHour, adjustment }).map(item => item.done ? { ...item, xpPerDay: anchorAwardXP(progression, item, dateStr) } : item);
   const editorVisible = editor && (!editor.anchor || anchors.some((anchor) => anchor.id === editor.anchor.id));
-  const openEditor = (anchor, deleteIntent = false) => setEditor({ anchor, deleteIntent });
+  const openEditor = (anchor, deleteIntent = false) => setEditor({ anchor: anchor ? anchors.find(item => item.id === anchor.id) : null, deleteIntent });
   const weekLabel = anchorDate(days[0]).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
     + " – " + anchorDate(days[6]).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 

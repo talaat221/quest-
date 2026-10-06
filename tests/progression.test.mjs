@@ -11,11 +11,11 @@ test('effort tiers assign deterministic XP from time and effort', () => {
   assert.equal(recommendTaskXP({ estimatedMinutes: 20, effort: 'normal' }).xp, 10);
   assert.equal(recommendTaskXP({ estimatedMinutes: 45, effort: 'normal' }).xp, 20);
   assert.equal(recommendTaskXP({ estimatedMinutes: 90, effort: 'normal' }).xp, 35);
-  assert.equal(recommendTaskXP({ estimatedMinutes: 180, effort: 'normal' }).xp, 50);
+  assert.equal(recommendTaskXP({ estimatedMinutes: 180, effort: 'normal' }).xp, 60);
   assert.equal(recommendTaskXP({ estimatedMinutes: 45, effort: 'low' }).xp, 10);
   assert.equal(recommendTaskXP({ estimatedMinutes: 45, effort: 'high' }).xp, 35);
   assert.equal(recommendTaskXP({ estimatedMinutes: 5, effort: 'low' }).xp, 5);
-  assert.equal(recommendTaskXP({ estimatedMinutes: 240, effort: 'high' }).xp, 50);
+  assert.equal(recommendTaskXP({ estimatedMinutes: 240, effort: 'high' }).xp, 85);
   assert.deepEqual(XP_TIERS.map(tier => tier.xp), [5, 10, 20, 35, 50]);
 });
 
