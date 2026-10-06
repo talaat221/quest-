@@ -5,6 +5,7 @@ import './iphone-pass2.css'
 import './iphone-modal-fix.css'
 import App from './App.jsx'
 import PasswordRecovery from './PasswordRecovery.jsx'
+import PrivacyNotice from './PrivacyNotice.jsx'
 
 function isRecoveryLocation() {
   const search = new URLSearchParams(window.location.search)
@@ -20,6 +21,7 @@ function isRecoveryLocation() {
 }
 
 const recoveryMode = isRecoveryLocation()
+const privacyMode = (window.location.pathname.replace(/\\/+$/, '') || '/') === '/privacy'
 
 function leaveRecovery() {
   window.history.replaceState({}, '', '/')
@@ -28,7 +30,9 @@ function leaveRecovery() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {recoveryMode ? (
+    {privacyMode ? (
+      <PrivacyNotice />
+    ) : recoveryMode ? (
       <PasswordRecovery onComplete={leaveRecovery} onCancel={leaveRecovery} />
     ) : (
       <App />
