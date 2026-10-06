@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ensureQuestProfile, loadFriendHub } from './friends.js';
+import { blockQuestUser, ensureQuestProfile, loadFriendHub, reportQuestUser } from './friends.js';
 import { otherFriendId } from './friends-core.js';
 import { loadWeeklyChallenge, cancelWeeklyChallenge, leaveWeeklyChallenge, respondWeeklyChallenge } from './challenges.js';
 import { competitionWeekStats } from './competition.js';
 import { createContests, friendLimit, inviteContestMembers, leaveContest, loadContests, respondToContest, setContestPrivacy, startContest } from './contests.js';
 import { activityLabel, rankedMembers, remainingTime, roundPhase, timeAgo } from './competition-view.js';
 import { flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync } from './supabaseClient';
+import ReportUserDialog from './ReportUserDialog.jsx';
 import './competition.css';
 
 function Icon({ kind = 'cup', ...props }) {
