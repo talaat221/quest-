@@ -29,6 +29,7 @@ import WeeklyPlanner, { TaskWeekField } from "./WeeklyPlanner.jsx";
 import { applyWeeklyPlan, weekOf } from "./weekly-planner.js";
 import CompetitionPage from "./CompetitionPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
+import FirstRunOnboarding from "./FirstRunOnboarding.jsx";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
 import { PROGRESSION_VERSION, recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, upgradeProgression, recordAnchorAward, removeAnchorAward, anchorAwardXP, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
@@ -760,6 +761,23 @@ const DEFAULT_STATE = {
     weekThresholdPct: 70,
     dayResetHour: 0,
   },
+};
+
+const createFreshQuestState = () => {
+  const fresh = clone(DEFAULT_STATE);
+  fresh.domains = [];
+  fresh.anchors = [];
+  fresh.claimed = { daily: {}, weekly: {} };
+  fresh.voyageAdjustments = {};
+  fresh.settings = {
+    ...(fresh.settings || {}),
+    onboarding: {
+      version: 1,
+      completed: false,
+      startedAt: new Date().toISOString(),
+    },
+  };
+  return fresh;
 };
 
 // ======================================================
@@ -3424,6 +3442,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [goalEditor, setGoalEditor] = useState(null);
 
   const [showAddAnchor, setShowAddAnchor] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const [clockNow, setClockNow] = useState(new Date());
 
@@ -3618,7 +3637,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       } else if (data) {
         setState(data.data);
       } else {
-        const initialState = clone(DEFAULT_STATE);
+        const initialState = createFreshQuestState();
 
         setState(initialState);
 
@@ -4195,6 +4214,70 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     celebrationQueue,
   ]);
 
+  const finishFirstRun = useCallback(({ quest, task, skipped = false } = {}) => {
+    const now = Date.now();
+    setState((previous) => {
+      if (!previous) return previous;
+      const next = clone(previous);
+      next.settings ||= {};
+      next.settings.onboarding = {
+        version: 1,
+        completed: true,
+        skipped: !!skipped,
+        completedAt: new Date(now).toISOString(),
+      };
+
+      if (!skipped && quest?.name && task?.name) {
+        const domainId = "quest-" + now + "-" + Math.random().toString(36).slice(2, 7);
+        const taskId = "task-" + (now + 1) + "-" + Math.random().toString(36).slice(2, 7);
+        const estimate = Math.min(1440, Math.max(5, Number(task.estimatedMinutes) || 45));
+        const recommendation = recommendTaskXP({ estimatedMinutes: estimate, effort: "normal" });
+        const day = task.day || toISODate(new Date(now));
+
+        next.domains = [
+          ...(next.domains || []),
+          {
+            id: domainId,
+            name: String(quest.name).trim().slice(0, 48),
+            emoji: quest.emoji || "⭐",
+            color: quest.color || "#8B5CF6",
+            monthlyTarget: 4,
+            goals: [],
+            timingProfiles: {},
+            tasks: [{
+              id: taskId,
+              name: String(task.name).trim().slice(0, 100),
+              xp: recommendation.xp,
+              effort: recommendation.effort,
+              effortTier: recommendation.key,
+              xpSource: recommendation.source,
+              plannedWeek: weekOf(day),
+              day,
+              hour: null,
+              estimatedMinutes: recommendation.estimatedMinutes,
+              actualMinutes: null,
+              timingProfileKey: null,
+              workTimer: { elapsedMs: 0, startedAt: null },
+              flexibility: "flexible",
+              done: false,
+              doneAt: null,
+            }],
+          },
+        ];
+      }
+
+      return next;
+    });
+    setShowGuide(false);
+    window.location.hash = "home";
+  }, []);
+
+  const isFreshQuestAccount =
+    !!state &&
+    !state.settings?.onboarding?.completed &&
+    (state.domains?.length || 0) === 0 &&
+    (state.anchors?.length || 0) === 0;
+
   // ====================================================
   // SAFE RETURNS
   // ====================================================
@@ -4215,6 +4298,19 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         <style>{CSS}</style>
         Charting the voyage…
       </div>
+    );
+  }
+
+  if (showGuide || isFreshQuestAccount) {
+    return (
+      <>
+        <style>{CSS}</style>
+        <FirstRunOnboarding
+          replay={showGuide && !isFreshQuestAccount}
+          onClose={() => setShowGuide(false)}
+          onFinish={finishFirstRun}
+        />
+      </>
     );
   }
 
@@ -5380,7 +5476,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               onSave={saveReward} onDelete={removeReward} onClaim={openRewardChest}
               onThresholdChange={(kind, value) => setThresholdPct(kind === "daily" ? "dayThresholdPct" : "weekThresholdPct", value)} />
           ) : previewSubPage && page === "more" ? (
-            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} readyRewards={readyRewards} />
+            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} onOpenGuide={() => setShowGuide(true)} notifications={notifications} readyRewards={readyRewards} />
           ) : (
           <>
           <header className="qd-scene">
