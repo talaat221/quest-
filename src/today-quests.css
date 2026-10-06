@@ -61,7 +61,11 @@
 
 .qd-today-quests-body {
   position: absolute;
-  inset: 25.4% 3.92157% 2.55319%;
+  /* Quest AI sits above this list. Reserve its real rendered height instead
+     of relying only on artwork percentages, so the first task can never end
+     up underneath the AI card on narrow phones. */
+  inset: auto 3.92157% 2.55319%;
+  top: max(25.4%, calc(15.75% + 48px));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -128,3 +132,12 @@
 .qd-today-quests.is-expanded .qd-quest-row-toggle { min-height: 48px; height: auto; padding-top: 2.35294cqw; padding-bottom: 2.35294cqw; }
 .qd-today-quests.is-expanded .qd-quest-row-name { white-space: normal; overflow-wrap: anywhere; }
 .qd-today-quests.is-expanded .qd-today-quests-empty { margin-top: 12%; }
+
+
+/* On phones the compact Quest AI becomes two rows. Give it extra breathing
+   room while keeping the task list independently scrollable inside the card. */
+@media (max-width: 640px) {
+  .qd-root .qd-today-quests:not(.is-expanded) .qd-today-quests-body {
+    top: max(25.4%, calc(15.75% + 62px));
+  }
+}
