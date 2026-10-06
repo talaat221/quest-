@@ -27,6 +27,7 @@ export default function Login({ onLogin }) {
   const [usernameStatus, setUsernameStatus] = useState("idle");
   const [crossBorderConsent, setCrossBorderConsent] = useState(false);
   const [age18Confirmed, setAge18Confirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -178,6 +179,11 @@ export default function Login({ onLogin }) {
           return;
         }
 
+        if (!termsAccepted) {
+          await showError("Please agree to the Quest Terms of Service to create your account.");
+          return;
+        }
+
         if (!crossBorderConsent) {
           await showError("Please confirm the international data transfer consent to create your Quest account.");
           return;
@@ -212,6 +218,8 @@ export default function Login({ onLogin }) {
                 display_name: cleanUsername,
                 age_18_confirmed: true,
                 age_18_confirmed_at: new Date().toISOString(),
+                terms_version: "2026-10-06",
+                terms_accepted_at: new Date().toISOString(),
                 cross_border_transfer_consent: true,
                 cross_border_transfer_consent_at: new Date().toISOString(),
                 privacy_notice_version: "2026-10-06",
@@ -245,6 +253,7 @@ export default function Login({ onLogin }) {
     setPassword("");
     setCrossBorderConsent(false);
     setAge18Confirmed(false);
+    setTermsAccepted(false);
     setMessage("");
     setFeedback("");
   }
@@ -437,6 +446,18 @@ export default function Login({ onLogin }) {
               <label className="login-consent">
                 <input
                   type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  required
+                />
+                <span>
+                  I agree to the{" "}
+                  <a href="/terms?lang=en" target="_blank" rel="noreferrer">Quest Terms of Service</a>.
+                </span>
+              </label>
+              <label className="login-consent">
+                <input
+                  type="checkbox"
                   checked={crossBorderConsent}
                   onChange={(e) => setCrossBorderConsent(e.target.checked)}
                   required
@@ -448,13 +469,16 @@ export default function Login({ onLogin }) {
                 </span>
               </label>
               <p className="login-legal">
-                By creating an account, you also acknowledge that you have read the Privacy Notice.
+                By creating an account, you also acknowledge that you have read the{" "}
+                <a href="/privacy?lang=en" target="_blank" rel="noreferrer">Privacy Notice</a>.
               </p>
             </>
           )}
           {!isSignUp && !isResetRequest && (
             <p className="login-legal login-legal--single">
               <a href="/privacy?lang=en">Privacy Notice</a>
+              {" · "}
+              <a href="/terms?lang=en">Terms of Service</a>
             </p>
           )}
         </form>
