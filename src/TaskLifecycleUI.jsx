@@ -3,14 +3,22 @@ import { formatMinutes } from "./task-timer.js";
 import { rewardTaskDay } from "./rewards.js";
 import "./task-lifecycle.css";
 
-export function QuestHistoryPanel({ tasks = [], resetHour = 0 }) {
+export function QuestHistoryPanel({
+  tasks = [],
+  resetHour = 0,
+  kicker = "COMPLETED TASKS",
+  title = "Quest History",
+  description = "Finished work leaves the active list, but the progress stays.",
+  emptyTitle = "No completed tasks yet.",
+  emptyDescription = "Your finished quests will be remembered here.",
+}) {
   return (
     <section className="tl-history" aria-labelledby="tl-history-title">
       <header className="tl-history-head">
         <div>
-          <span>COMPLETED TASKS</span>
-          <h2 id="tl-history-title">Quest History</h2>
-          <p>Finished work leaves the active list, but the progress stays.</p>
+          <span>{kicker}</span>
+          <h2 id="tl-history-title">{title}</h2>
+          <p>{description}</p>
         </div>
         <b>{tasks.length}<small>finished</small></b>
       </header>
@@ -50,8 +58,8 @@ export function QuestHistoryPanel({ tasks = [], resetHour = 0 }) {
       ) : (
         <div className="tl-history-empty">
           <span aria-hidden="true">📜</span>
-          <strong>No completed tasks yet.</strong>
-          <small>Your finished quests will be remembered here.</small>
+          <strong>{emptyTitle}</strong>
+          <small>{emptyDescription}</small>
         </div>
       )}
     </section>
