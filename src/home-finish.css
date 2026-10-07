@@ -699,6 +699,67 @@
 .qd-quests-active .qd-rpg-existing-quest-content .qd-time-hint { font: 14px/1.3 "VT323", monospace; }
 .qd-quests-active .qd-rpg-existing-quest-content .qd-task-edit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* Task creation validation: keep the form calm until Add is attempted, then
+   make the exact missing field impossible to miss. */
+.qd-quests-active .qd-rpg-existing-quest-content .qd-task-form-alert,
+.qd-add-task .qd-task-form-alert {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 102, 102, .65);
+  border-radius: 3px;
+  background: rgba(126, 31, 38, .18);
+  color: #ffd4d4;
+  font: 16px/1.2 "VT323", monospace;
+}
+.qd-task-error-light {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff6666;
+  color: #19090b;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(255, 102, 102, .18), 0 0 12px rgba(255, 84, 84, .62);
+}
+.qd-add-task .qd-task-required-wrap {
+  position: relative;
+  min-width: 0;
+}
+.qd-add-task .qd-task-name-wrap,
+.qd-add-task .qd-task-estimate-wrap,
+.qd-add-task .qd-task-time-wrap {
+  grid-column: 1 / -1;
+}
+.qd-add-task .qd-task-name-wrap > input {
+  width: 100% !important;
+}
+.qd-add-task .qd-task-required-wrap.is-missing input {
+  border-color: #ff6868 !important;
+  outline: 1px solid rgba(255, 104, 104, .82) !important;
+  box-shadow: 0 0 0 2px rgba(255, 80, 80, .10), 0 0 13px rgba(255, 75, 75, .46) !important;
+  animation: qd-task-error-glow 1.1s ease-in-out 2;
+}
+.qd-add-task .qd-task-field-error {
+  display: block;
+  margin-top: 4px;
+  color: #ff9b9b;
+  font: 14px/1.15 "VT323", monospace;
+  letter-spacing: .01em;
+}
+@keyframes qd-task-error-glow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255, 80, 80, .10), 0 0 9px rgba(255, 75, 75, .35); }
+  50% { box-shadow: 0 0 0 2px rgba(255, 80, 80, .19), 0 0 18px rgba(255, 75, 75, .70); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qd-add-task .qd-task-required-wrap.is-missing input { animation: none; }
+}
+
 /* Safe Harbor filters artwork and ordinary content separately, leaving the
    important task unfiltered. A child cannot undo grayscale on an ancestor. */
 .qd-quests-active .qd-rpg-quest-card.is-harbor :is(.qd-rpg-card-art,.qd-rpg-task-frame-art,.qd-rpg-quest-open-header,.qd-rpg-quest-progress-row,.qd-rpg-quest-chips,.qd-rpg-task-heading,.qd-rpg-quest-footer) { filter: grayscale(1); }
