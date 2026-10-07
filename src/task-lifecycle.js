@@ -1,16 +1,29 @@
 import { rewardTaskDay } from "./rewards.js";
 import { weekOf } from "./weekly-planner.js";
 
+function safeWeekOf(day) {
+  const value = String(day || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  try {
+    return weekOf(value);
+  } catch {
+    return null;
+  }
+}
+
 export function getTaskWeek(task) {
   if (!task) return null;
-  if (task.day) return weekOf(task.day);
-  return task.plannedWeek || null;
+  return safeWeekOf(task.day) || safeWeekOf(task.plannedWeek);
 }
 
 export function getTaskCompletionWeek(task, resetHour = 0) {
   if (!task?.done || !task.doneAt) return null;
-  const completedDay = rewardTaskDay(task.doneAt, resetHour);
-  return completedDay ? weekOf(completedDay) : null;
+  try {
+    const completedDay = rewardTaskDay(task.doneAt, resetHour);
+    return safeWeekOf(completedDay);
+  } catch {
+    return null;
+  }
 }
 
 export function sortQuestTasksForCurrentWeek(tasks = [], currentWeek, resetHour = 0) {
