@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import QuestDashboard from './quest-dashboard';
-import WeeklyRolloverLab from './WeeklyRolloverLab.jsx';
 import './design-preview.css';
 import {
   flushQuestSync,
@@ -208,14 +207,6 @@ function SyncIndicator() {
 const DESIGN_PREVIEW = true;
 
 function App() {
-  const weeklyTest =
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('weeklyTest') === '1';
-
-  if (weeklyTest) {
-    return <WeeklyRolloverLab />;
-  }
-
   return (
     <div className={`w-full min-h-screen${DESIGN_PREVIEW ? ' qd-design-preview' : ''}`}>
       <QuestDashboard designPreview={DESIGN_PREVIEW} />
