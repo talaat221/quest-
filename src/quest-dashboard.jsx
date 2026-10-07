@@ -2076,6 +2076,7 @@ function QuestCard({
   const [estimateTouched, setEstimateTouched] = useState(false);
   const [plannedWeek, setPlannedWeek] = useState(() => weekOf(todayStr));
   const [flexibility, setFlexibility] = useState("flexible");
+  const [showTaskErrors, setShowTaskErrors] = useState(false);
 
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -2090,16 +2091,38 @@ function QuestCard({
   const status = questStatus(domain, today);
   const learnedEstimate = getLearnedEstimate(domain, name);
   const learnedSamples = getTimingSampleCount(domain, name);
+  const taskNameMissing = !name.trim();
+  const taskEstimateValue = Number(estimatedMinutes || learnedEstimate);
+  const taskEstimateInvalid =
+    !Number.isFinite(taskEstimateValue) ||
+    taskEstimateValue < 1 ||
+    taskEstimateValue > 1440;
+  const taskTimeInvalid = !!day && !isTimeInputValid(hour);
+  const taskFormHasErrors = taskNameMissing || taskEstimateInvalid || taskTimeInvalid;
+
+  const focusFirstTaskError = () => {
+    window.requestAnimationFrame(() => {
+      const selector = taskNameMissing
+        ? 'input[aria-label="Task name"]'
+        : taskEstimateInvalid
+          ? 'input[aria-label="Estimated minutes"]'
+          : ".qt-time-field input";
+      addFormRef.current?.querySelector(selector)?.focus();
+    });
+  };
 
   const submitTask = () => {
-    if (!name.trim() || (day && !isTimeInputValid(hour))) return;
+    if (taskFormHasErrors) {
+      setShowTaskErrors(true);
+      focusFirstTaskError();
+      return;
+    }
 
     const learned = getLearnedEstimate(domain, name);
     const finalEstimate =
       estimatedMinutes === "" || estimatedMinutes === null
         ? learned
         : Math.max(1, Number(estimatedMinutes) || 1);
-    if (!Number.isFinite(Number(finalEstimate)) || Number(finalEstimate) < 1 || Number(finalEstimate) > 1440) return;
 
     onAddTask({
       name: name.trim(),
@@ -2117,6 +2140,7 @@ function QuestCard({
     setEstimatedMinutes("");
     setEstimateTouched(false);
     setFlexibility("flexible");
+    setShowTaskErrors(false);
     setShowAdd(false);
   };
 
@@ -2217,7 +2241,11 @@ function QuestCard({
       <QuestGoalsSummary domain={domain} onAdd={onAddGoal} onEdit={onEditGoal} resetHour={resetHour} />
       {artLayout && <div className="qd-rpg-task-heading">
         <h3>Tasks ({domain.tasks.filter(task => task.done).length}/{domain.tasks.length})</h3>
-        <button type="button" className="qd-rpg-add-task" onClick={() => { playSFX("click"); setShowAdd(value => !value); }} aria-expanded={showAdd}>
+        <button type="button" className="qd-rpg-add-task" onClick={() => {
+          playSFX("click");
+          setShowTaskErrors(false);
+          setShowAdd(value => !value);
+        }} aria-expanded={showAdd}>
           {showAdd ? "Cancel" : "Add Task"}<QuestGlyph name="plus" />
         </button>
       </div>}
@@ -2367,31 +2395,49 @@ function QuestCard({
 
       {showAdd ? (
         <div className="qd-add-task" ref={addFormRef}>
-          <input
-            type="text"
-            placeholder="Task name"
-                aria-label="Task name"
-            value={name}
-            onChange={(e) => {
-              const nextName = e.target.value;
-              setName(nextName);
-              if (!estimateTouched) {
-                setEstimatedMinutes(
-                  getLearnedEstimate(domain, nextName) ?? ""
-                );
-              }
-            }}
-            onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
-          />
+          {showTaskErrors && taskFormHasErrors && (
+            <div className="qd-task-form-alert" role="alert" aria-live="assertive">
+              <span className="qd-task-error-light" aria-hidden="true">!</span>
+              <span>Complete the highlighted field{[taskNameMissing, taskEstimateInvalid, taskTimeInvalid].filter(Boolean).length > 1 ? "s" : ""} before adding this task.</span>
+            </div>
+          )}
 
-          <EffortXP
-            estimatedMinutes={estimatedMinutes}
-            onEstimatedMinutesChange={(value) => { setEstimatedMinutes(value); setEstimateTouched(true); }}
-            effort={effort}
-            onEffortChange={setEffort}
-            learnedEstimate={learnedEstimate}
-            learnedSamples={learnedSamples}
-          />
+          <div className={"qd-task-required-wrap qd-task-name-wrap" + (showTaskErrors && taskNameMissing ? " is-missing" : "")}>
+            <input
+              type="text"
+              placeholder="Task name"
+              aria-label="Task name"
+              aria-invalid={showTaskErrors && taskNameMissing ? "true" : undefined}
+              value={name}
+              onChange={(e) => {
+                const nextName = e.target.value;
+                setName(nextName);
+                if (!estimateTouched) {
+                  setEstimatedMinutes(
+                    getLearnedEstimate(domain, nextName) ?? ""
+                  );
+                }
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
+            />
+            {showTaskErrors && taskNameMissing && <small className="qd-task-field-error">Add a task name.</small>}
+          </div>
+
+          <div className={"qd-task-required-wrap qd-task-estimate-wrap" + (showTaskErrors && taskEstimateInvalid ? " is-missing" : "")}>
+            <EffortXP
+              estimatedMinutes={estimatedMinutes}
+              onEstimatedMinutesChange={(value) => { setEstimatedMinutes(value); setEstimateTouched(true); }}
+              effort={effort}
+              onEffortChange={setEffort}
+              learnedEstimate={learnedEstimate}
+              learnedSamples={learnedSamples}
+            />
+            {showTaskErrors && taskEstimateInvalid && (
+              <small className="qd-task-field-error">
+                {!estimatedMinutes && !learnedEstimate ? "Add an estimated time." : "Estimated time must be between 1 and 1440 minutes."}
+              </small>
+            )}
+          </div>
 
           <select
             aria-label="Task flexibility"
@@ -2406,19 +2452,22 @@ function QuestCard({
           {!day && <TaskWeekField value={plannedWeek} onChange={setPlannedWeek} todayStr={todayStr} />}
           <input type="date" aria-label="Task date" value={day} onChange={(e) => { setDay(e.target.value); if (!e.target.value) setHour(""); }} />
 
-          <TimeInput value={hour} onChange={setHour} disabled={!day} />
+          <div className={"qd-task-required-wrap qd-task-time-wrap" + (showTaskErrors && taskTimeInvalid ? " is-missing" : "")}>
+            <TimeInput value={hour} onChange={setHour} disabled={!day} required={!!day} />
+            {showTaskErrors && taskTimeInvalid && <small className="qd-task-field-error">Choose a valid time for this date.</small>}
+          </div>
 
           <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
             Today
           </button>
-          <button type="button" onClick={submitTask} disabled={!Number(estimatedMinutes || learnedEstimate) || Number(estimatedMinutes || learnedEstimate) > 1440 || (!!day && !isTimeInputValid(hour))}>Add</button>
-          <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
+          <button type="button" onClick={submitTask}>Add</button>
+          <button type="button" className="qd-cancel" onClick={() => { setShowTaskErrors(false); setShowAdd(false); }}>Cancel</button>
         </div>
       ) : !artLayout && (
         <button
           type="button"
           className="qd-add-btn"
-          onClick={() => { playSFX("click"); setShowAdd(true); }}
+          onClick={() => { playSFX("click"); setShowTaskErrors(false); setShowAdd(true); }}
         >
           + Add task
         </button>
