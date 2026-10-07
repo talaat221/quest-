@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { QuestHistoryPanel, WeeklyCleanupModal } from "./TaskLifecycleUI.jsx";
-import { getCompletedTasks, getPastUnfinishedTasks, sortQuestTasksForCurrentWeek } from "./task-lifecycle.js";
+import { getCompletedTasks, getPastUnfinishedTasks, getTaskCompletionWeek, sortQuestTasksForCurrentWeek } from "./task-lifecycle.js";
 import { weekOf } from "./weekly-planner.js";
 import "./weekly-rollover-lab.css";
 
@@ -123,9 +123,17 @@ export default function WeeklyRolloverLab() {
     () => getPastUnfinishedTasks(scenario.domains, currentWeek),
     [scenario.domains, currentWeek]
   );
-  const history = useMemo(
+  const allCompleted = useMemo(
     () => getCompletedTasks(scenario.domains),
     [scenario.domains]
+  );
+  const completedThisWeek = useMemo(
+    () => allCompleted.filter((task) => getTaskCompletionWeek(task, 0) === currentWeek),
+    [allCompleted, currentWeek]
+  );
+  const archive = useMemo(
+    () => allCompleted.filter((task) => getTaskCompletionWeek(task, 0) !== currentWeek),
+    [allCompleted, currentWeek]
   );
 
   const cleanupOpen =
@@ -255,8 +263,8 @@ export default function WeeklyRolloverLab() {
             </>
           ) : (
             <>
-              <b>Monday:</b> last week’s completed tasks leave the active lists and stay in
-              Quest History. Unfinished old tasks must be reviewed.
+              <b>Monday:</b> last week’s completed tasks leave Completed and move into Archive.
+              Unfinished old tasks must be reviewed.
             </>
           )}
         </div>
@@ -265,13 +273,34 @@ export default function WeeklyRolloverLab() {
           <button type="button" className={tab === "active" ? "is-active" : ""} onClick={() => setTab("active")}>
             Active Quests
           </button>
-          <button type="button" className={tab === "history" ? "is-active" : ""} onClick={() => setTab("history")}>
-            Quest History <span>{history.length}</span>
+          <button type="button" className={tab === "completed" ? "is-active" : ""} onClick={() => setTab("completed")}>
+            Completed <span>{completedThisWeek.length}</span>
+          </button>
+          <button type="button" className={tab === "archive" ? "is-active" : ""} onClick={() => setTab("archive")}>
+            Archive <span>{archive.length}</span>
           </button>
         </nav>
 
-        {tab === "history" ? (
-          <QuestHistoryPanel tasks={history} resetHour={0} />
+        {tab === "completed" ? (
+          <QuestHistoryPanel
+            tasks={completedThisWeek}
+            resetHour={0}
+            kicker="THIS WEEK"
+            title="Completed"
+            description="Only tasks completed during the simulated current week."
+            emptyTitle="Nothing completed this week."
+            emptyDescription="On Monday, last week’s completed tasks are no longer here."
+          />
+        ) : tab === "archive" ? (
+          <QuestHistoryPanel
+            tasks={archive}
+            resetHour={0}
+            kicker="PAST WEEKS"
+            title="Archive"
+            description="Completed tasks from weeks before the simulated current week."
+            emptyTitle="Archive is empty."
+            emptyDescription="Advance to Monday to watch Sunday’s completed tasks move here."
+          />
         ) : (
           <section className="wrl-quests">
             {scenario.domains.map((domain) => {
@@ -298,7 +327,7 @@ export default function WeeklyRolloverLab() {
         {dateKey === MONDAY && !cleanupOpen && oldTasks.length === 0 && (
           <section className="wrl-result">
             <strong>✓ Weekly cleanup resolved</strong>
-            <span>The active Quest is clean. History still keeps completed work.</span>
+            <span>The active Quest is clean. Older completed work is preserved in Archive.</span>
             <button type="button" onClick={markWeekResolved}>Mark this week reviewed</button>
           </section>
         )}
