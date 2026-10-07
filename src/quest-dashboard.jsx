@@ -31,7 +31,7 @@ import CompetitionPage from "./CompetitionPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
 import FirstRunOnboarding from "./FirstRunOnboarding.jsx";
 import { QuestHistoryPanel, WeeklyCleanupModal } from "./TaskLifecycleUI.jsx";
-import { getCompletedTasks, getPastUnfinishedTasks, sortQuestTasksForCurrentWeek } from "./task-lifecycle.js";
+import { getCompletedTasks, getPastUnfinishedTasks, getTaskCompletionWeek, sortQuestTasksForCurrentWeek } from "./task-lifecycle.js";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
 import { PROGRESSION_VERSION, recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, upgradeProgression, recordAnchorAward, removeAnchorAward, anchorAwardXP, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
@@ -3449,7 +3449,7 @@ function QuestFilterBar({
       <button
         type="button"
         className="qd-quest-filter-hit qd-quest-filter-hit-completed"
-        aria-label="Show completed quests"
+        aria-label="Show tasks completed this week"
         aria-pressed={activeFilter === "completed"}
         onClick={() => onFilterChange("completed")}
       />
@@ -3457,7 +3457,7 @@ function QuestFilterBar({
       <button
         type="button"
         className="qd-quest-filter-hit qd-quest-filter-hit-archived"
-        aria-label="Show archived quests"
+        aria-label="Show completed tasks from previous weeks"
         aria-pressed={activeFilter === "archived"}
         onClick={() => onFilterChange("archived")}
       />
@@ -3910,19 +3910,27 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     return award ? Math.max(0, Number(award.creditedXp) || 0) : Math.max(0, Number(task.xp) || 0);
   };
 
-  const completedTaskHistory = state
+  const allCompletedTasks = state
     ? getCompletedTasks(state.domains || []).map((task) => ({
         ...task,
         creditedXP: creditedTaskXP(task),
       }))
     : [];
 
+  const completedThisWeek = allCompletedTasks.filter(
+    (task) => getTaskCompletionWeek(task, resetHour) === weekKeyStr
+  );
+
+  const archivedCompletedTasks = allCompletedTasks.filter(
+    (task) => getTaskCompletionWeek(task, resetHour) !== weekKeyStr
+  );
+
   const displayedQuestDomains = state
-    ? state.domains.filter((domain) => {
-        if (questFilter === "active") return (domain.tasks || []).some((task) => !task.done);
-        if (questFilter === "archived") return (domain.tasks || []).length > 0 && (domain.tasks || []).every((task) => task.done);
-        return true;
-      })
+    ? state.domains.filter((domain) =>
+        questFilter === "active"
+          ? (domain.tasks || []).some((task) => !task.done)
+          : true
+      )
     : [];
 
   const dayTaskXP = (ds) =>
@@ -5533,7 +5541,25 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 />
 
 {questFilter === "completed" ? (
-  <QuestHistoryPanel tasks={completedTaskHistory} resetHour={resetHour} />
+  <QuestHistoryPanel
+    tasks={completedThisWeek}
+    resetHour={resetHour}
+    kicker="THIS WEEK"
+    title="Completed"
+    description="Everything you finished during the current week. On Monday, these move into Archive."
+    emptyTitle="Nothing completed this week yet."
+    emptyDescription="Finish a task and it will appear here."
+  />
+) : questFilter === "archived" ? (
+  <QuestHistoryPanel
+    tasks={archivedCompletedTasks}
+    resetHour={resetHour}
+    kicker="PAST WEEKS"
+    title="Archive"
+    description="Your completed tasks from previous weeks, kept as a permanent record of progress."
+    emptyTitle="Your Archive is empty."
+    emptyDescription="Completed tasks move here automatically when a new week begins."
+  />
 ) : (
 <>
 <WeeklyPlanner state={state} todayStr={todayStr} onApply={plan => {
@@ -5594,7 +5620,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 )}
               <div className="qd-quest-redesign-canvas">
   <div className="qd-redesign-quest-list">
-    {state.domains.map((domain) => (
+    {displayedQuestDomains.map((domain) => (
       <QuestShellCard
         key={domain.id}
         domain={{ ...domain, tasks: domain.tasks.map(task => ({ ...task, creditedXP: task.done ? creditedTaskXP({ ...task, domainId: domain.id }) : task.xp })) }}
@@ -5623,7 +5649,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     ))}
     {displayedQuestDomains.length === 0 && (
       <div className="qd-dim" style={{ padding: "28px 12px", textAlign: "center" }}>
-        {questFilter === "active" ? "No active quests right now." : "No archived quests yet."}
+        No active quests right now.
       </div>
     )}
   </div>
