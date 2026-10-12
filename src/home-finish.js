@@ -33,9 +33,9 @@ export function getCurrentStreak({ anchors = [], tasks = [], todayStr, resetHour
 }
 
 export function getHomePage(hash = "") {
-  const page = hash.replace(/^#/, "");
+  const page = hash.replace(/^#/, "").split("/")[0];
   if (page === "voyage") return "stats";
-  return ["home", "quests", "today-quests", "anchors", "stats", "more", "goals", "study", "rewards", "competition", "friends"].includes(page) ? page : "home";
+  return ["home", "quests", "today-quests", "anchors", "stats", "more", "goals", "study", "rewards", "competition", "friends", "farm"].includes(page) ? page : "home";
 }
 
 export function getDaySaveStatus(sync) {

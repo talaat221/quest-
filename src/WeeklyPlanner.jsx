@@ -43,6 +43,8 @@ function PlannerDialog({ state, week, onClose, onApply }) {
     <header className="wp-heading"><div><small>MAKE ROOM FOR WHAT MATTERS</small><h2 id={title}>Plan your week</h2><p>{dateLabel(week)} – {dateLabel(shiftAnchorDate(week, 6))}</p></div>
       <button type="button" className="wp-close" aria-label="Close weekly planner" onClick={onClose}>×</button></header>
     <p className="wp-intro">Quest places your flexible tasks around timed anchors and existing appointments. Review the plan, then apply it.</p>
+    <details className="wp-guidance"><summary>How many hours should I plan?</summary><p>There is no single ideal weekly total. Start with hours you actually have after classes, work and sleep. Our 20-hour starter budget is adjustable, not a scientific limit. Cal Newport describes 15–20 hours of focused work in his own week; that is an example, not a rule for everyone.</p><p>Research supports breaks for reducing fatigue. Quest leaves 15% free and adds 10-minute gaps as planning choices. Long sessions may need longer breaks.</p><a href="https://calnewport.com/i-want-to-show-you-exactly-how-i-prioritize-deep-work-in-my-busy-life/" target="_blank" rel="noreferrer">Focused-work example ↗</a> · <a href="https://doi.org/10.1371/journal.pone.0272460" target="_blank" rel="noreferrer">Breaks research ↗</a></details>
+    <div className="wp-presets" aria-label="Weekly hour presets">{[10,20,30].map(hours=><button type="button" key={hours} onClick={()=>changePreferences({dailyMinutes:hours===20?[180,180,180,180,180,150,150]:Array.from({length:7},(_,i)=>i<5?hours*60/6:hours*60/12)})}>{hours}h / week</button>)}</div>
     <fieldset className="wp-capacity"><legend>Available hours each day</legend>
       <p>Includes your tasks and anchors. Set 0 for a day off. Quest leaves 15% free for breathing room.</p>
       <div className="wp-capacity-grid">{preferences.dailyMinutes.map((minutes, index) => <label key={index}>
@@ -89,19 +91,22 @@ function PlannerDialog({ state, week, onClose, onApply }) {
 }
 
 export default function WeeklyPlanner({ state, todayStr, onApply }) {
-  const [selectedWeek, setSelectedWeek] = useState(null), [open, setOpen] = useState(false), [message, setMessage] = useState('');
+  const [selectedWeek, setSelectedWeek] = useState(null), [open, setOpen] = useState(()=>window.location.hash==='#quests/planner'), [message, setMessage] = useState('');
+  useEffect(()=>{const show=()=>{if(window.location.hash==='#quests/planner')setOpen(true);};window.addEventListener('hashchange',show);return()=>window.removeEventListener('hashchange',show);},[]);
+  const close=()=>{setOpen(false);if(window.location.hash==='#quests/planner')window.location.hash='quests';};
   const week = selectedWeek || weekOf(todayStr);
   const overview = useMemo(() => buildWeeklyPlan(state, week, state.settings?.planning), [state, week]);
   return <section className="wp-panel" aria-label="Weekly planning">
     <div className="wp-heading"><div><small>ONE WEEK AT A TIME</small><h2>Your weekly plan</h2></div><span className="wp-seed" aria-hidden="true">✦</span></div>
     <div className="wp-week-picker"><button type="button" aria-label="Previous planning week" disabled={week <= weekOf(todayStr)} onClick={() => { setSelectedWeek(shiftAnchorDate(week, -7)); setMessage(''); }}>‹</button>
       <span>{dateLabel(week)} – {dateLabel(shiftAnchorDate(week, 6))}</span><button type="button" aria-label="Next planning week" onClick={() => { setSelectedWeek(shiftAnchorDate(week, 7)); setMessage(''); }}>›</button></div>
-    <p><strong>{overview.candidates.length} flexible tasks</strong> · {minutesLabel(overview.totalMinutes)} including anchors</p>
+    <p><strong>{minutesLabel(overview.totalMinutes)} planned</strong> / {minutesLabel(overview.totalCapacity)} available · including anchors</p>
+    <p className="wp-note">{overview.candidates.length} flexible tasks · balanced by duration, not task count.</p>
     <p className="wp-note">{overview.tooHard ? 'The week may be too full. Preview a gentler plan and choose what can wait.' : 'Add your tasks, then let Quest find space for them.'}</p>
     <button className="wp-button" type="button" onClick={() => setOpen(true)}>I’m done adding — plan my week</button>
     {message && <p className="wp-success" role="status">{message}</p>}
-    {open && <PlannerDialog state={state} week={week} onClose={() => setOpen(false)} onApply={plan => {
-      onApply(plan); setOpen(false); setMessage(`${plan.assignments.length} tasks scheduled.${plan.overflow.length && !plan.keepAll ? ` ${plan.overflow.length} moved to next week.` : ''} Your plan will sync with your account.`);
+    {open && <PlannerDialog state={state} week={week} onClose={close} onApply={plan => {
+      onApply(plan); close(); setMessage(`${plan.assignments.length} tasks scheduled.${plan.overflow.length && !plan.keepAll ? ` ${plan.overflow.length} moved to next week.` : ''} Your plan will sync with your account.`);
     }} />}
   </section>;
 }

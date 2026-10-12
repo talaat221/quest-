@@ -2,6 +2,7 @@ import { useId, useState, useEffect } from "react";
 import { supabase, flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync, resolveQuestConflict } from "./supabaseClient";
 import "./home-finish.css";
 import "./day-pause.css";
+import { FarmMini, FarmSprite } from "./FarmPage.jsx";
 import AccountResetCard from "./AccountResetCard.jsx";
 import NotificationSettings from "./NotificationSettings.jsx";
 import { disconnectNotifications } from "./notifications.js";
@@ -9,17 +10,11 @@ import { RewardChest } from "./RewardsPage.jsx";
 
 const farmPicture = <image href="/home-finish/farm-streak-v1.webp" width="959" height="1640" />;
 
-export function FarmAndStreak({ streak }) {
-  const farmId = useId();
+export function FarmAndStreak({ streak, farmController }) {
   const streakId = useId();
   return (
     <div className="qd-farm-streak">
-      <section className="qd-farm-status" aria-labelledby={farmId}>
-        <svg className="qd-home-art" viewBox="14 100 931 1028" preserveAspectRatio="none" aria-hidden="true" focusable="false">{farmPicture}</svg>
-        <h2 id={farmId} className="qd-anchor-sr-only">Farm Status</h2>
-        <span className="qd-anchor-sr-only">A preview of your garden. Farm features are coming later.</span>
-        <p className="qd-farm-caption">Your progress today<br />is growing something<br />real <span aria-hidden="true">🌱</span></p>
-      </section>
+      <FarmMini controller={farmController} />
       <a href="#stats" className="qd-streak-card" aria-labelledby={streakId}>
         <svg className="qd-home-art" viewBox="14 1140 931 470" preserveAspectRatio="none" aria-hidden="true" focusable="false">{farmPicture}</svg>
         <h2 id={streakId} className="qd-anchor-sr-only">Streak: {streak} {streak === 1 ? "day" : "days"}. View stats.</h2>
@@ -80,7 +75,7 @@ function NavIcon({ type }) {
 const tabs = [["home", "Home"], ["quests", "Quests"], ["anchors", "Anchors"], ["stats", "Stats"], ["more", "More"]];
 
 export function BottomNavigation({ page }) {
-  const active = page === "today-quests" || page === "study" ? "quests" : page === "goals" || page === "rewards" || page === "competition" || page === "friends" ? "more" : page;
+  const active = page === "today-quests" || page === "study" ? "quests" : page === "goals" || page === "rewards" || page === "competition" || page === "friends" || page === "farm" ? "more" : page;
   return (
     <div className="qd-bottom-dock">
       <nav className="qd-bottom-navigation" aria-label="Main navigation">
@@ -135,6 +130,7 @@ export function MorePage({ resetHour, onResetHour, onResetAccount, notifications
     <>
       <HomePageHeading title="More"><p>Make room for your own rhythm.</p></HomePageHeading>
       <a className="qd-home-page-link gg-more-link rw-more-link" href="#rewards"><RewardChest open={readyRewards > 0} /><span><strong>Rewards</strong><small className={readyRewards ? "rw-link-ready" : undefined}>{readyRewards ? `${readyRewards} ${readyRewards === 1 ? "reward is" : "rewards are"} ready to claim.` : "Choose your treats. Earn XP. Open your chest."}</small></span><span aria-hidden="true">›</span></a>
+      <a className="qd-home-page-link gg-more-link" href="#farm"><FarmSprite index={13}/><span><strong>My farm</strong><small>Grow collectible plants, open seed chests, and care for your garden.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link" href="#goals"><img src="/garden-scene/v1/12-crop-2-mature.webp" alt="" /><span><strong>Goals Garden</strong><small>Grow your weekly, monthly, and yearly ambitions.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link sr-more-link" href="#study"><img src="/study-room/boy-idle-v2.webp" alt="" /><span><strong>Study with me</strong><small>A cozy room, a quiet companion, and time for your tasks.</small></span><span aria-hidden="true">›</span></a>
       <a className="qd-home-page-link gg-more-link cp-more-link" href="#competition"><img src="/competition/competition-icon-v1.svg" alt="" /><span><strong>Competition</strong><small>Compare balanced XP and challenge friends week by week.</small></span><span aria-hidden="true">›</span></a>

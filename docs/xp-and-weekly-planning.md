@@ -34,10 +34,23 @@ The v4 migration preserves legacy XP and completed task awards. The previous ver
 - The largest flexible tasks are placed first on the least-loaded feasible day, using saved or learned duration estimates. Missing task estimates fall back to 30 minutes; old anchors default to 15 minutes.
 - Recurring anchors contribute to daily workload. Timed anchors reserve their exact intervals. Anytime anchors reduce the daily workload allowance without inventing a time. Previously dated tasks are preserved unless the user explicitly opts to rebalance flexible tasks.
 - Fixed, completed and currently running work cannot be moved. Existing time collisions are reported. Past days, stopped days, reduced-capacity days, minute-precise starts, day-reset offsets, and overnight busy intervals are respected.
-- Capacity defaults to the existing learned estimate (six hours while there is insufficient history), and can be changed down to zero per day. 15% remains free; timed activities have a ten-minute gap.
+- Capacity uses a learned estimate once enough completed timed days exist. Until then, the starter budget is 20 hours per week (3 hours on weekdays, 2.5 hours on weekend days), with 10/20/30-hour presets and editable daily hours, including zero for a day off. 15% remains free; timed activities have a ten-minute gap. These are adjustable product defaults, not a scientific optimum.
 - Overflow is proposed for the following week's flexible pool. Nothing is moved until the user applies the preview. A heavy-week option bypasses the workload budget, but never forces tasks into overlapping or nonexistent time slots. Tasks that still cannot fit remain flexible with an explicit warning. Long tasks may need splitting; deferral alone is not described as a cure.
 - Preview application checks for changed tasks and start times that have already passed. One state update flows through the existing offline/cloud sync adapter.
 - Future-week tasks no longer inflate the current weekly reward target.
+
+## Quest AI workload advice
+
+The home card takes space in the normal layout above the task list. Tapping it opens the detailed review. Advice uses the current dashboard state and updates each minute and when the app regains focus.
+
+- Remaining work is measured in minutes, including recurring anchor durations. Completed work is shown separately using its planned duration; it is not presented as actual time tracked today.
+- Timer progress reduces unfinished work. Once a task passes its estimate, at least five minutes remains reserved, with a prompt to update the estimate. Paused flexible tasks are scheduled using their remaining time.
+- Today's remaining capacity respects saved hours, completed planned time, current timer progress, the work window and Stop Day/reduced-capacity settings.
+- Flexible work belongs to the weekly total exactly once. Future weeks stay separate. Overdue earlier work is called out separately and needs a new date.
+- Advice identifies days over budget, oversized sessions, missing estimates, timer overruns and existing time conflicts. **Review my week** opens the planner; suggestions never change dates without applying a preview.
+- Learned capacity uses completed tasks with finite actual durations and the most recent 60 dated samples. Existing explicit daily budgets remain authoritative.
+
+There is no universal optimum for weekly task time. The planner links to [Cal Newport's own 15–20-hour example](https://calnewport.com/i-want-to-show-you-exactly-how-i-prioritize-deep-work-in-my-busy-life/) and a [micro-break meta-analysis](https://doi.org/10.1371/journal.pone.0272460). The latter supports fatigue/wellbeing benefits, not a universal number of weekly hours or an exact ten-minute break rule.
 
 ## Persistence and validation
 

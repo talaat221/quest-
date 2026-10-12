@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { buildScheduleIntelligence } from './quest-intelligence.js';
+import { buildQuestAdvice, workloadTime } from './quest-advisor.js';
 import { formatMinutes } from './task-timer.js';
 import './quest-intelligence.css';
 
@@ -51,7 +52,10 @@ function statusCopy(day) {
   };
 }
 
-export default function QuestIntelligence({ domains = [], weekDates = [], todayStr, resetHour = 0, compact = false }) {
+export default function QuestIntelligence({ state, domains = [], weekDates = [], todayStr, resetHour = 0, compact = false }) {
+  const [clock,setClock]=useState(()=>new Date());
+  useEffect(()=>{const tick=()=>setClock(new Date());const id=setInterval(tick,60000);window.addEventListener('focus',tick);return()=>{clearInterval(id);window.removeEventListener('focus',tick);};},[]);
+  if(state) return <QuestAdvicePanel advice={buildQuestAdvice(state,{todayStr,now:clock})} todayStr={todayStr} compact={compact}/>;
   const insight = buildScheduleIntelligence(domains, weekDates, todayStr, resetHour);
   const todayCopy = statusCopy(insight.today);
   const weekRatio = insight.totalCapacity ? insight.totalMinutes / insight.totalCapacity : 0;
@@ -62,8 +66,8 @@ export default function QuestIntelligence({ domains = [], weekDates = [], todayS
   if (compact) {
     return <div className={`qi-mini ${weekLevel}`} aria-label={`Quest Intelligence: ${todayCopy.title}`}>
       <span className="qi-mini-star" aria-hidden="true">✦</span>
-      <span><b>QUEST AI</b><small>{todayCopy.title}</small></span>
-      <strong>{formatMinutes(insight.today?.minutes || 0)} / ~{formatMinutes(insight.capacity.minutes)}</strong>
+      <span><b>TODAY’S WORKLOAD</b><small>{todayCopy.title}</small></span>
+      <strong>{formatMinutes(insight.today?.minutes || 0)} / {formatMinutes(insight.capacity.minutes)} planned</strong>
     </div>;
   }
 
@@ -80,7 +84,7 @@ export default function QuestIntelligence({ domains = [], weekDates = [], todayS
       <div className="qi-load-block">
         <span>Today</span>
         <strong>{formatMinutes(insight.today?.minutes || 0)}</strong>
-        <small>planned · ~{formatMinutes(insight.capacity.minutes)} capacity</small>
+        <small>tasks + anchors · {formatMinutes(insight.capacity.minutes)} capacity</small>
       </div>
       <div className="qi-load-block">
         <span>Rest of week</span>
@@ -105,6 +109,28 @@ export default function QuestIntelligence({ domains = [], weekDates = [], todayS
         : <>Quest is still learning your daily capacity. It is temporarily using <strong>{formatMinutes(insight.capacity.minutes)}/day</strong> until it has at least 3 timed days.</>}
       {(insight.learnedPatterns > 0 || insight.timedSamples > 0) && <span> · {insight.learnedPatterns} task {insight.learnedPatterns === 1 ? 'pattern' : 'patterns'} learned</span>}
     </div>
+  </section>;
+}
+
+function QuestAdvicePanel({advice:a,todayStr,compact}) {
+  const status=a.today.overByMinutes?'is-danger':a.today.level==='full'?'is-warning':'is-good';
+  if(compact)return <a href="#today-quests" className={`qi-mini qi-mini-link ${status}`} aria-label={`Quest AI: ${a.title}. ${workloadTime(a.today.remainingMinutes)} remaining. Open advice.`}>
+    <span className="qi-mini-star" aria-hidden="true">✦</span><span><b>QUEST AI · TIME LEFT</b><small>{a.title}</small></span>
+    <strong>{workloadTime(a.today.remainingMinutes)}{a.today.overrun?'+':''} left · {workloadTime(a.today.completedMinutes)} done</strong>
+  </a>;
+  return <section className={`qi-card qi-advisor ${status}`} aria-label="Quest AI workload advice">
+    <div className="qi-head"><div><small>QUEST AI · YOUR WEEK, WITH ROOM TO BREATHE</small><h2>{a.title}</h2></div><span className="qi-brain" aria-hidden="true">✦</span></div>
+    <div className="qi-load-grid">
+      <div className="qi-load-block"><span>Still to do today</span><strong>{workloadTime(a.today.remainingMinutes)}{a.today.overrun?'+':''}</strong><small>{workloadTime(a.today.taskMinutes)} tasks + {workloadTime(a.today.anchorMinutes)} anchors</small></div>
+      <div className="qi-load-block"><span>Completed today’s plan</span><strong>{workloadTime(a.today.completedMinutes)}</strong><small>planned task time, separate from work left</small></div>
+      <div className="qi-load-block"><span>Remaining this week</span><strong>{workloadTime(a.totalRemaining)}</strong><small>{workloadTime(a.totalCapacity)} remaining capacity</small></div>
+      <div className="qi-load-block"><span>Still flexible</span><strong>{workloadTime(a.flexibleMinutes)}</strong><small>included above · waiting for a day</small></div>
+    </div>
+    <p className="qi-explanation">Today has {workloadTime(a.today.remainingCapacity)} of room left in your saved budget and work window. Timer progress reduces the work left; unfinished tasks never disappear just because their timer reaches the estimate.</p>
+    {a.notes.length>0?<ul className="qi-advice-list">{a.notes.map(n=><li key={n.kind}><strong>{n.title}</strong><p>{n.detail}</p></li>)}</ul>:<p className="qi-explanation">There is room in your current plan. Keep a little of it free for breaks and surprises.</p>}
+    {a.overloadedDays.length>0&&<details className="qi-day-details"><summary>Days that need more room</summary>{a.overloadedDays.map(d=><div className="qi-alert" key={d.dateKey}><b>{dayLabel(d.dateKey,todayStr)}</b><span>{workloadTime(d.remainingMinutes)} left / {workloadTime(d.remainingCapacity)} room</span></div>)}</details>}
+    <a className="qi-plan-link" href="#quests/planner">Review my week ›</a>
+    <div className="qi-memory">{a.confidence}. {a.learnedPatterns} learned task patterns from {a.timedSamples} timed samples. Weekly hours are adjustable; no single weekly total fits everyone. Suggestions never move tasks automatically.</div>
   </section>;
 }
 
@@ -144,6 +170,7 @@ export function QuestIntelligenceLive({ compact = false }) {
   const day = currentQuestDay(resetHour);
   const todayStr = dateKey(day);
   return <QuestIntelligence
+    state={questState}
     domains={questState.domains || []}
     weekDates={weekKeys(day)}
     todayStr={todayStr}

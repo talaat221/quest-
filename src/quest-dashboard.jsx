@@ -28,6 +28,8 @@ import EffortXP, { LevelDetails } from "./EffortXP.jsx";
 import WeeklyPlanner, { TaskWeekField } from "./WeeklyPlanner.jsx";
 import { applyWeeklyPlan, weekOf } from "./weekly-planner.js";
 import CompetitionPage from "./CompetitionPage.jsx";
+import FarmPage from "./FarmPage.jsx";
+import useFarm from "./useFarm.js";
 import FriendsPage from "./FriendsPage.jsx";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
@@ -3409,6 +3411,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [state, setState] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
+  const farmController = useFarm(session?.user?.id, loaded && state?.settings?.progression?.version >= 4, state);
+  const [farmVisit, setFarmVisit] = useState(() => typeof window === "undefined" ? null : window.location.hash.split("/")[1] || null);
   const [questProfile, setQuestProfile] = useState(null);
   const currentUserId = useRef(null);
   const notifications = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id });
@@ -3446,9 +3450,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const showStudyPage = page === "study";
   const showCompetitionPage = page === "competition";
   const showFriendsPage = page === "friends";
+  const showFarmPage = page === "farm";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards", "competition", "friends"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards", "competition", "friends", "farm"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const rewardTriggerHandled = useRef(0);
@@ -3505,6 +3510,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   useEffect(() => {
     const syncAnchorPage = () => {
       setPage(getHomePage(window.location.hash));
+      setFarmVisit(window.location.hash.startsWith("#farm/") ? window.location.hash.split("/")[1] || null : null);
     };
     syncAnchorPage();
     window.addEventListener("hashchange", syncAnchorPage);
@@ -5226,7 +5232,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           </button>
         </aside>
 
-        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showRewardsPage ? " qd-main-rewards" : showStudyPage ? " qd-main-study" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showRewardsPage ? "rewards" : showStudyPage ? "study" : previewSubPage ? page : "home"}>
+        <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showRewardsPage ? " qd-main-rewards" : showStudyPage ? " qd-main-study" : showFarmPage ? " qd-main-page qd-main-farm" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showRewardsPage ? "rewards" : showStudyPage ? "study" : showFarmPage ? "farm" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
             <DailyAnchorsPage progression={progressionState}
               anchors={state.anchors}
@@ -5247,7 +5253,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
                 <h1>Today’s Quests</h1>
                 <p>{homeQuestItems.filter((item) => item.done).length} / {homeQuestItems.length} completed today</p>
               </header>
-              <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
+              <TodayQuests questState={state} todayStr={todayStr} items={homeQuestItems} onToggle={toggleHomeQuest} expanded />
             </>
           ) : previewSubPage && page === "quests" ? (
             <div className="qd-quest-redesign-page">
@@ -5370,8 +5376,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               onMilestone={toggleGoalMilestone} onProgress={changeGoalProgress} />
           ) : showFriendsPage ? (
             <FriendsPage user={session.user} />
+          ) : showFarmPage ? (
+            <FarmPage key={farmVisit || "my-farm"} controller={farmController} visitingId={farmVisit === session?.user?.id ? null : farmVisit} onBack={() => { window.location.hash = farmVisit ? "competition" : "home"; }} />
           ) : showCompetitionPage ? (
-            <CompetitionPage progression={progressionState} weekKey={weekKeyStr} todayKey={todayStr}
+            <CompetitionPage farm={farmController.farm} progression={progressionState} weekKey={weekKeyStr} todayKey={todayStr}
               displayName={competitionName} focusMinutes={competitionFocusMinutes} level={level} userId={session.user.id} notifications={notifications} />
           ) : showStatsPage ? (
             <StatsPage progression={progressionState} anchors={state.anchors} domains={state.domains} todayStr={todayStr} resetHour={resetHour} voyageAdjustments={state.voyageAdjustments} />
@@ -5427,8 +5435,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <div className="qd-design-canvas">
               <DailyAnchors anchors={todayTimelineAnchors} resetHour={resetHour} now={clockNow} onToggle={(id) => toggleAnchor(id, todayStr)} />
               <div className="qd-home-quests-row">
-                <TodayQuests items={homeQuestItems} onToggle={toggleHomeQuest} />
-                <FarmAndStreak streak={streak} />
+                <TodayQuests questState={state} todayStr={todayStr} items={homeQuestItems} onToggle={toggleHomeQuest} />
+                <FarmAndStreak streak={streak} farmController={farmController} />
               </div>
               {todayAdjustment && <DayPauseNotice adjustment={todayAdjustment} importantName={homeQuestItems.find((item) => item.protected)?.name} />}
               <StopDay
@@ -5734,7 +5742,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
       {showLevelDetails && <LevelDetails progression={progression} week={thisWeekLevel} onClose={() => setShowLevelDetails(false)} />}
-      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage) && <BottomNavigation page={page} />}
+      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation page={page} />}
       <NotificationToasts notifications={notifications} />
     </div>
   );

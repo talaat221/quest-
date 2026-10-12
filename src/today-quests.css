@@ -51,13 +51,20 @@
 }
 
 .qd-root .qd-today-quests:not(.is-expanded) .qi-mini {
-  position: absolute;
-  z-index: 3;
-  top: 15.75%;
-  left: 3.92157%;
-  right: 3.92157%;
-  margin: 0;
+  position: relative;
+  flex: none;
+  z-index: 1;
+  margin: 0 3.92157%;
+  padding: 1.3cqw 2cqw;
+  grid-template-columns: 5cqw minmax(0,1fr);
+  gap: 1cqw;
 }
+.qd-root .qd-today-quests:not(.is-expanded){display:flex;flex-direction:column;box-sizing:border-box;padding-top:14.5cqw;padding-bottom:2.55cqw;gap:1.5cqw}
+.qd-today-quests:not(.is-expanded) .qi-mini-star{width:4.5cqw;height:4.5cqw;font-size:3cqw}
+.qd-today-quests:not(.is-expanded) .qi-mini b{font-size:2.8cqw}
+.qd-today-quests:not(.is-expanded) .qi-mini small{font-size:3cqw;line-height:1.1;white-space:normal}
+.qd-today-quests:not(.is-expanded) .qi-mini>strong{grid-column:2;font-size:3cqw;line-height:1.1}
+.qd-today-quests:not(.is-expanded) .qd-today-quests-body{position:relative;inset:auto;flex:1;min-height:0;margin:0 3.92157%}
 
 .qd-today-quests-body {
   position: absolute;

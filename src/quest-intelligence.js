@@ -1,5 +1,5 @@
-const DEFAULT_DAILY_CAPACITY = 360;
-const MIN_DAILY_CAPACITY = 180;
+const DEFAULT_DAILY_CAPACITY = 180;
+const MIN_DAILY_CAPACITY = 30;
 const MAX_DAILY_CAPACITY = 600;
 
 const NUMBER_WORDS = new Set([
@@ -224,14 +224,14 @@ export function getLearnedDailyCapacity(domains = [], resetHour = 0) {
   const totals = new Map();
   for (const domain of domains || []) {
     for (const task of domain?.tasks || []) {
-      if (!task?.doneAt || !(Number(task?.actualMinutes) > 0)) continue;
+      if (!task?.done || !task?.doneAt || !(Number(task?.actualMinutes) > 0) || !Number.isFinite(Number(task.actualMinutes))) continue;
       const day = toDateKey(task.doneAt, resetHour);
       if (!day) continue;
       const minutes = clamp(Number(task.actualMinutes), 1, 720);
       totals.set(day, (totals.get(day) || 0) + minutes);
     }
   }
-  const dailyTotals = [...totals.values()].filter(value => value > 0).slice(-60);
+  const dailyTotals = [...totals.entries()].sort(([a],[b])=>a.localeCompare(b)).slice(-60).map(([,minutes])=>minutes).filter(value=>value>0);
   if (dailyTotals.length < 3) {
     return {
       minutes: DEFAULT_DAILY_CAPACITY,

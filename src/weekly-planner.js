@@ -2,6 +2,7 @@ import { anchorDate, anchorDateKey, anchorDays, anchorWeek, shiftAnchorDate } fr
 import { getTaskPlanningMinutes, getLearnedDailyCapacity } from './quest-intelligence.js';
 import { getAnchorTime } from './daily-anchors.js';
 import { getSafeHarborActiveAnchorIds } from './day-pause.js';
+import { elapsedTaskMs } from './task-timer.js';
 
 export const weekOf = day => anchorWeek(day)[0];
 const bounded = (value, fallback, min, max) => Number.isFinite(Number(value)) && value !== '' && value != null
@@ -17,7 +18,7 @@ export function questDay(now = new Date(), resetHour = 0) {
 export function plannerPreferences(value = {}, domains = [], resetHour = 0) {
   const capacity = getLearnedDailyCapacity(domains, resetHour);
   return {
-    dailyMinutes: Array.from({ length: 7 }, (_, i) => bounded(value.dailyMinutes?.[i], capacity.minutes, 0, 960)),
+    dailyMinutes: Array.from({ length: 7 }, (_, i) => bounded(value.dailyMinutes?.[i], capacity.learned ? capacity.minutes : i < 5 ? 180 : 150, 0, 960)),
     startMinute: bounded(value.startMinute, 9 * 60, 0, 1439),
     endMinute: bounded(value.endMinute, 21 * 60, 1, 1440),
     bufferMinutes: bounded(value.bufferMinutes, 10, 0, 60),
@@ -63,7 +64,10 @@ export function buildWeeklyPlan(state, weekStart, rawPreferences = {}, {
   })));
   const candidates = tasks.filter(task => !task.done && !started(task) && task.flexibility !== 'fixed'
     && (task.day ? rebalance && dates.includes(task.day) && task.day >= today
-      : (task.plannedWeek || currentWeek) === dates[0]));
+      : (task.plannedWeek || currentWeek) === dates[0])).map(task=>{
+        const left=task.minutes-elapsedTaskMs(task,new Date(now).getTime())/60000;
+        return {...task,minutes:left>0?Math.ceil(left):5};
+      });
   const candidateKeys = new Set(candidates.map(task => task.key));
   const days = dates.map((date, index) => {
     const adjustment = state.voyageAdjustments?.[date];

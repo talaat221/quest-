@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { PixelTaskIcon } from "./DailyAnchors";
-import { QuestIntelligenceLive } from "./QuestIntelligence.jsx";
+import QuestIntelligence from "./QuestIntelligence.jsx";
 import "./today-quests.css";
 
 function QuestPanelArtwork() {
@@ -13,7 +13,7 @@ function QuestPanelArtwork() {
   );
 }
 
-export default function TodayQuests({ items, onToggle, expanded = false }) {
+export default function TodayQuests({ items, onToggle, expanded = false, questState, todayStr }) {
   const headingId = useId();
   return (
     <section className={`qd-today-quests${expanded ? " is-expanded" : ""}`} aria-labelledby={headingId}>
@@ -24,7 +24,7 @@ export default function TodayQuests({ items, onToggle, expanded = false }) {
           <span className="qd-anchor-sr-only">View All</span>
         </a>
       )}
-      <QuestIntelligenceLive compact={!expanded} />
+      {questState && <QuestIntelligence state={questState} todayStr={todayStr} compact={!expanded} />}
       <div className="qd-today-quests-body" tabIndex={!expanded && items.length > 5 ? 0 : undefined} role={!expanded && items.length > 5 ? "region" : undefined} aria-label={!expanded && items.length > 5 ? "Today's tasks, scroll for more" : undefined}>
         {items.length ? (
           <ul className="qd-today-quests-list">
