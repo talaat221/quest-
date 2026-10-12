@@ -21,7 +21,7 @@ import { useQuestNotifications, disconnectNotifications } from "./notifications.
 import { NotificationToasts } from "./NotificationSettings.jsx";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
-import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading, MorePage } from "./HomeFinish";
+import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading } from "./HomeFinish";
 import { getCurrentStreak, getHomePage } from "./home-finish.js";
 import { getSafeHarborActiveAnchorIds, isSafeHarborTask } from "./day-pause.js";
 import EffortXP, { LevelDetails } from "./EffortXP.jsx";
@@ -30,6 +30,8 @@ import { applyWeeklyPlan, weekOf } from "./weekly-planner.js";
 import CompetitionPage from "./CompetitionPage.jsx";
 import FarmPage from "./FarmPage.jsx";
 import useFarm from "./useFarm.js";
+import { AppHeader, ProfilePage } from "./AppNavigation.jsx";
+import SettingsPage from "./SettingsPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
@@ -3412,7 +3414,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
   const farmController = useFarm(session?.user?.id, loaded && state?.settings?.progression?.version >= 4, state);
-  const [farmVisit, setFarmVisit] = useState(() => typeof window === "undefined" ? null : window.location.hash.split("/")[1] || null);
+  const [farmVisit, setFarmVisit] = useState(() => typeof window !== "undefined" && window.location.hash.startsWith("#farm/") ? window.location.hash.split("/")[1] || null : null);
   const [questProfile, setQuestProfile] = useState(null);
   const currentUserId = useRef(null);
   const notifications = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id });
@@ -3453,7 +3455,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const showFarmPage = page === "farm";
   const showTodayQuestsPage = page === "today-quests";
   const anchorPageVisible = showAnchorPage;
-  const previewSubPage = designPreview && ["quests", "stats", "more", "goals", "study", "rewards", "competition", "friends", "farm"].includes(page);
+  const previewSubPage = designPreview && ["quests", "stats", "profile", "settings", "goals", "study", "rewards", "competition", "friends", "farm"].includes(page);
 
   const rewardDetectionReady = useRef(false);
   const rewardTriggerHandled = useRef(0);
@@ -5147,7 +5149,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   return (
     <div
       className={
-        "qd-root" +
+        "qd-root" + (designPreview ? " qd-organized" : "") +
         (todayAdjustment?.mode === "harbor" ? " qd-safe-harbor" : "") +
         (designPreview && page === "quests" ? " qd-quests-active" : "") +
         (anchorPageVisible ? " qd-anchors-active" : "") +
@@ -5160,6 +5162,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     >
       <style>{CSS}</style>
       <style>{PIXEL_CSS}</style>
+      {designPreview && <AppHeader page={page} name={competitionName} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
 
       <div className="qd-legacy-overlays">
       {celebration && (
@@ -5387,8 +5390,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             <RewardsPage rewards={state.rewards} claimed={state.claimed} periods={rewardPeriods}
               onSave={saveReward} onDelete={removeReward} onClaim={openRewardChest}
               onThresholdChange={(kind, value) => setThresholdPct(kind === "daily" ? "dayThresholdPct" : "weekThresholdPct", value)} />
-          ) : previewSubPage && page === "more" ? (
-            <MorePage resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} readyRewards={readyRewards} />
+          ) : page === "profile" ? (
+            <ProfilePage name={competitionName} username={questProfile?.username} farm={farmController.farm} level={level} xp={lifetimeXP} streak={streak} readyRewards={readyRewards} />
+          ) : page === "settings" ? (
+            <SettingsPage user={session.user} name={competitionName} username={questProfile?.username} resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} />
           ) : (
           <>
           <header className="qd-scene">
@@ -5742,7 +5747,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
       {showLevelDetails && <LevelDetails progression={progression} week={thisWeekLevel} onClose={() => setShowLevelDetails(false)} />}
-      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation page={page} />}
+      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
       <NotificationToasts notifications={notifications} />
     </div>
   );

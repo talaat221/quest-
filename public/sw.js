@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v35-living-farm';
+const CACHE_NAME = 'quest-shell-v36-organized-navigation';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
