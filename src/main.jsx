@@ -5,17 +5,38 @@ import './iphone-pass2.css'
 import './iphone-modal-fix.css'
 import App from './App.jsx'
 import PasswordRecovery from './PasswordRecovery.jsx'
+import PrivacyNotice from './PrivacyNotice.jsx'
+import TermsOfService from './TermsOfService.jsx'
 
-const recoveryMode = new URLSearchParams(window.location.search).get('mode') === 'recovery'
+function isRecoveryLocation() {
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+
+  return (
+    path === '/reset-password' ||
+    search.get('mode') === 'recovery' ||
+    search.get('type') === 'recovery' ||
+    hash.get('type') === 'recovery'
+  )
+}
+
+const recoveryMode = isRecoveryLocation()
+const privacyMode = (window.location.pathname.replace(/\/+$/, '') || '/') === '/privacy'
+const termsMode = (window.location.pathname.replace(/\/+$/, '') || '/') === '/terms'
 
 function leaveRecovery() {
-  window.history.replaceState({}, '', window.location.pathname || '/')
+  window.history.replaceState({}, '', '/')
   window.location.reload()
 }
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {recoveryMode ? (
+    {privacyMode ? (
+      <PrivacyNotice />
+    ) : termsMode ? (
+      <TermsOfService />
+    ) : recoveryMode ? (
       <PasswordRecovery onComplete={leaveRecovery} onCancel={leaveRecovery} />
     ) : (
       <App />

@@ -71,7 +71,7 @@ function SessionDialog({ controller, taskName, onClose }) {
         {friends.map(friend => { const friendId = otherFriendId(friend, userId), taken = room.members.some(m => m.userId === friendId), name = friend.profile?.display_name || friend.profile?.username || 'Friend'; return <div key={friendId}><span>{name}</span><button type="button" disabled={busy || taken || room.members.length >= STUDY_CAPACITY} onClick={() => run('invite', { targetId: friendId })}>{taken ? 'Seat reserved' : 'Invite'}</button></div>; })}
         {room.members.length >= STUDY_CAPACITY && <p>Your circle is full. Cancel an invitation to free a seat.</p>}
       </section>}
-      <div className="st-leave-room">{confirm ? <><p>{host ? 'End this room for everyone? Personal timers will keep their time.' : 'Leave this room? Your own task timer will keep its time.'}</p><button type="button" disabled={busy} onClick={() => run(host ? 'end' : 'leave')}>{host ? 'Yes, end the room' : 'Yes, leave'}</button><button type="button" onClick={() => setConfirm(false)}>Stay</button></> : <button type="button" disabled={busy} onClick={() => setConfirm(true)}>{host ? 'End session for everyone' : 'Leave the room'}</button>}<small>Rooms close after 24 hours. You can open another whenever you like.</small></div>
+      <div className="st-leave-room"><button type="button" disabled={busy} onClick={() => run('leave')}>Leave room</button><button type="button" disabled={busy} onClick={() => run('new_room')}>Start a new room</button><small>Your task timer continues. If you host, a remaining friend takes over; your pending invitations close.</small>{host && (confirm ? <><p>End this room for everyone?</p><button type="button" disabled={busy} onClick={() => run('end')}>Yes, end the room</button><button type="button" onClick={() => setConfirm(false)}>Keep it open</button></> : <button type="button" disabled={busy} onClick={() => setConfirm(true)}>End session for everyone</button>)}</div>
     </>}
     {error && <div role="alert" className="st-error">{error}<button type="button" onClick={() => controller.refresh()}>Try again</button></div>}
   </StudyDialog>;
@@ -79,9 +79,24 @@ function SessionDialog({ controller, taskName, onClose }) {
 
 export function StudySocialBar({ controller, taskName }) {
   const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState('');
+  const roomAction = async action => {
+    try {
+      await controller.command(action, { roomId: controller.room?.id });
+      setNotice(action === 'leave' ? 'You left the room. Your timer keeps going.' : 'Your new room is ready. Invite friends whenever you like.');
+      if (action !== 'leave') setDialog('session');
+    } catch { /* The shared controller displays the error. */ }
+  };
   const count = controller.room?.members.filter(m => m.status === 'joined').length || 0;
   return <>
+    <div className="st-room-toolbar">
     <div className="st-social-bar"><button type="button" className="st-character-button" aria-label="Your character" onClick={() => setDialog('character')}><span className="st-mini-avatar"><StudyCharacter lookId={controller.lookId}/></span><span>Your character</span></button><button type="button" className="st-together-button" onClick={() => setDialog('session')}><span aria-hidden="true">✦</span> {controller.room ? `Your room · ${count}/6` : 'Study together'}{!!controller.invites?.length && <b aria-label={`${controller.invites.length} study invitations`}>{controller.invites.length}</b>}</button></div>
+    <div className="st-quick-room-actions" aria-label="Room controls">
+      {controller.room && <button type="button" disabled={controller.busy} onClick={() => roomAction('leave')}>‹ Leave room</button>}
+      <button type="button" disabled={controller.busy || controller.loading} onClick={() => roomAction(controller.room ? 'new_room' : 'create')}>+ New room</button>
+      {notice && <span role="status">{notice}</span>}
+    </div>
+    </div>
     {controller.error && !dialog && <p className="st-connection-note" role="status">Room connection needs attention. Your own timer still works. <button type="button" onClick={() => controller.refresh()}>Reconnect</button></p>}
     {dialog === 'character' && <CharacterPicker controller={controller} onClose={() => setDialog(null)}/>}
     {dialog === 'session' && <SessionDialog controller={controller} taskName={taskName} onClose={() => setDialog(null)}/>}

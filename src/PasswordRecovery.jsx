@@ -35,6 +35,7 @@ export default function PasswordRecovery({ onComplete, onCancel }) {
   useEffect(() => {
     let mounted = true;
     let settled = false;
+    const initialUrlError = readRecoveryError();
 
     const markReady = (session) => {
       if (!mounted || !session) return;
@@ -43,14 +44,33 @@ export default function PasswordRecovery({ onComplete, onCancel }) {
       setMessage("");
     };
 
-    supabase.auth.getSession().then(({ data, error }) => {
+    const establishRecoverySession = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (!mounted) return;
-      if (error) {
-        setMessage(error.message);
+
+      if (sessionData?.session) {
+        markReady(sessionData.session);
         return;
       }
-      markReady(data.session);
-    });
+
+      const code = new URLSearchParams(window.location.search).get("code");
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!mounted) return;
+        if (error) {
+          settled = true;
+          setMessage(error.message || "This recovery link is invalid or expired.");
+          return;
+        }
+        markReady(data.session);
+        return;
+      }
+
+      if (sessionError) {
+        settled = true;
+        setMessage(sessionError.message);
+      }
+    };
 
     const {
       data: { subscription },
@@ -59,17 +79,19 @@ export default function PasswordRecovery({ onComplete, onCancel }) {
       if (event === "PASSWORD_RECOVERY" || session) markReady(session);
     });
 
+    void establishRecoverySession();
+
     const timeout = window.setTimeout(() => {
-      if (!mounted || settled || ready || message) return;
+      if (!mounted || settled || initialUrlError) return;
       setMessage("This recovery link may be expired or invalid. Request a fresh link from the login screen.");
-    }, 4500);
+    }, 5500);
 
     return () => {
       mounted = false;
       window.clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, []); // Recovery is established by the Supabase redirect/session event.
+  }, []); // Supabase establishes the temporary recovery session from the callback URL.
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -96,6 +118,9 @@ export default function PasswordRecovery({ onComplete, onCancel }) {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+
+      // Remove recovery tokens/codes from the visible URL as soon as they are no longer needed.
+      window.history.replaceState({}, "", "/reset-password");
       setSuccess(true);
       await wait(350);
     } catch (error) {

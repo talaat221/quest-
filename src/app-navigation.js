@@ -10,7 +10,8 @@ export function navigationGroup(page, visitingFarm = false) {
   return NAV_GROUPS.find(group => group.pages.includes(page));
 }
 export const SETTINGS_SECTIONS = {
-  account: ['Account', 'Your profile, email and sign out', 'profile'],
+  account: ['Account', 'Your profile, email, sign out and account deletion', 'profile'],
+  'delete-account': ['Delete account', 'Permanently remove your account and personal data', 'data'],
   notifications: ['Notifications', 'Tasks, timers and friends', 'bell'],
   routine: ['Daily rhythm', 'Day reset and weekly planning', 'clock'],
   sync: ['Sync & storage', 'Saved progress across your devices', 'sync'],

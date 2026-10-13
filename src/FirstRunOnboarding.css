@@ -1,0 +1,20 @@
+.fro-coach{position:fixed;z-index:3000;bottom:calc(85px + env(safe-area-inset-bottom,0px));right:14px;left:14px;max-width:470px;margin:0 auto;display:flex;align-items:flex-end;gap:6px;pointer-events:none;color:#ecdfb8;font:19px/1.18 'VT323',monospace}
+.fro-avatar{width:55px;flex:none;height:105px;filter:drop-shadow(2px 3px 0 #071922)}
+.fro-avatar .st-character{width:100%;height:100%;image-rendering:pixelated}
+.fro-speech{pointer-events:auto;flex:1;min-width:0;border:9px solid transparent;border-image:url('/anchors-page/panel-blue.webp') 60 fill/9px;padding:9px 11px;filter:drop-shadow(0 7px 12px #0009)}
+.fro-caption{display:flex;gap:5px;align-items:center;justify-content:space-between;color:#a9c18c;font-size:12px;letter-spacing:.03em}
+.qd-root .fro-coach button{font:18px/1 'VT323',monospace;border:1px solid #8eab79;background:#304b36;box-shadow:none;color:#eee3b9;padding:7px 9px;min-height:36px;margin:0;letter-spacing:0;text-transform:none;border-radius:0}
+.qd-root .fro-coach .fro-caption button{background:transparent;border:0;color:#b9cbbb;min-width:36px;padding:0;font-size:24px}
+.fro-speech strong{font-weight:400;display:block;color:#f3e9c5;font-size:24px;margin:2px 0 5px}
+.fro-speech p{margin:0;color:#c0d2cc;font-size:18px;line-height:1.2}
+.fro-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.fro-actions a{display:inline-flex;align-items:center;min-height:36px;padding:4px 10px;background:#304b36;border:1px solid #8eab79;color:#efe5bf;text-decoration:none;box-sizing:border-box}
+.qd-root .fro-coach .fro-text-button{background:transparent;border:0;color:#9fb6be;padding:4px}
+.fro-coach.is-minimized .fro-avatar{height:62px;width:35px}.fro-coach.is-minimized .fro-speech strong{font-size:20px;margin:0}
+.quest-guide-active .qd-root.qd-organized{padding-bottom:320px!important}
+[data-guide-highlight]{outline:2px solid #b9d886!important;outline-offset:6px;scroll-margin:100px 0 250px}
+.dap-guide-hint{display:flex;gap:12px;align-items:center;padding:8px;margin-bottom:15px;background:#263e36;color:#dce7be;font:19px/1.2 'VT323',monospace}.dap-guide-hint svg{width:34px;height:62px;flex:none}.dap-guide-hint p{margin:0}
+@media(min-width:1000px) and (min-height:651px){.fro-coach{left:auto;right:28px;max-width:380px;bottom:26px}.quest-guide-active .qd-root.qd-organized{padding-bottom:120px!important}}
+@media(max-width:350px){.fro-avatar{display:none}.fro-speech{padding:6px 9px}.fro-speech strong{font-size:22px}.fro-coach{left:8px;right:8px}}
+
+.qd-root .fro-speech p{font:18px/1.15 'VT323',monospace;margin:0;color:#c0d2cc}.qd-root .fro-speech strong{font:24px/1.1 'VT323',monospace;color:#f3e9c5;margin:2px 0 6px}

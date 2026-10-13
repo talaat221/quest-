@@ -6,10 +6,10 @@ import "./today-quests.css";
 function QuestPanelArtwork() {
   const picture = <image href="/today-quests/panel-v1.webp" width="1306" height="1204" />;
   return (
-    <svg className="qd-today-quests-frame" viewBox="0 0 510 470" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <svg width="510" height="65" viewBox="30 61 1248 195" preserveAspectRatio="none" overflow="hidden">{picture}</svg>
-      <svg y="65" width="510" height="405" viewBox="30 256 1248 890" preserveAspectRatio="none" overflow="hidden">{picture}</svg>
-    </svg>
+    <div className="qd-today-quests-frame" aria-hidden="true">
+      <svg className="qd-today-quests-frame-heading" viewBox="30 61 1248 195" preserveAspectRatio="none" focusable="false">{picture}</svg>
+      <svg className="qd-today-quests-frame-body" viewBox="30 256 1248 890" preserveAspectRatio="none" focusable="false">{picture}</svg>
+    </div>
   );
 }
 

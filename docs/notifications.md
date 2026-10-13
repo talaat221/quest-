@@ -91,3 +91,7 @@ still needs Enable notifications and the operating-system permission prompt.
 The auth listener must never await Supabase queries from `onAuthStateChange`.
 See `src/auth-session.js`: it schedules account loading outside that callback so
 saves, subscription setup and competition polling can all acquire the auth lock.
+
+## Device checks (October 2026)
+
+Notification settings now live at **You → Settings → Notifications**. `Check connection` checks the saved registration, `Send test` exercises background push, and `Test browser display` asks the installed worker to display a local alert. A provider accepting a message is not a device-read receipt. Also check operating-system notifications and Focus/Do Not Disturb if the browser test is silent. The service worker tolerates unavailable optional artwork during installation, and subscriptions are checked again when the app becomes visible.

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ensureQuestProfile, loadFriendHub } from './friends.js';
+import { blockQuestUser, ensureQuestProfile, loadFriendHub, reportQuestUser } from './friends.js';
 import { otherFriendId } from './friends-core.js';
 import { loadWeeklyChallenge, cancelWeeklyChallenge, leaveWeeklyChallenge, respondWeeklyChallenge } from './challenges.js';
 import { competitionWeekStats } from './competition.js';
 import { createContests, friendLimit, inviteContestMembers, leaveContest, loadContests, respondToContest, setContestPrivacy, startContest } from './contests.js';
 import { activityLabel, rankedMembers, remainingTime, roundPhase, timeAgo } from './competition-view.js';
 import { flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync } from './supabaseClient';
+import ReportUserDialog from './ReportUserDialog.jsx';
 import './competition.css';
 import { FarmBadge, FarmScene, useFriendFarms } from './FarmPage.jsx';
 
@@ -100,20 +101,33 @@ function ConnectionStatus({ sync, notifications:n, busy, onSync }) {
     </details>}
   </section>;
 }
-function RoundBoard({ round, userId, now, busy, onAction, onLeave, onInvite, farms }) {
+function CompetitionSafetyMenu({ member, busy, onReport, onBlock, farms }) {
+  if (!member?.id) return null;
+  return (
+    <details className="qs-safety-menu cg-safety-menu">
+      <summary aria-label={`Safety options for ${member.name || member.username || 'traveler'}`}>•••</summary>
+      <div className="qs-safety-popover">
+        <button type="button" disabled={busy} onClick={() => onReport(member)}>Report</button>
+        <button type="button" className="is-danger" disabled={busy} onClick={() => onBlock(member)}>Block</button>
+      </div>
+    </details>
+  );
+}
+
+function RoundBoard({ round, userId, now, busy, onAction, onLeave, onInvite, onReport, onBlock, farms }) {
   const phase=roundPhase(round,now); const host=round.creatorId===userId;
   const accepted=rankedMembers(round.members); const pending=round.members.filter(m=>m.status==='pending');
   const [share,setShare]=useState(false);
   const joined=round.myStatus==='accepted'; const leaders=accepted.filter(m=>m.rank===1);
-  const mine=accepted.find(m=>m.id===userId); const open=['lobby','active'].includes(phase);
+  const mine=accepted.find(m=>m.id===userId); const inviter=round.members.find(m=>m.id===round.creatorId); const open=['lobby','active'].includes(phase);
   return <Panel className="cg-round" aria-label={`${round.name} competition`}>
     <div className="cg-round-heading"><span className="cg-eyebrow">{round.duration==='month'?'MONTHLY':'WEEKLY'} {round.mode==='league'?'LEAGUE':'HEAD TO HEAD'}</span><span className={`cg-status is-${phase}`}>{phase==='active'?remainingTime(round.endsAt,now):phase==='lobby'?'Gathering friends':phase==='finished'?'Finished':phase==='expired'?'Invitation expired':'Cancelled'}</span></div>
     <h2>{round.name}</h2><Rules round={round}/>
     {joined&&phase!=='lobby'&&<div className="cg-harvest" aria-label="Your progress in this round"><div><Icon kind="leaf"/><strong>{mine?.xp||0}</strong><span>YOUR XP</span></div><div><Icon kind="check"/><strong>{mine?.tasks||0}</strong><span>TASKS DONE</span></div><div><Icon kind="cup"/><strong>{mine?.rank?`#${mine.rank}`:'—'}</strong><span>YOUR PLACE</span></div></div>}
-    {!joined && open?<div className="cg-invite"><h3>You’re invited.</h3><p>Join {round.members.find(m=>m.id===round.creatorId)?.name||'your friend'} and grow a little further together.</p><Toggle checked={share} onChange={setShare} disabled={busy} title="Share my completed task names">Optional. Your XP and completion count are visible to participants.</Toggle><p className="cg-help">Joining accepts the rules{round.prize?' and winner’s treat':''} above.</p><div className="cg-actions"><button className="cg-button is-gold" disabled={busy} onClick={()=>onAction(()=>respondToContest(round.id,true,share),phase==='active'?'You joined the round. Your progress counts from now.':'You joined the lobby.')}>Accept invitation</button><button className="cg-button is-quiet" disabled={busy} onClick={()=>onAction(()=>respondToContest(round.id,false),'Invitation declined.')}>Decline</button></div></div>:<>
+    {!joined && open?<div className="cg-invite"><h3>You’re invited.</h3><p>Join {inviter?.name||'your friend'} and grow a little further together.</p><Toggle checked={share} onChange={setShare} disabled={busy} title="Share my completed task names">Optional. Your XP and completion count are visible to participants.</Toggle><p className="cg-help">Joining accepts the rules{round.prize?' and winner’s treat':''} above.</p><div className="cg-actions"><button className="cg-button is-gold" disabled={busy} onClick={()=>onAction(()=>respondToContest(round.id,true,share),phase==='active'?'You joined the round. Your progress counts from now.':'You joined the lobby.')}>Accept invitation</button><button className="cg-button is-quiet" disabled={busy} onClick={()=>onAction(()=>respondToContest(round.id,false),'Invitation declined.')}>Decline</button></div>{inviter&&inviter.id!==userId&&<div className="cg-invite-safety"><button type="button" className="cg-text-button" disabled={busy} onClick={()=>onReport(inviter,round.id)}>Report inviter</button><button type="button" className="cg-text-button is-danger" disabled={busy} onClick={()=>onBlock(inviter)}>Block inviter</button></div>}</div>:<>
       {phase==='finished'&&accepted.length>1&&<div className="cg-result"><Icon kind="cup"/><div><strong>{leaders.length>1?'A shared victory!':`${leaders[0].name} wins!`}</strong><p>{leaders.length>1?leaders.map(m=>m.name).join(' & '):'Small steps added up.'}{round.prize&&leaders.length>1?' Share the treat together.':''}</p></div></div>}
       <div className="cg-board-label"><h3>{phase==='lobby'?'The gathering':'Leaderboard'}</h3><small>{accepted.length+pending.length} / {round.mode==='league'?10:2} travelers</small></div>
-      <ol className="cg-leaderboard">{accepted.map(m=><li key={m.id} className={`${m.id===userId?'is-you':''} ${m.rank===1&&phase!=='lobby'?'is-leading':''}`}><span className="cg-rank">{phase==='lobby'?<Icon kind="check"/>:String(m.rank).padStart(2,'0')}</span><span className="cg-avatar">{m.name.slice(0,1).toUpperCase()}</span><div className="cg-member"><strong>{m.name}{m.id===userId&&<small> you</small>}</strong><FarmBadge farm={farms?.[m.id]}/><a className="fg-friend-link" href={`#farm/${m.id}`}>Visit farm ›</a><span>{phase==='lobby'?'Ready to grow':`${m.tasks||0} ${m.tasks===1?'task completed':'tasks completed'}`}{m.id===round.creatorId?' · host':''}</span></div><strong className="cg-score">{phase==='lobby'?'Ready':`${m.xp||0}`}<small>{phase!=='lobby'?'XP':''}</small></strong></li>)}{pending.map(m=><li key={m.id} className="is-pending"><span className="cg-rank"><Icon kind="clock"/></span><span className="cg-avatar">{m.name.slice(0,1).toUpperCase()}</span><div className="cg-member"><strong>{m.name}</strong><span>Invitation sent</span></div><span>Waiting</span></li>)}</ol>
+      <ol className="cg-leaderboard">{accepted.map(m=><li key={m.id} className={`${m.id===userId?'is-you':''} ${m.rank===1&&phase!=='lobby'?'is-leading':''}`}><span className="cg-rank">{phase==='lobby'?<Icon kind="check"/>:String(m.rank).padStart(2,'0')}</span><span className="cg-avatar">{m.name.slice(0,1).toUpperCase()}</span><div className="cg-member"><strong>{m.name}{m.id===userId&&<small> you</small>}</strong><FarmBadge farm={farms?.[m.id]}/><a className="fg-friend-link" href={`#farm/${m.id}`}>Visit farm ›</a><span>{phase==='lobby'?'Ready to grow':`${m.tasks||0} ${m.tasks===1?'task completed':'tasks completed'}`}{m.id===round.creatorId?' · host':''}</span></div><strong className="cg-score">{phase==='lobby'?'Ready':`${m.xp||0}`}<small>{phase!=='lobby'?'XP':''}</small></strong>{m.id!==userId&&<CompetitionSafetyMenu member={m} busy={busy} onReport={member=>onReport(member,round.id)} onBlock={onBlock}/>}</li>)}{pending.map(m=><li key={m.id} className="is-pending"><span className="cg-rank"><Icon kind="clock"/></span><span className="cg-avatar">{m.name.slice(0,1).toUpperCase()}</span><div className="cg-member"><strong>{m.name}</strong><span>Invitation sent</span></div><span>Waiting</span>{m.id!==userId&&<CompetitionSafetyMenu member={m} busy={busy} onReport={member=>onReport(member,round.id)} onBlock={onBlock}/>}</li>)}</ol>
       {phase==='lobby'&&<div className="cg-lobby-note"><p>{accepted.length<2?'One more friend needs to join before the round can start.':host?'Ready when you are. Invited friends can join later.':'Ready to start. Your host can begin the round.'}</p>{host&&<button className="cg-button is-gold" disabled={busy||accepted.length<2} onClick={()=>onAction(()=>startContest(round.id),'The round has started. Good luck!')}><Icon kind="flag"/>Start the round</button>}</div>}
       {joined&&open&&round.mode==='league'&&<div className="cg-invite-action"><button type="button" className="cg-button is-gold" disabled={busy||accepted.length+pending.length>=10} onClick={()=>onInvite(round)}><Icon kind="friends"/>Invite friends</button><small>{accepted.length+pending.length>=10?'All 10 places are taken.':'Every member can invite · even mid-round'}</small></div>}
       {joined&&phase!=='cancelled'&&<details className="cg-sharing"><summary><Icon kind="lock"/>Your sharing · {round.shareTaskNames?'Task names visible':'Task names private'}</summary><Toggle checked={round.shareTaskNames} disabled={busy} title="Share my completed task names" onChange={v=>onAction(()=>setContestPrivacy(round.id,v),v?'Your task names are now shared.':'Your task names are now private.')}>Applies only to your names in this competition, including earlier activity. Phone notifications never include task names.</Toggle></details>}
@@ -131,7 +145,7 @@ export default function CompetitionPage({ progression, weekKey, todayKey, userId
   const stats=competitionWeekStats({progression,weekKey,todayKey});
   const [hub,setHub]=useState({contests:[]});const [friends,setFriends]=useState([]);const [legacy,setLegacy]=useState({current:null,invites:[]});
   const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [syncError,setSyncError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
-  const [sync,setSync]=useState(getQuestSyncSnapshot); const [inviting,setInviting]=useState(null);
+  const [sync,setSync]=useState(getQuestSyncSnapshot); const [inviting,setInviting]=useState(null); const [reportTarget,setReportTarget]=useState(null);
   useEffect(()=>subscribeQuestSync(setSync),[]);
   const [createMode,setCreateMode]=useState(null);const [selectedId,setSelectedId]=useState(null);const [tab,setTab]=useState('league');const [leaving,setLeaving]=useState(null);
   const [clock,setClock]=useState(()=>Date.now());const delta=useRef(0);const alive=useRef(false);const inFlight=useRef(null);const busyRef=useRef(false);
@@ -165,6 +179,26 @@ export default function CompetitionPage({ progression, weekKey, todayKey, userId
     catch(e){if(alive.current)setError(e.message||'That change could not be saved. Try again.');}
     finally{busyRef.current=false;if(alive.current)setBusy(false);}
   };
+  const openReport=(member,contextId)=>setReportTarget({...member,contextId});
+  const blockMember=member=>{
+    const label=member?.username?`@${member.username}`:member?.name||'this user';
+    if(!window.confirm(`Block ${label}? Any friendship is removed, new social interactions are prevented, and Quest will separate your active shared competition where needed.`))return;
+    void action(()=>blockQuestUser(member.id),`${label} blocked.`);
+  };
+  const submitReport=async(id,payload)=>{
+    if(busyRef.current)throw new Error('Please wait for the current action to finish.');
+    busyRef.current=true;setBusy(true);setError('');setNotice('');
+    try{
+      await reportQuestUser(id,payload);
+      setNotice('Report sent privately. The reported user is not told who submitted it.');
+    }catch(e){
+      setError(e.message||'Your report could not be sent.');
+      throw e;
+    }finally{
+      busyRef.current=false;
+      if(alive.current)setBusy(false);
+    }
+  };
   const isPast=c=>['finished','expired','cancelled'].includes(roundPhase(c,clock));
   const invitations=hub.contests.filter(c=>c.myStatus==='pending'&&!isPast(c));
   const rounds=hub.contests.filter(c=>c.myStatus==='accepted'&&(tab==='past'?isPast(c):c.mode===tab&&!isPast(c)));
@@ -176,7 +210,7 @@ export default function CompetitionPage({ progression, weekKey, todayKey, userId
     <div className="cg-welcome"><div><span className="cg-eyebrow">YOUR VILLAGE, YOUR PACE</span><h2>A little friendly rivalry</h2></div></div><div className="cg-week-harvest"><span><strong>{stats.scoreXP}</strong> XP this week</span><span><strong>{stats.completedTasks}</strong> {stats.completedTasks===1?'task':'tasks'} this week</span></div>
     <div className="cg-launch"><button type="button" className="cg-launch-card" onClick={()=>{setError('');setCreateMode('league');}}><Icon kind="cup"/><span><strong>Create a league</strong><small>One board. Up to 10 people.</small></span><Icon kind="arrow"/></button><button type="button" className="cg-launch-card" onClick={()=>{setError('');setCreateMode('duel');}}><Icon kind="flag"/><span><strong>Challenge friends</strong><small>Separate one-on-one rounds.</small></span><Icon kind="arrow"/></button></div>
     {notice&&<p role="status" className="cg-notice">{notice}</p>}{(syncError||(error&&!createMode))&&<p role="alert" className="cg-error">{syncError||error} <button type="button" className="cg-text-button" onClick={()=>void refresh()}>Retry</button></p>}
-    {invitations.length>0&&<section className="cg-invitations" aria-label="Competition invitations"><h2>Your invitations <span>{invitations.length}</span></h2>{invitations.map(c=><RoundBoard key={c.id} round={c} userId={userId} now={clock} busy={busy} onAction={action}/>)}</section>}
+    {invitations.length>0&&<section className="cg-invitations" aria-label="Competition invitations"><h2>Your invitations <span>{invitations.length}</span></h2>{invitations.map(c=><RoundBoard key={c.id} round={c} userId={userId} now={clock} busy={busy} onAction={action} onReport={openReport} onBlock={blockMember}/>)}</section>}
     <ConnectionStatus sync={sync} notifications={notifications} busy={busy} onSync={()=>void action(flushQuestSync,'Sync checked.')}/>
     <div className="cg-tabs" role="tablist" aria-label="Competition type" onKeyDown={e=>{
       const values=['league','duel','past'];let index=values.indexOf(tab);
@@ -186,7 +220,7 @@ export default function CompetitionPage({ progression, weekKey, todayKey, userId
     <div id="cg-rounds" role="tabpanel" aria-labelledby={`cg-tab-${tab}`} aria-busy={loading}>
       {loading?<Panel className="cg-empty"><Icon kind="leaf"/><p>Opening the village board…</p></Panel>:rounds.length?<>
         {rounds.length>1&&<div className="cg-round-picker" aria-label="Choose a competition">{rounds.map(c=><button type="button" key={c.id} aria-pressed={selected?.id===c.id} onClick={()=>setSelectedId(c.id)}><strong>{c.mode==='duel'?c.members.find(m=>m.id!==userId)?.name||c.name:c.name}</strong><small>{roundPhase(c,clock)==='active'?remainingTime(c.endsAt,clock):roundPhase(c,clock)}</small></button>)}</div>}
-        <RoundBoard key={selected.id} round={selected} userId={userId} now={clock} busy={busy} onAction={action} onLeave={setLeaving} onInvite={setInviting} farms={farms}/>
+        <RoundBoard key={selected.id} round={selected} userId={userId} now={clock} busy={busy} onAction={action} onLeave={setLeaving} onInvite={setInviting} farms={farms} onReport={openReport} onBlock={blockMember}/>
       </>:<Panel className="cg-empty"><Icon kind={tab==='past'?'clock':tab==='league'?'cup':'flag'}/><span className="cg-eyebrow">{tab==='past'?'YOUR STORY IS STILL GROWING':'A LITTLE FRIENDLY MOTIVATION'}</span><h2>{tab==='past'?'Memories go here.':tab==='league'?'A place for your people.':'Side by side. One on one.'}</h2><p>{tab==='past'?'Finished rounds will stay here with their results.':tab==='league'?'Gather your friends, choose a week or a month, and turn small steps into a shared adventure.':'Choose your friends and give each rivalry its own little story. No shared league needed.'}</p>{tab!=='past'&&<button className="cg-button is-gold" type="button" onClick={()=>{setError('');setCreateMode(tab);}}>Start a {tab==='league'?'league':'challenge'}<Icon kind="arrow"/></button>}</Panel>}
     </div>
     <Panel className="fg-friends"><div className="cg-board-label"><h2>Your village gardens</h2><a href="#farm">My farm ›</a></div><p className="cg-help">A little world grown from each traveler’s effort.</p>{friendFarms.error&&<p className="cg-error">{friendFarms.error}</p>}
@@ -197,5 +231,6 @@ export default function CompetitionPage({ progression, weekKey, todayKey, userId
     {createMode&&<CreateRound key={createMode} initialMode={createMode} friends={friends} busy={busy} error={error} onClose={()=>{setCreateMode(null);setError('');}} onCreate={form=>{setTab(form.mode);void action(()=>createContests(form),'Invitations sent. Your round is waiting in the lobby.');}}/>}
     {inviting&&<InviteMembers round={hub.contests.find(c=>c.id===inviting.id)||inviting} friends={friends} busy={busy} error={error} onClose={()=>{setInviting(null);setError('');}} onInvite={ids=>void action(()=>inviteContestMembers(inviting.id,ids),'Invitations sent. Your friends can join whenever they are ready.')}/>}
     {leaving&&<Modal title="Leave this round?" onClose={()=>setLeaving(null)} busy={busy}><p>{leaving.mode==='duel'?'This ends your one-on-one round.':leaving.creatorId===userId?'Your league continues with the next member as host.':'You’ll leave the scoreboard and stop receiving this league’s updates.'} Your tasks and personal XP stay saved.</p>{error&&<p role="alert" className="cg-error">{error}</p>}<div className="cg-modal-actions"><button className="cg-button is-quiet" disabled={busy} onClick={()=>setLeaving(null)}>Keep playing</button><button className="cg-button" disabled={busy} onClick={()=>void action(()=>leaveContest(leaving.id),'You left the round.')}>Confirm</button></div></Modal>}
+    <ReportUserDialog target={reportTarget} contextType="competition" contextId={reportTarget?.contextId||null} busy={busy} onClose={()=>setReportTarget(null)} onSubmit={submitReport}/>
   </div>;
 }

@@ -87,9 +87,37 @@ begin
   execute 'set local role authenticated';
   j:=public.quest_study(); assert j->'room'='null'::jsonb,'Expired sessions do not leak stale presence';
   j:=public.quest_study('create'); assert j->'room'->>'id'<>second_room::text,'Expired membership does not block a new room';
+  -- A new room is atomic, and a departing host hands the old circle to a guest.
+  perform public.quest_study('leave',(j->'room'->>'id')::uuid);
+  perform set_config('request.jwt.claim.sub',u[1]::text,true);
+  j:=public.quest_study('create'); rid:=(j->'room'->>'id')::uuid;
+  perform public.quest_study('invite',rid,u[2]);
+  perform public.quest_study('invite',rid,u[3]);
+  perform set_config('request.jwt.claim.sub',u[2]::text,true);
+  perform public.quest_study('accept',rid);
+  perform set_config('request.jwt.claim.sub',u[1]::text,true);
+  j:=public.quest_study('new_room',rid); second_room:=(j->'room'->>'id')::uuid;
+  assert second_room<>rid,'New room replaces membership in one transaction';
+  assert jsonb_array_length(j->'room'->'members')=1,'New room begins private and alone';
+  denied:=false;
+  begin perform public.quest_study('new_room',rid); exception when raise_exception then denied:=true; end;
+  assert denied,'A stale tab cannot replace a newer room';
+  j:=public.quest_study(); assert j->'room'->>'id'=second_room::text,'Failed replace keeps current room';
+  perform set_config('request.jwt.claim.sub',u[2]::text,true);
+  j:=public.quest_study();
+  assert j->'room'->>'id'=rid::text and j->'room'->>'hostId'=u[2]::text,'Remaining friend becomes host';
+  assert jsonb_array_length(j->'room'->'members')=1,'Old host pending invitations are cancelled';
+  -- Seat one becomes usable after handoff (old host is still a friend).
+  perform public.quest_study('invite',rid,u[1]);
+  j:=public.quest_study(); assert jsonb_array_length(j->'room'->'members')=2,'New host can invite into the freed seat';
+  perform public.quest_study('leave',rid);
+  j:=public.quest_study(); assert j->'room'='null'::jsonb,'Last joined member may leave';
+  perform public.quest_study('leave',rid);
   execute 'reset role';
+  assert (select ended_at is not null from public.quest_study_rooms where id=rid),'Empty room closes';
+  assert not has_function_privilege('authenticated','quest_private.study_depart(uuid,uuid)','execute'),'No direct departure helper access';
   assert not has_function_privilege('anon','public.quest_study(text,uuid,uuid,jsonb)','execute'),'Anonymous room access denied';
   assert (select count(*)=1 from pg_publication_tables where pubname='supabase_realtime' and tablename like 'quest_study_%'),'Only privacy-safe revision signals are published';
 end $$;
-select 'PASS: authenticated avatars, invites, six-seat cap, privacy, heartbeat races, RLS, blocks, leave, expiry and end' as result;
+select 'PASS: authenticated avatars, invites, six-seat cap, privacy, heartbeat races, RLS, blocks, leave, host handoff, atomic new room, stale tabs, expiry and end' as result;
 rollback;

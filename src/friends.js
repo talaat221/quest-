@@ -8,8 +8,22 @@ import {
   splitFriendships,
 } from './friends-core.js';
 
+function friendlySocialError(error) {
+  const message = String(error?.message || '');
+  if (message.includes('QUEST_RATE_LIMIT:profile_search_')) {
+    return new Error('You’re searching very quickly. Wait a minute and try again.');
+  }
+  if (message.includes('QUEST_RATE_LIMIT:friend_request_')) {
+    return new Error('You’ve sent a lot of friend requests. Try again a little later.');
+  }
+  if (message.includes('QUEST_RATE_LIMIT:block_change_')) {
+    return new Error('You’ve changed your block list many times. Wait a little and try again.');
+  }
+  return error;
+}
+
 function throwIf(error) {
-  if (error) throw error;
+  if (error) throw friendlySocialError(error);
 }
 
 export async function ensureQuestProfile(user) {
@@ -22,16 +36,35 @@ export async function ensureQuestProfile(user) {
   throwIf(readError);
   if (existing) return existing;
 
+  const metadataUsername = normalizeFriendUsername(user?.user_metadata?.username || '');
   const profile = {
     user_id: user.id,
-    username: fallbackFriendUsername(user.id),
+    username: isValidFriendUsername(metadataUsername)
+      ? metadataUsername
+      : fallbackFriendUsername(user.id),
     display_name: friendDisplayName(user),
   };
-  const { data, error } = await supabase
+
+  let { data, error } = await supabase
     .from('quest_profiles')
     .insert(profile)
     .select('user_id, username, display_name')
     .single();
+
+  // A very old/legacy client may reach this fallback after the requested
+  // signup username has already been claimed. Keep the account usable with
+  // its deterministic traveler name rather than breaking the Friends page.
+  if (error?.code === '23505' && profile.username !== fallbackFriendUsername(user.id)) {
+    ({ data, error } = await supabase
+      .from('quest_profiles')
+      .insert({
+        ...profile,
+        username: fallbackFriendUsername(user.id),
+      })
+      .select('user_id, username, display_name')
+      .single());
+  }
+
   throwIf(error);
   return data;
 }
@@ -53,6 +86,19 @@ export async function updateQuestProfile(userId, { username, displayName }) {
 
   if (error?.code === '23505') throw new Error('That username is already taken.');
   throwIf(error);
+
+  // Keep auth metadata aligned with the Friends profile so account creation,
+  // future profile recovery, and the social system all refer to one username.
+  const { error: metadataError } = await supabase.auth.updateUser({
+    data: {
+      username: cleanUsername,
+      display_name: cleanName,
+    },
+  });
+  if (metadataError) {
+    console.warn('Quest profile metadata could not be synchronized:', metadataError);
+  }
+
   window.dispatchEvent(new CustomEvent('quest-profile-changed', { detail: data }));
   return data;
 }
@@ -180,4 +226,42 @@ export async function loadAcceptedFriendsWithStats(userId, weekKey) {
       updatedAt: stats.updated_at || null,
     };
   });
+}
+
+
+export async function loadBlockedUsers() {
+  const { data, error } = await supabase.rpc('get_my_quest_blocks');
+  throwIf(error);
+  return (data || []).map(row => ({
+    user_id: row.blocked_id,
+    username: row.username || '',
+    display_name: row.display_name || row.username || 'Blocked user',
+    blocked_at: row.created_at,
+  }));
+}
+
+export async function blockQuestUser(userId) {
+  if (!userId) throw new Error('Choose a Quest user to block.');
+  const { error } = await supabase.rpc('block_quest_user', { p_blocked_id: userId });
+  throwIf(error);
+}
+
+export async function unblockQuestUser(userId) {
+  if (!userId) throw new Error('Choose a Quest user to unblock.');
+  const { error } = await supabase.rpc('unblock_quest_user', { p_blocked_id: userId });
+  throwIf(error);
+}
+
+export async function reportQuestUser(userId, { reason, details = '', contextType = 'friends', contextId = null } = {}) {
+  if (!userId) throw new Error('Choose a Quest user to report.');
+  if (!reason) throw new Error('Choose a report reason.');
+  const { data, error } = await supabase.rpc('report_quest_user', {
+    p_reported_user_id: userId,
+    p_reason_code: reason,
+    p_details: String(details || '').trim().slice(0, 1000) || null,
+    p_context_type: contextType,
+    p_context_id: contextId || null,
+  });
+  throwIf(error);
+  return data;
 }
