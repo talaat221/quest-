@@ -9,7 +9,9 @@ import './study-room.css';
 import useStudyPresence from './useStudyPresence.js';
 import { SharedRoomArtwork, StudySocialBar, StudyCompanions } from './StudyTogether.jsx';
 
-const LANDSCAPE_ROOM = '(orientation: landscape) and (min-width: 640px) and (max-height: 650px)';
+// Auto room view is for a phone turned sideways. A short laptop window
+// should keep its navigation and only enter room view when requested.
+const LANDSCAPE_ROOM = '(orientation: landscape) and (min-width: 640px) and (max-height: 650px) and (pointer: coarse)';
 
 export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate, onConfigureTimer, studyTogether }) {
   const id = useId(), pageRef = useRef(null), taskInput = useRef(null), immersiveButton = useRef(null), newTaskDialog = useRef(null);

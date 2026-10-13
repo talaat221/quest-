@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v39-guided-start';
+const CACHE_NAME = 'quest-shell-v40-desktop-layout';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',

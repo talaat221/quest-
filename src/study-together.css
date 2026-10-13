@@ -1,3 +1,4 @@
+.st-room-toolbar{display:contents}
 .st-character{display:block;width:100%;height:100%;overflow:hidden;image-rendering:pixelated;pointer-events:none}
 .st-social-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;max-width:1540px;margin:0 auto;padding:0 22px 12px}
 .qd-root .sr-page .st-social-bar button{display:flex;align-items:center;gap:9px;background:#22372d;border-color:#626d4b;min-height:44px;font-size:20px;padding:4px 12px}
@@ -114,4 +115,4 @@
 .st-quick-room-actions>span{font:17px/1.2 'VT323',monospace;color:#bfcaaa}
 .qd-root .sr-page .st-quick-room-actions button{font-size:18px;background:#20362c;border-color:#657850;min-height:40px;padding:6px 12px}
 @media(max-width:500px){.st-quick-room-actions{padding-inline:13px;gap:8px}.st-quick-room-actions>span{flex-basis:100%}}
-@media(orientation:landscape) and (min-width:640px) and (max-height:650px){.st-quick-room-actions{padding-block:0 4px;width:100%}.qd-root .sr-page .st-quick-room-actions button{min-height:32px;padding:3px 9px}.st-quick-room-actions>span{font-size:15px}}
+@media(orientation:landscape) and (min-width:640px) and (max-height:650px) and (pointer:coarse){.st-quick-room-actions{padding-block:0 4px;width:100%}.qd-root .sr-page .st-quick-room-actions button{min-height:32px;padding:3px 9px}.st-quick-room-actions>span{font-size:15px}}

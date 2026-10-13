@@ -16,7 +16,7 @@ New empty accounts see their actual Home behind a small character coach. The gui
 
 ## Desktop
 
-At 1100px and taller than 650px, the navigation becomes a left rail. Home uses a scene/day split; Anchors uses clock/routines columns. Decorative headers, Stats cards and the study workspace have bounded widths. Short landscape phone study rooms retain their immersive layout. Local pixel fonts and existing artwork are reused.
+At 1024px, the navigation becomes a compact left rail. Home uses a scene/day split; Anchors uses clock/routines columns. Decorative headers, Stats cards and the study workspace have bounded widths. Short landscape phone study rooms retain their immersive layout. Local pixel fonts and existing artwork are reused.
 
 ## Notifications
 
@@ -35,3 +35,11 @@ The notification Edge Function is deployed as version 6. JWT verification at the
 - Authenticated database test transaction passes guest leave, host handoff, new room, stale-tab rejection, privacy, blocks, capacity, expiry and RLS, then rolls back all fixture users.
 - Browser checks cover the real first quest/task/anchor flow, resume/replay/skip, room controls and avatar privacy, notification permission and both test buttons, and narrow phone through 1920px desktop widths.
 - Supabase advisor review found no new study-table/function issue. Existing deliberately server-only tables and legacy security-definer functions are outside this change.
+
+## Desktop layout follow-up
+
+The study page's auto margins allowed its flex child to shrink to min-content width, making the room smaller than the controls. The page now explicitly fills the content area. The room and compact timer panel align at the top, room actions share one toolbar, and the scene preserves its 1672:941 coordinate plane. Automatic immersive mode is limited to coarse-pointer landscape devices; resizing a laptop window no longer removes navigation.
+
+Home uses a wider task column beside the cottage and anchors, with farm/streak and Stop Day below. Size containment prevents long task lists from stretching the grid and introducing gaps. The existing painted checklist frame is split into independently sized header/body windows, keeping its heading proportional. Its SVG row asset now fills variable-width rows so checkboxes and XP remain inside the artwork. The worker cache advances to v40 for installed apps.
+
+Validation: production build passes; 57 desktop/mobile geometry and interaction checks pass across 320–1920px, including a 1366×600 laptop window. The 34-check study flow and navigation/settings checks at 320, 393 and 1024px pass. A touch-landscape check confirms automatic room view and scene proportions are preserved. Three service-worker tests pass; the JSX lint check has no errors and one existing effect warning. Screenshots were reviewed for both Home and Focus at desktop and phone widths. No task, XP, room API or database behavior is changed.

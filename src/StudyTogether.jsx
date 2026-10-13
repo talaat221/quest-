@@ -89,11 +89,13 @@ export function StudySocialBar({ controller, taskName }) {
   };
   const count = controller.room?.members.filter(m => m.status === 'joined').length || 0;
   return <>
+    <div className="st-room-toolbar">
     <div className="st-social-bar"><button type="button" className="st-character-button" aria-label="Your character" onClick={() => setDialog('character')}><span className="st-mini-avatar"><StudyCharacter lookId={controller.lookId}/></span><span>Your character</span></button><button type="button" className="st-together-button" onClick={() => setDialog('session')}><span aria-hidden="true">✦</span> {controller.room ? `Your room · ${count}/6` : 'Study together'}{!!controller.invites?.length && <b aria-label={`${controller.invites.length} study invitations`}>{controller.invites.length}</b>}</button></div>
     <div className="st-quick-room-actions" aria-label="Room controls">
       {controller.room && <button type="button" disabled={controller.busy} onClick={() => roomAction('leave')}>‹ Leave room</button>}
       <button type="button" disabled={controller.busy || controller.loading} onClick={() => roomAction(controller.room ? 'new_room' : 'create')}>+ New room</button>
       {notice && <span role="status">{notice}</span>}
+    </div>
     </div>
     {controller.error && !dialog && <p className="st-connection-note" role="status">Room connection needs attention. Your own timer still works. <button type="button" onClick={() => controller.refresh()}>Reconnect</button></p>}
     {dialog === 'character' && <CharacterPicker controller={controller} onClose={() => setDialog(null)}/>}

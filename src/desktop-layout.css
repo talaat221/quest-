@@ -2,24 +2,24 @@
 @font-face{font-family:'Press Start 2P';src:url('/anchors-page/press-start-2p.woff2') format('woff2');font-display:swap}
 /* The same pixel artwork at an intentional desk-sized scale. Phone and
    short landscape study views keep their existing layouts. */
-@media (min-width: 1100px) and (min-height: 651px) {
+@media (min-width: 1024px) {
   .qd-design-preview .qd-root.qd-organized {
-    padding: 24px 28px 70px 210px !important;
+    padding: 24px 28px 40px 190px !important;
     box-sizing: border-box;
   }
   .qd-design-preview .qd-root.qd-organized .qd-shell {
-    display: block; width: 100% !important; max-width: 1120px !important;
+    display: block; width: 100% !important; max-width: 1160px !important;
     padding: 0 !important; margin: 0 auto !important; background: transparent;
   }
   .qd-design-preview .qd-root.qd-organized .qd-main {
-    width: 100% !important; max-width: 1120px !important;
+    width: 100% !important; max-width: 1160px !important;
     margin: 0 auto !important; padding: 0 !important; min-height: 0;
   }
   .qd-root.qd-organized .qa-shell-header { max-width: 960px; padding: 0 0 20px; }
   .qd-root.qd-organized .qa-section-tabs { justify-content: flex-start; padding: 0; }
   .qd-root.qd-organized .qa-section-tabs a { flex: 0 1 160px; font-size: 20px; }
   .qd-root.qd-organized .qa-dock {
-    inset: 24px auto auto 22px; width: 158px; padding: 0; background: none;
+    inset: 24px auto auto 20px; width: 144px; padding: 0; background: none;
   }
   .qd-root.qd-organized .qa-dock .qd-bottom-navigation {
     display: flex; flex-direction: column; width: 100%; height: auto;
@@ -33,14 +33,59 @@
   .qa-dock .qd-bottom-navigation > .qd-home-art, .qa-dock-selector-track { display: none; }
   .qd-root.qd-organized .qa-dock .qd-bottom-navigation a {
     flex-direction: row; justify-content: flex-start; gap: 12px;
-    padding: 16px 13px; min-height: 58px; border-left: 2px solid transparent;
+    padding: 14px 10px; min-height: 54px; border-left: 2px solid transparent;
     transition: background 180ms, border-color 180ms, color 180ms;
   }
   .qd-root.qd-organized .qa-dock .qd-bottom-navigation a.is-active { background: #87b57a1b; border-left-color: #c5da93; }
-  .qd-root.qd-organized .qa-dock .qa-dock-label { font-size: 20px; }
-  .qd-root.qd-organized .qd-main-home { display: grid; grid-template-columns: minmax(330px, .96fr) minmax(390px, 1.04fr); gap: 22px !important; align-items: start; }
+  .qd-root.qd-organized .qa-dock .qd-bottom-navigation .qa-dock-label { font-size: 19px; }
+  /* Two useful columns, not a phone dashboard squeezed beside its artwork.
+     The painted checklist header keeps its own height as the list grows. */
+  .qd-design-preview .qd-root.qd-organized .qd-main-home {
+    display: grid; max-width: 1080px !important;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    grid-template-areas: 'cottage tasks' 'anchors tasks' 'garden stop';
+    gap: 18px 24px !important; align-items: start;
+  }
+  .qd-root.qd-organized .qd-main-home .qd-design-canvas,
+  .qd-root.qd-organized .qd-main-home .qd-home-quests-row { display: contents; }
+  .qd-root.qd-organized .qd-main-home .qd-daily-anchors { grid-area: anchors; }
+  .qd-root.qd-organized .qd-main-home .qd-today-quests {
+    grid-area: tasks; aspect-ratio: auto; align-self: stretch; contain: size; min-height: 0;
+  }
+  .qd-root.qd-organized .qd-main-home .qd-today-quests-view-all { top: 0; bottom: auto; height: 12.75cqw; }
+  .qd-root.qd-organized .qd-main-home .qd-today-quests-content { padding-bottom: 14px; gap: 10px; }
+  .qd-root.qd-organized .qd-main-home .qd-today-quests .qi-mini { padding: 9px 10px; grid-template-columns: 24px minmax(0,1fr) auto; gap: 8px; }
+  .qd-main-home .qd-today-quests .qi-mini-star { width: 23px; height: 23px; font-size: 17px; }
+  .qd-main-home .qd-today-quests .qi-mini b { font-size: 14px; }
+  .qd-main-home .qd-today-quests .qi-mini small { font-size: 17px; line-height: 1.2; }
+  .qd-main-home .qd-today-quests .qi-mini > strong { grid-column: auto; font-size: 16px; }
+  .qd-root.qd-organized .qd-main-home .qd-quest-row-toggle {
+    grid-template-columns: 24px 32px minmax(0, 1fr) 64px;
+    height: 66px; gap: 12px; padding: 9px 12px;
+  }
+  .qd-main-home .qd-today-quests .qd-daily-anchor-art { height: 32px; }
+  .qd-main-home .qd-today-quests .qd-daily-anchor-custom-icon { font-size: 28px; }
+  .qd-main-home .qd-today-quests .qd-quest-row-name { font-size: 22px; }
+  .qd-main-home .qd-today-quests .qd-quest-row-detail { font-size: 17px; }
+  .qd-main-home .qd-today-quests .qd-quest-row-xp { font-size: calc(19px * var(--xp-fit, 1)); }
+  .qd-main-home .qd-today-quests .qd-today-quests-list { gap: 6px; }
+  .qd-root.qd-organized .qd-main-home .qd-farm-streak {
+    grid-area: garden; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: auto; gap: 14px; aspect-ratio: auto; align-items: start;
+  }
+  .qd-main-home .qd-farm-streak .fg-mini-card { display: grid; grid-template-columns: minmax(50px, .8fr) minmax(0, 1fr); padding: 10px; gap: 5px 10px; }
+  .qd-main-home .fg-mini-card .fg-scene { grid-column: 1; grid-row: 2 / 5; aspect-ratio: 1; align-self: center; }
+  .qd-main-home .fg-mini-title { grid-column: 1 / -1; font-size: 20px; }
+  .qd-main-home .fg-mini-name { grid-column: 2; font-size: 19px; margin: 0; }
+  .qd-main-home .fg-mini-card > span { grid-column: 2; font-size: 17px; }
+  .qd-main-home .fg-mini-card > small { grid-column: 2; font-size: 16px; }
+  .qd-main-home .qd-farm-streak .qd-streak-card { aspect-ratio: 275 / 139; container-type: inline-size; }
+  .qd-root.qd-organized .qd-main-home .qd-stop-day-wrap { grid-area: stop; align-self: start; width: 80%; max-width: 420px; margin: 0 auto; }
+  .qd-main-home .qd-stop-day-title { font-size: 27px; }
+  .qd-main-home .qd-stop-day-caption { font-size: 18px; }
+  .qd-root.qd-organized .qd-main-home .qd-day-pause-notice { grid-column: 2; grid-row: 4; margin: 0; }
   .qd-root.qd-organized .qd-main-home > .qd-scene {
-    position: sticky; top: 24px; width: 100%; min-height: 0; height: auto; aspect-ratio: 960 / 804;
+    grid-area: cottage; position: relative; top: auto; width: 100%; min-height: 0; height: auto; aspect-ratio: 960 / 804;
     margin: 0; border: 0; outline: 0; box-shadow: none; background: #041e40; container-type: inline-size;
   }
   .qd-root.qd-organized .qd-scene .qd-garden-scene { display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -49,16 +94,17 @@
   .qd-root.qd-organized .qd-scene-copy { position: absolute; z-index: 3; left: 7%; top: 9%; width: 44%; padding: 0; background: none; }
   .qd-root.qd-organized .qd-scene .qd-greeting-kicker { font-size: 2cqw; line-height: 1.5; }
   .qd-root.qd-organized .qd-scene .qd-greeting { font-size: 5cqw; margin-top: 4px; line-height: 1.3; }
+  .qd-root.qd-organized .qd-scene .qd-greeting[data-long-name="true"] { font-size: 3.9cqw; letter-spacing: 0; }
   .qd-root.qd-organized .qd-scene .qd-greeting span { font-size: 3.5cqw; }
   .qd-root.qd-organized .qd-scene .qd-greeting-sub { font-size: 3.9cqw; line-height: 1; max-width: 80%; margin-top: 5px; }
   .qd-root.qd-organized .qd-scene .qd-topmeta { position: absolute; z-index: 3; right: 3%; top: 9%; width: 30%; }
   .qd-root.qd-organized .qd-scene .qd-meta-pill { width: 100%; padding: 9px 5px; font-size: 1.6cqw; min-width: 0; }
   .qd-root.qd-organized .qd-scene .qd-journey-day { font-size: 3.5cqw; }
-  .qd-root.qd-organized .qd-scene .qd-level-card { left: 7%; right: 7%; bottom: 2%; height: auto; aspect-ratio: 1043/126; padding: 3% 4%; grid-template-columns: 44px minmax(0,1fr) 88px; gap: 9px; background: url('/xp-frame-mobile.png') center / 100% 100% no-repeat; border: 0; box-shadow: none; }
+  .qd-root.qd-organized .qd-scene .qd-level-card { left: 7%; right: 7%; bottom: 2%; height: auto; aspect-ratio: 1043/126; padding: 2% 4%; grid-template-columns: 14% minmax(0,1fr) max-content; gap: 8px; background: url('/xp-frame-mobile.png') center / 100% 100% no-repeat; border: 0; box-shadow: none; }
   .qd-root.qd-organized .qd-scene .qd-level-card::before { display: none; }
   .qd-root.qd-organized .qd-scene .qd-level-badge { height: 24px; padding: 0; display: grid; place-items: center; font-size: 8px; line-height: 1; }
   .qd-root.qd-organized .qd-scene .qd-level-track { height: 13px; }
-  .qd-root.qd-organized .qd-scene .qd-level-value { font-size: 8px; white-space: nowrap; padding: 0; }
+  .qd-root.qd-organized .qd-scene .qd-level-value { font-size: clamp(6px, 1.65cqw, 8px); white-space: nowrap; padding: 0; }
   .qd-root.qd-organized .qd-design-canvas { padding-top: 0; }
   .qd-root.qd-organized .qd-home-lower-grid { margin-top: 14px; }
   .qd-root.qd-organized .qd-main-quests .qd-quest-redesign-page { max-width: 820px; margin: auto; min-height: 0; }
@@ -79,10 +125,42 @@
   .qsp-page .qsp-stat { padding: 14px 12px; gap: 9px; min-height: 96px; }
   .qsp-page .qsp-stat .qsp-sprite { width: 38px; height: 44px; }
   .qsp-page .qsp-stat dt { font-size: 21px; }.qsp-page .qsp-stat dd { font-size: 30px; }.qsp-page .qsp-stat small { font-size: 16px; }
-  .qd-root.qd-organized .sr-page:not(.is-room-view) { max-width: 1120px; margin: auto; }
-  .qd-root.qd-organized .sr-page:not(.is-room-view) .sr-workspace { padding-inline: 12px; grid-template-columns: minmax(0,1fr) 265px; gap: 14px; }
+/* An explicit width prevents auto margins on the flex child from
+     collapsing the entire study page to its min-content width. */
+  .qd-design-preview .qd-root.qd-organized.qd-study-active { background: #101f24 !important; }
+  .qd-root.qd-organized .sr-page:not(.is-room-view) {
+    width: 100%; max-width: 1160px; min-width: 0; margin: 0 auto; background: transparent;
+  }
+  .sr-page:not(.is-room-view) .sr-page-header { padding: 0 0 18px; gap: 16px; }
+  .sr-page:not(.is-room-view) .sr-page-header > div { text-align: left; flex: 1; }
+  .sr-page:not(.is-room-view) .sr-back { font-size: 18px; padding-right: 8px; }
+  .qd-root .sr-page:not(.is-room-view) h1 { font-size: 18px; }
+  .sr-page:not(.is-room-view) .st-room-toolbar {
+    display: flex; align-items: start; flex-wrap: wrap; justify-content: space-between; gap: 10px 16px; margin-bottom: 18px;
+  }
+  .sr-page:not(.is-room-view) .st-social-bar { width: auto; padding: 0; margin: 0; justify-content: flex-start; gap: 10px; }
+  .sr-page:not(.is-room-view) .st-quick-room-actions { width: auto; padding: 0; margin: 0; gap: 8px; max-width: 460px; }
+  .sr-page:not(.is-room-view) .st-quick-room-actions > span { width: 100%; font-size: 16px; }
+  .qd-root .sr-page:not(.is-room-view) .st-room-toolbar button { font-size: 18px; min-height: 40px; padding: 4px 10px; }
+  .sr-page:not(.is-room-view) .st-mini-avatar { width: 24px; height: 29px; }
+  .qd-root.qd-organized .sr-page:not(.is-room-view) .sr-workspace {
+    padding: 0; grid-template-columns: minmax(0,1fr) 280px; gap: 18px; align-items: start;
+  }
+  .sr-page:not(.is-room-view) .sr-stage-wrap { padding: 5px; border: 6px solid transparent; border-image: url('/stats-page/panel-bronze.webp') 68 fill / 6px; }
+  .sr-page:not(.is-room-view) .sr-work-panel { padding: 18px; }
+  .sr-page:not(.is-room-view) .sr-panel-heading { padding-bottom: 12px; margin-bottom: 12px; }
+  .qd-root .sr-page:not(.is-room-view) .sr-panel-heading h2 { font-size: 28px; }
+  .qd-root .sr-page:not(.is-room-view) :is(button, select) { font-size: 20px; }
+  .sr-page:not(.is-room-view) .sr-task-controls { gap: 12px; }
+  .sr-page:not(.is-room-view) .sr-timer-buttons { flex-direction: row; }
+  .sr-page:not(.is-room-view) .sr-timer-buttons .sr-start { flex: 1; }
+  .sr-page:not(.is-room-view) .sr-timer-buttons .sr-start-detail { display: none; }
+  .sr-page:not(.is-room-view) .sr-panel-footer { gap: 6px 12px; }
+  .sr-page:not(.is-room-view) .sr-panel-footer p { font-size: 17px; }
+  .sr-page:not(.is-room-view) .st-companions { width: 100%; margin: 18px 0 0; }
+  .sr-page:not(.is-room-view) .sr-landscape-hint { display: none; }
   .qd-root.qd-organized .qa-profile, .qd-root.qd-organized .qa-settings { max-width: 650px; }
   .qd-root.qd-organized .gg-page, .qd-root.qd-organized .rw-page, .qd-root.qd-organized .cg-page { max-width: 960px; margin-inline: auto; }
-  .qd-root.qd-organized .qt-focus-bar { left: 210px; bottom: 14px; max-width: 700px; margin: auto; }
+  .qd-root.qd-organized .qt-focus-bar { left: 190px; bottom: 14px; max-width: 700px; margin: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .qd-root.qd-organized .qa-dock .qd-bottom-navigation a { transition: none; } }
