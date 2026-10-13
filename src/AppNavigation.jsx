@@ -21,23 +21,21 @@ export function AppIcon({kind}) {
   return <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" shapeRendering="crispEdges"><path d={paths[kind] || paths.plan} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="miter"/></svg>;
 }
 
-export function AppHeader({page, name, visitingFarm = false}) {
+export function SectionNavigation({page, visitingFarm = false}) {
   const group = navigationGroup(page, visitingFarm);
+  if (!group?.tabs.length || page === 'settings') return null;
   return <div className="qa-shell-header">
-    <header className="qa-appbar">
-      <a href="#home" className="qa-brand" aria-label="Quest home"><AppIcon kind="garden"/><span>QUEST</span></a>
-      <span className="qa-section-name">{group?.label || (page === 'settings' ? 'Settings' : 'Your profile')}</span>
-      <div className="qa-account-actions"><a href="#settings" className="qa-icon-link" aria-label="Open settings" aria-current={page === 'settings' ? 'page' : undefined}><AppIcon kind="settings"/></a><a href="#profile" className="qa-avatar-link" aria-label={`Open your profile, ${name}`} aria-current={page === 'profile' ? 'page' : undefined}>{profileInitial(name)}</a></div>
-    </header>
-    {!!group?.tabs.length && <nav className="qa-section-tabs" aria-label={`${group.label} pages`}>{group.tabs.map(([route,label])=><a key={route} href={`#${route}`} aria-current={page===route&&!visitingFarm?'page':undefined}>{label}</a>)}</nav>}
+    <nav className="qa-section-tabs" aria-label={`${group.label} pages`}>{group.tabs.map(([route,label])=><a key={route} href={`#${route}`} aria-current={page===route&&!visitingFarm?'page':undefined}>{label}</a>)}</nav>
   </div>;
 }
 
 export function NavigationDock({page, visitingFarm = false}) {
   const group = navigationGroup(page, visitingFarm);
-  return <div className="qd-bottom-dock qa-dock"><nav className="qd-bottom-navigation" aria-label="Main navigation">
+  const activeIndex = NAV_GROUPS.findIndex(tab => tab.id === group?.id);
+  return <div className="qd-bottom-dock qa-dock"><nav className="qd-bottom-navigation" aria-label="Main navigation" style={{'--qa-tab-index': Math.max(0, activeIndex), '--qa-tab-count': NAV_GROUPS.length}}>
     <svg className="qd-home-art" viewBox="10 263 1963 262" preserveAspectRatio="none" aria-hidden="true" focusable="false"><image href="/home-finish/navigation-v1.webp" width="1983" height="793"/></svg>
-    {NAV_GROUPS.map(tab=><a key={tab.id} href={`#${tab.route}`} aria-current={tab.id===group?.id?'page':undefined} className={tab.id===group?.id?'is-active':''}><AppIcon kind={tab.id}/><span>{tab.label}</span></a>)}
+    <span className="qa-dock-selector-track" aria-hidden="true"><span className="qa-dock-selector" data-visible={activeIndex >= 0}/></span>
+    {NAV_GROUPS.map(tab=><a key={tab.id} href={`#${tab.route}`} aria-current={tab.id===group?.id?'page':undefined} className={tab.id===group?.id?'is-active':''}><span className="qa-dock-icon"><AppIcon kind={tab.icon || tab.id}/></span><span className="qa-dock-label">{tab.label}</span></a>)}
   </nav></div>;
 }
 
@@ -49,7 +47,7 @@ export function ProfilePage({name, username, farm, level, xp, streak, readyRewar
   return <div className="qa-profile qa-page">
     <header className="qa-profile-hero"><div className="qa-profile-landscape"/><span className="qa-profile-avatar" aria-hidden="true">{profileInitial(name)}</span><h1>{name}</h1>{username&&<p>@{username}</p>}<FarmBadge farm={farm}/><span className="qa-profile-level">LEVEL {level} · GROWING AT YOUR OWN PACE</span></header>
     <dl className="qa-profile-stats"><div><dt>Total XP</dt><dd>{Number(xp||0).toLocaleString()}</dd></div><div><dt>Day streak</dt><dd>{streak}</dd></div><div><dt>Plants</dt><dd>{farm?.plants?.length || 0}</dd></div></dl>
+    <section className="qa-list-group qa-profile-account" aria-label="Your account"><h2>Make it yours</h2><NavigationRow href="#settings" icon="settings" title="Settings" detail="Account, notifications & daily rhythm"/></section>
     <section className="qa-list-group" aria-label="Your progress"><h2>Your journey</h2><NavigationRow href="#stats" icon="stats" title="Progress & stats" detail="See how your small steps add up"/><NavigationRow href="#farm" icon="garden" title={farm?.name || 'My farm'} detail="Your growing collection"/><NavigationRow href="#rewards" icon="rewards" title="Rewards" detail="The treats you’re working toward" badge={readyRewards ? `${readyRewards} ready` : null}/></section>
-    <section className="qa-list-group" aria-label="Your account"><h2>Your account</h2><NavigationRow href="#settings" icon="settings" title="Settings" detail="Your account, notifications and daily rhythm"/></section>
   </div>;
 }

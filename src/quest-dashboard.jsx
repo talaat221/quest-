@@ -30,7 +30,7 @@ import { applyWeeklyPlan, weekOf } from "./weekly-planner.js";
 import CompetitionPage from "./CompetitionPage.jsx";
 import FarmPage from "./FarmPage.jsx";
 import useFarm from "./useFarm.js";
-import { AppHeader, ProfilePage } from "./AppNavigation.jsx";
+import { SectionNavigation, ProfilePage } from "./AppNavigation.jsx";
 import SettingsPage from "./SettingsPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
 import { ensureQuestProfile } from "./friends.js";
@@ -5162,7 +5162,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     >
       <style>{CSS}</style>
       <style>{PIXEL_CSS}</style>
-      {designPreview && <AppHeader page={page} name={competitionName} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
+      {designPreview && <SectionNavigation page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
 
       <div className="qd-legacy-overlays">
       {celebration && (

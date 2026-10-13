@@ -3,10 +3,10 @@ export const NAV_GROUPS = [
   { id: 'plan', label: 'Plan', route: 'quests', pages: ['quests', 'anchors', 'goals'], tabs: [['quests', 'Quests'], ['anchors', 'Anchors'], ['goals', 'Goals']] },
   { id: 'focus', label: 'Focus', route: 'study', pages: ['study'], tabs: [] },
   { id: 'garden', label: 'Garden', route: 'farm', pages: ['farm', 'rewards', 'stats'], tabs: [['farm', 'My farm'], ['rewards', 'Rewards'], ['stats', 'Stats']] },
-  { id: 'community', label: 'Community', route: 'competition', pages: ['competition', 'friends'], tabs: [['competition', 'Leagues'], ['friends', 'Friends']] },
+  { id: 'you', icon: 'profile', label: 'You', route: 'profile', pages: ['profile', 'settings', 'competition', 'friends'], tabs: [['profile', 'Profile'], ['friends', 'Friends'], ['competition', 'Leagues']] },
 ];
 export function navigationGroup(page, visitingFarm = false) {
-  if (page === 'farm' && visitingFarm) return NAV_GROUPS.find(group => group.id === 'community');
+  if (page === 'farm' && visitingFarm) return NAV_GROUPS.find(group => group.id === 'you');
   return NAV_GROUPS.find(group => group.pages.includes(page));
 }
 export const SETTINGS_SECTIONS = {
