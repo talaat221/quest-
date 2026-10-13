@@ -1,0 +1,89 @@
+name: Build Quest iPhone IPA (AltStore)
+
+on:
+  push:
+    branches:
+      - feature/ios-altstore-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    name: Build unsigned Quest.ipa
+    runs-on: macos-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out Quest
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install Quest dependencies
+        run: npm ci
+
+      - name: Install Capacitor iOS build tools
+        run: npm install --no-save --package-lock=false @capacitor/core@8 @capacitor/ios@8 @capacitor/cli@8
+
+      - name: Compile Quest web assets for native app
+        run: npm run build
+
+      - name: Configure native iOS application
+        run: |
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "me.myquests.quest",
+            "appName": "Quest",
+            "webDir": "dist",
+            "ios": {
+              "contentInset": "automatic"
+            }
+          }
+          EOF
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Build iPhone app without a distribution certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          if [ -d ios/App/App.xcworkspace ]; then
+            XCODE_FILE=(-workspace ios/App/App.xcworkspace)
+          else
+            XCODE_FILE=(-project ios/App/App.xcodeproj)
+          fi
+          xcodebuild "${XCODE_FILE[@]}" \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/QuestBuild" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package AltStore-installable IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/QuestBuild/Build/Products/Release-iphoneos/App.app"
+          test -d "$APP_PATH"
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/Quest.app
+          ditto -c -k --sequesterRsrc --keepParent Payload Quest.ipa
+          unzip -l Quest.ipa | grep -F 'Payload/Quest.app/Info.plist'
+          ls -lh Quest.ipa
+
+      - name: Upload Quest IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quest-iPhone-IPA
+          path: Quest.ipa
+          retention-days: 7
+          if-no-files-found: error
