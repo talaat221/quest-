@@ -30,6 +30,7 @@ import { applyWeeklyPlan, weekOf } from "./weekly-planner.js";
 import CompetitionPage from "./CompetitionPage.jsx";
 import FarmPage from "./FarmPage.jsx";
 import useFarm from "./useFarm.js";
+import useStudyTogether from "./useStudyTogether.js";
 import { SectionNavigation, ProfilePage } from "./AppNavigation.jsx";
 import SettingsPage from "./SettingsPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
@@ -3413,6 +3414,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [state, setState] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
+  const studyTogether = useStudyTogether(session?.user?.id);
   const farmController = useFarm(session?.user?.id, loaded && state?.settings?.progression?.version >= 4, state);
   const [farmVisit, setFarmVisit] = useState(() => typeof window !== "undefined" && window.location.hash.startsWith("#farm/") ? window.location.hash.split("/")[1] || null : null);
   const [questProfile, setQuestProfile] = useState(null);
@@ -5368,7 +5370,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 </div>
             </div>
           ) : showStudyPage ? (
-            <StudyRoom domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
+            <StudyRoom studyTogether={studyTogether} domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
               onCreate={({ domainId, name, startNow, pomodoro }) => addTask(domainId, {
                 name, effort: "normal", day: todayStr, hour: null,
                 estimatedMinutes: getLearnedEstimate(state.domains.find(domain => domain.id === domainId), name) || 20, flexibility: "flexible",
@@ -5391,7 +5393,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
               onSave={saveReward} onDelete={removeReward} onClaim={openRewardChest}
               onThresholdChange={(kind, value) => setThresholdPct(kind === "daily" ? "dayThresholdPct" : "weekThresholdPct", value)} />
           ) : page === "profile" ? (
-            <ProfilePage name={competitionName} username={questProfile?.username} farm={farmController.farm} level={level} xp={lifetimeXP} streak={streak} readyRewards={readyRewards} />
+            <ProfilePage studyTogether={studyTogether} name={competitionName} username={questProfile?.username} farm={farmController.farm} level={level} xp={lifetimeXP} streak={streak} readyRewards={readyRewards} />
           ) : page === "settings" ? (
             <SettingsPage user={session.user} name={competitionName} username={questProfile?.username} resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} />
           ) : (
@@ -5747,7 +5749,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
       {showLevelDetails && <LevelDetails progression={progression} week={thisWeekLevel} onClose={() => setShowLevelDetails(false)} />}
-      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
+      {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation studyInvites={studyTogether.invites.length} page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
       <NotificationToasts notifications={notifications} />
     </div>
   );
