@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { StudyCharacter, CharacterPicker } from './StudyCharacter.jsx';
 import { NAV_GROUPS, navigationGroup, profileInitial } from './app-navigation.js';
 import { FarmBadge } from './FarmPage.jsx';
 import './app-navigation.css';
@@ -29,13 +31,13 @@ export function SectionNavigation({page, visitingFarm = false}) {
   </div>;
 }
 
-export function NavigationDock({page, visitingFarm = false}) {
+export function NavigationDock({page, visitingFarm = false, studyInvites = 0}) {
   const group = navigationGroup(page, visitingFarm);
   const activeIndex = NAV_GROUPS.findIndex(tab => tab.id === group?.id);
   return <div className="qd-bottom-dock qa-dock"><nav className="qd-bottom-navigation" aria-label="Main navigation" style={{'--qa-tab-index': Math.max(0, activeIndex), '--qa-tab-count': NAV_GROUPS.length}}>
     <svg className="qd-home-art" viewBox="10 263 1963 262" preserveAspectRatio="none" aria-hidden="true" focusable="false"><image href="/home-finish/navigation-v1.webp" width="1983" height="793"/></svg>
     <span className="qa-dock-selector-track" aria-hidden="true"><span className="qa-dock-selector" data-visible={activeIndex >= 0}/></span>
-    {NAV_GROUPS.map(tab=><a key={tab.id} href={`#${tab.route}`} aria-current={tab.id===group?.id?'page':undefined} className={tab.id===group?.id?'is-active':''}><span className="qa-dock-icon"><AppIcon kind={tab.icon || tab.id}/></span><span className="qa-dock-label">{tab.label}</span></a>)}
+    {NAV_GROUPS.map(tab=><a key={tab.id} href={`#${tab.route}`} aria-current={tab.id===group?.id?'page':undefined} className={tab.id===group?.id?'is-active':''}><span className="qa-dock-icon"><AppIcon kind={tab.icon || tab.id}/>{tab.id === 'focus' && studyInvites > 0 && <b className="qa-study-invite-count" aria-label={`${studyInvites} study invitations`}>{studyInvites}</b>}</span><span className="qa-dock-label">{tab.label}</span></a>)}
   </nav></div>;
 }
 
@@ -43,11 +45,13 @@ export function NavigationRow({href, icon, title, detail, badge}) {
   return <a href={href} className="qa-row"><span className="qa-row-icon"><AppIcon kind={icon}/></span><span className="qa-row-copy"><strong>{title}</strong>{detail&&<small>{detail}</small>}</span>{badge&&<span className="qa-row-badge">{badge}</span>}<span className="qa-chevron" aria-hidden="true">›</span></a>;
 }
 
-export function ProfilePage({name, username, farm, level, xp, streak, readyRewards}) {
+export function ProfilePage({name, username, farm, level, xp, streak, readyRewards, studyTogether}) {
+  const [characterOpen, setCharacterOpen] = useState(false);
   return <div className="qa-profile qa-page">
-    <header className="qa-profile-hero"><div className="qa-profile-landscape"/><span className="qa-profile-avatar" aria-hidden="true">{profileInitial(name)}</span><h1>{name}</h1>{username&&<p>@{username}</p>}<FarmBadge farm={farm}/><span className="qa-profile-level">LEVEL {level} · GROWING AT YOUR OWN PACE</span></header>
+    <header className="qa-profile-hero"><div className="qa-profile-landscape"/><span className={`qa-profile-avatar${studyTogether ? ' st-profile-avatar' : ''}`} aria-hidden="true">{studyTogether ? <StudyCharacter lookId={studyTogether.lookId}/> : profileInitial(name)}</span><h1>{name}</h1>{username&&<p>@{username}</p>}<FarmBadge farm={farm}/><span className="qa-profile-level">LEVEL {level} · GROWING AT YOUR OWN PACE</span></header>
     <dl className="qa-profile-stats"><div><dt>Total XP</dt><dd>{Number(xp||0).toLocaleString()}</dd></div><div><dt>Day streak</dt><dd>{streak}</dd></div><div><dt>Plants</dt><dd>{farm?.plants?.length || 0}</dd></div></dl>
-    <section className="qa-list-group qa-profile-account" aria-label="Your account"><h2>Make it yours</h2><NavigationRow href="#settings" icon="settings" title="Settings" detail="Account, notifications & daily rhythm"/></section>
+    <section className="qa-list-group qa-profile-account" aria-label="Your account"><h2>Make it yours</h2><NavigationRow href="#settings" icon="settings" title="Settings" detail="Account, notifications & daily rhythm"/>{studyTogether && <button type="button" className="qa-character-row" onClick={() => setCharacterOpen(true)}><span className="st-mini-avatar"><StudyCharacter lookId={studyTogether.lookId}/></span><span><strong>Your character</strong><small>Choose your look for the study room</small></span><span aria-hidden="true">›</span></button>}</section>
     <section className="qa-list-group" aria-label="Your progress"><h2>Your journey</h2><NavigationRow href="#stats" icon="stats" title="Progress & stats" detail="See how your small steps add up"/><NavigationRow href="#farm" icon="garden" title={farm?.name || 'My farm'} detail="Your growing collection"/><NavigationRow href="#rewards" icon="rewards" title="Rewards" detail="The treats you’re working toward" badge={readyRewards ? `${readyRewards} ready` : null}/></section>
+    {characterOpen && <CharacterPicker controller={studyTogether} onClose={() => setCharacterOpen(false)}/>}
   </div>;
 }

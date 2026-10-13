@@ -6,26 +6,12 @@ import { getPomodoro, normalizePomodoro, formatCountdown, pomodoroActionLabel, p
 import { elapsedTaskMs, isTaskWorking } from './task-timer.js';
 import { getStudySelection, getStudyTasks, studyTaskKey } from './study-room.js';
 import './study-room.css';
+import useStudyPresence from './useStudyPresence.js';
+import { SharedRoomArtwork, StudySocialBar, StudyCompanions } from './StudyTogether.jsx';
 
-const ART = '/study-room/';
 const LANDSCAPE_ROOM = '(orientation: landscape) and (min-width: 640px) and (max-height: 650px)';
 
-function RoomArtwork({ working, motion }) {
-  return <div className={`sr-art${working ? ' is-studying' : ' is-resting'}${motion ? ' has-motion' : ''}`} aria-hidden="true">
-    <img className="sr-background" src={`${ART}room-v2.webp`} alt="" fetchPriority="high" draggable="false" />
-    <span className="sr-lantern-light sr-lantern-window" />
-    <span className="sr-lantern-light sr-lantern-shelf" />
-    <span className="sr-window-firefly sr-firefly-one" /><span className="sr-window-firefly sr-firefly-two" /><span className="sr-window-firefly sr-firefly-three" />
-    <div className="sr-character sr-idle-character"><img src={`${ART}boy-idle-v2.webp`} alt="" draggable="false" /></div>
-    <div className="sr-character sr-working-character"><img src={`${ART}boy-studying-v2.webp`} alt="" draggable="false" /></div>
-    <img className="sr-desk" src={`${ART}desk-v2.webp`} alt="" draggable="false" />
-    <div className="sr-character sr-front-hands sr-resting-hand"><img src={`${ART}boy-studying-v2.webp`} alt="" draggable="false" /></div>
-    <div className="sr-character sr-front-hands sr-writing-hand"><img src={`${ART}boy-studying-v2.webp`} alt="" draggable="false" /></div>
-    <img className="sr-tea-steam" src={`${ART}steam-v1.webp`} alt="" draggable="false" />
-  </div>;
-}
-
-export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate, onConfigureTimer }) {
+export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate, onConfigureTimer, studyTogether }) {
   const id = useId(), pageRef = useRef(null), taskInput = useRef(null), immersiveButton = useRef(null), newTaskDialog = useRef(null);
   const [selectedKey, setSelectedKey] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
@@ -47,6 +33,15 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
   const hasTime = !!task && elapsedTaskMs(task) > 0;
   const selectedQuestId = domains.some(item => item.id === newQuestId) ? newQuestId : domain?.id || domains[0]?.id || '';
   const roomView = immersive || landscape;
+  const activity = pomodoro?.running && pomodoro.phase !== 'focus' ? 'break' : working ? 'studying' : 'idle';
+  useStudyPresence(studyTogether, task, activity);
+  const [roomNow, setRoomNow] = useState(Date.now);
+  useEffect(() => {
+    if (!studyTogether.room?.id) return;
+    const timer = setInterval(() => setRoomNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [studyTogether.room?.id]);
+  const sharedNow = roomNow + (studyTogether.clockOffset || 0);
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -95,10 +90,11 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
 
   return <section ref={pageRef} className={`sr-page${roomView ? ' is-room-view' : ''}${immersive ? ' is-immersive' : ''}${landscape ? ' is-landscape' : ''}${pomodoro ? ' is-pomodoro' : ''}`} aria-labelledby={`${id}-title`}>
     <header className="sr-page-header"><a href="#quests" className="sr-back">‹ Quests</a><div><span className="sr-eyebrow">INSIDE THE COTTAGE</span><h1 id={`${id}-title`}>Study with me</h1></div><button type="button" className="sr-room-mode" ref={immersiveButton} onClick={() => setImmersive(value => !value)} aria-pressed={immersive}>{immersive ? 'Exit room view' : 'Room view'}</button></header>
+    <StudySocialBar controller={studyTogether} taskName={task?.name}/>
     <div className="sr-workspace"><div className="sr-stage-wrap"><div className="sr-stage">
-      <RoomArtwork working={working} motion={motionEnabled && visible} />
+      <SharedRoomArtwork controller={studyTogether} working={working} activity={activity} motion={motionEnabled && visible} now={sharedNow} />
       <div className="sr-room-clock">
-        <p className="sr-room-status" role="status">{pomodoro ? pomodoroStatus(pomodoro) : working ? 'STUDYING TOGETHER' : hasTime ? 'TAKE A BREATH' : 'READY WHEN YOU ARE'}</p>
+        <p className="sr-room-status" role="status">{pomodoro ? pomodoroStatus(pomodoro) : working ? studyTogether.room ? 'STUDYING TOGETHER' : 'ONE SMALL STEP' : hasTime ? 'TAKE A BREATH' : 'READY WHEN YOU ARE'}</p>
         {pomodoro ? <time className="qt-elapsed" aria-label={`${pomodoro.phase === 'focus' ? 'Focus' : 'Break'} time remaining ${formatCountdown(pomodoro.remainingMs)}`}>{formatCountdown(pomodoro.remainingMs)}</time> : task ? <TaskClock task={task} /> : <time className="qt-elapsed" aria-label="Time spent 00:00">00:00</time>}
         <p className="sr-room-task" title={task?.name || ''}>{pomodoro || working || hasTime ? task.name : 'A little progress, a little peace.'}</p>
       </div>
@@ -115,6 +111,7 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
       <div className="sr-panel-footer"><button type="button" className="sr-add-task" aria-expanded={showNewTask} aria-controls={`${id}-new-task`} disabled={!domains.length || timerRunning} onClick={() => { setShowNewTask(value => !value); setError(''); }}>+ New task</button><p>{pomodoro ? pomodoro.remainingMs === 0 ? 'Round finished. Continue when ready.' : 'Only focus time counts toward your task.' : working ? 'Pause to choose another task.' : hasTime ? 'Paused. Your time is kept.' : 'Pick a task, then settle in.'}</p><label className="sr-motion"><input type="checkbox" aria-label="Gentle motion" checked={motionEnabled} onChange={event => setMotionEnabled(event.target.checked)} /><span><span className="sr-motion-detail">Gentle </span>motion</span></label></div>
       {!domains.length && <p className="sr-no-quests"><a href="#quests">Create your first quest</a> to add a study task.</p>}
     </div></div>
+    <StudyCompanions controller={studyTogether} now={sharedNow}/>
       {showNewTask && <dialog ref={newTaskDialog} className="sr-new-task-dialog" aria-labelledby={`${id}-new-title`} onCancel={event => { event.preventDefault(); setShowNewTask(false); }}>
       <form id={`${id}-new-task`} className="sr-new-task" onSubmit={createTask}>
         <h2 id={`${id}-new-title`}>One small task</h2>
