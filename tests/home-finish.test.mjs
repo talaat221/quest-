@@ -58,7 +58,9 @@ test('never calls a pending, offline or conflicting save synced', () => {
 });
 
 test('navigation supports reload/back, old URLs and unknown hashes', () => {
-  for (const page of ['home', 'quests', 'today-quests', 'anchors', 'stats', 'goals', 'study', 'more', 'rewards']) assert.equal(getHomePage(`#${page}`), page);
+  for (const page of ['home', 'quests', 'today-quests', 'anchors', 'stats', 'goals', 'study', 'profile', 'settings', 'rewards']) assert.equal(getHomePage(`#${page}`), page);
+  assert.equal(getHomePage('#more'), 'profile');
+  assert.equal(getHomePage('#settings/notifications'), 'settings');
   assert.equal(getHomePage('#voyage'), 'stats');
   assert.equal(getHomePage('#missing'), 'home');
   assert.equal(getHomePage(), 'home');

@@ -82,7 +82,7 @@ export default function RewardsPage({ rewards = {}, claimed = {}, periods, onSav
   const history = rewardHistory(claimed);
   const announceSave = (scope, text, index) => { onSave(scope, text, index); setAnnouncement(index === null ? 'Reward added.' : 'Reward updated.'); };
   return <div className="rw-page">
-    <header className="rw-page-header"><a href="#more">‹ More</a><div className="rw-title"><RewardChest /><div><p className="rw-eyebrow">THE REWARD NOOK</p><h1>Rewards</h1></div></div><p>A little joy for the effort you put in.</p></header>
+    <header className="rw-page-header"><a href="#farm">‹ My farm</a><div className="rw-title"><RewardChest /><div><p className="rw-eyebrow">THE REWARD NOOK</p><h1>Rewards</h1></div></div><p>A little joy for the effort you put in.</p></header>
     <div className="rw-periods" role="group" aria-label="Reward period">{['daily', 'weekly'].map(scope => <button type="button" key={scope} aria-pressed={scope === kind} onClick={() => { setKind(scope); setAnnouncement(''); }}>{scope === 'daily' ? 'Daily chest' : 'Weekly chest'}{rewardProgress({ ...periods[scope], items: rewards[scope] || [] }).canClaim && <span className="rw-ready-dot" aria-label="ready to claim" />}</button>)}</div>
     <RewardPeriod key={kind} kind={kind} data={periods[kind]} items={rewards[kind] || []} onClaim={onClaim} onAdd={scope => setEditor({ kind: scope })} onEdit={(scope, reward) => setEditor({ kind: scope, reward })} onDelete={(scope, index) => { onDelete(scope, index); setAnnouncement('Reward removed.'); }} onThresholdChange={onThresholdChange} />
     <p className="rw-announcement" role="status">{announcement}</p>
