@@ -1,3 +1,4 @@
+import { StudyCharacter } from './StudyCharacter.jsx';
 import { useEffect, useId, useRef, useState } from "react";
 import EffortXP from './EffortXP.jsx';
 import { recommendTaskXP, inferEffortForTask, anchorAwardXP } from './progression.js';
@@ -247,7 +248,7 @@ function AnchorRoutineCard({ item, dateStr, todayStr, days, adjustments, onToggl
   </article>;
 }
 
-function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false }) {
+function AnchorEditor({ guide, guideLook, anchor, onSave, onDelete, onClose, deleteIntent = false }) {
   const dialogRef = useRef(null);
   const deleteRef = useRef(null);
   const id = useId();
@@ -307,6 +308,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
           <p>Shape a routine that fits your day.</p></div>
         <button type="button" className="dap-icon-button" aria-label="Close anchor editor" onClick={onClose}><UiIcon kind="close" /></button>
       </header>
+      {guide && <div className="dap-guide-hint"><StudyCharacter lookId={guideLook}/><p>One tiny habit is enough. Choose a name, minutes and the days you’d like to repeat it.</p></div>}
       <div className="dap-editor-identity">
         <label className="dap-emoji-field" htmlFor={id + "-emoji"}>
           <span>Icon</span>
@@ -367,6 +369,7 @@ function AnchorEditor({ anchor, onSave, onDelete, onClose, deleteIntent = false 
 }
 
 export default function DailyAnchorsPage({
+  guide = false, guideLook = 0,
   anchors, todayStr, now, resetHour = 0, voyageAdjustments = {}, progression,
   onToggle, onAdd, onUpdate, onDelete, categoryColor,
 }) {
@@ -417,7 +420,7 @@ export default function DailyAnchorsPage({
       </section>
       <footer className="dap-quote"><PanelArt /><span aria-hidden="true">✦</span><p>Small steps. Steady roots.</p><span aria-hidden="true">🌱</span></footer>
     </div>
-    {editorVisible && <AnchorEditor key={editor.anchor?.id || "new"} anchor={editor.anchor}
+    {editorVisible && <AnchorEditor guide={guide} guideLook={guideLook} key={editor.anchor?.id || "new"} anchor={editor.anchor}
       deleteIntent={editor.deleteIntent} onClose={() => setEditor(null)} onDelete={onDelete}
       onSave={(changes) => {
         if (editor.anchor) onUpdate(editor.anchor.id, changes); else onAdd(changes);

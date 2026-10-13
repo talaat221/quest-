@@ -34,6 +34,9 @@ import useStudyTogether from "./useStudyTogether.js";
 import { SectionNavigation, ProfilePage } from "./AppNavigation.jsx";
 import SettingsPage from "./SettingsPage.jsx";
 import FriendsPage from "./FriendsPage.jsx";
+import FirstRunOnboarding from "./FirstRunOnboarding.jsx";
+import { QuestHistoryPanel, WeeklyCleanupModal } from "./TaskLifecycleUI.jsx";
+import { getCompletedTasks, getPastUnfinishedTasks, getTaskCompletionWeek, sortQuestTasksForCurrentWeek } from "./task-lifecycle.js";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
 import { PROGRESSION_VERSION, recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, upgradeProgression, recordAnchorAward, removeAnchorAward, anchorAwardXP, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
@@ -765,6 +768,23 @@ const DEFAULT_STATE = {
     weekThresholdPct: 70,
     dayResetHour: 0,
   },
+};
+
+const createFreshQuestState = () => {
+  const fresh = clone(DEFAULT_STATE);
+  fresh.domains = [];
+  fresh.anchors = [];
+  fresh.claimed = { daily: {}, weekly: {} };
+  fresh.voyageAdjustments = {};
+  fresh.settings = {
+    ...(fresh.settings || {}),
+    onboarding: {
+      version: 1,
+      completed: false,
+      startedAt: new Date().toISOString(),
+    },
+  };
+  return fresh;
 };
 
 // ======================================================
@@ -2047,10 +2067,11 @@ function QuestCard({
   onDeleteDomain,
   todayAdjustment,
   artLayout = false,
-  onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0,
+  onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0, guideTask = false,
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const addFormRef = useRef(null);
+  useEffect(() => { if (guideTask) setShowAdd(true); }, [guideTask]);
   useEffect(() => {
     if (showAdd && artLayout) addFormRef.current?.querySelector("input")?.focus();
   }, [showAdd, artLayout]);
@@ -2063,6 +2084,7 @@ function QuestCard({
   const [estimateTouched, setEstimateTouched] = useState(false);
   const [plannedWeek, setPlannedWeek] = useState(() => weekOf(todayStr));
   const [flexibility, setFlexibility] = useState("flexible");
+  const [showTaskErrors, setShowTaskErrors] = useState(false);
 
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -2075,18 +2097,41 @@ function QuestCard({
   const [editFlexibility, setEditFlexibility] = useState("flexible");
 
   const status = questStatus(domain, today);
+  const visibleTasks = sortQuestTasksForCurrentWeek(domain.tasks || [], weekOf(todayStr), resetHour);
   const learnedEstimate = getLearnedEstimate(domain, name);
   const learnedSamples = getTimingSampleCount(domain, name);
+  const taskNameMissing = !name.trim();
+  const taskEstimateValue = Number(estimatedMinutes || learnedEstimate);
+  const taskEstimateInvalid =
+    !Number.isFinite(taskEstimateValue) ||
+    taskEstimateValue < 1 ||
+    taskEstimateValue > 1440;
+  const taskTimeInvalid = !!day && !isTimeInputValid(hour);
+  const taskFormHasErrors = taskNameMissing || taskEstimateInvalid || taskTimeInvalid;
+
+  const focusFirstTaskError = () => {
+    window.requestAnimationFrame(() => {
+      const selector = taskNameMissing
+        ? 'input[aria-label="Task name"]'
+        : taskEstimateInvalid
+          ? 'input[aria-label="Estimated minutes"]'
+          : ".qt-time-field input";
+      addFormRef.current?.querySelector(selector)?.focus();
+    });
+  };
 
   const submitTask = () => {
-    if (!name.trim() || (day && !isTimeInputValid(hour))) return;
+    if (taskFormHasErrors) {
+      setShowTaskErrors(true);
+      focusFirstTaskError();
+      return;
+    }
 
     const learned = getLearnedEstimate(domain, name);
     const finalEstimate =
       estimatedMinutes === "" || estimatedMinutes === null
         ? learned
         : Math.max(1, Number(estimatedMinutes) || 1);
-    if (!Number.isFinite(Number(finalEstimate)) || Number(finalEstimate) < 1 || Number(finalEstimate) > 1440) return;
 
     onAddTask({
       name: name.trim(),
@@ -2104,6 +2149,7 @@ function QuestCard({
     setEstimatedMinutes("");
     setEstimateTouched(false);
     setFlexibility("flexible");
+    setShowTaskErrors(false);
     setShowAdd(false);
   };
 
@@ -2203,13 +2249,17 @@ function QuestCard({
 
       <QuestGoalsSummary domain={domain} onAdd={onAddGoal} onEdit={onEditGoal} resetHour={resetHour} />
       {artLayout && <div className="qd-rpg-task-heading">
-        <h3>Tasks ({domain.tasks.filter(task => task.done).length}/{domain.tasks.length})</h3>
-        <button type="button" className="qd-rpg-add-task" onClick={() => { playSFX("click"); setShowAdd(value => !value); }} aria-expanded={showAdd}>
+        <h3>Tasks ({visibleTasks.filter(task => task.done).length}/{visibleTasks.length})</h3>
+        <button type="button" className="qd-rpg-add-task" onClick={() => {
+          playSFX("click");
+          setShowTaskErrors(false);
+          setShowAdd(value => !value);
+        }} aria-expanded={showAdd}>
           {showAdd ? "Cancel" : "Add Task"}<QuestGlyph name="plus" />
         </button>
       </div>}
       <div className="qd-tasklist">
-        {domain.tasks.map((t) =>
+        {visibleTasks.map((t) =>
           editingTaskId === t.id ? (
             <div key={t.id} className="qd-task-edit-row">
               <input
@@ -2349,36 +2399,54 @@ function QuestCard({
           )
         )}
 
-        {domain.tasks.length === 0 && <div className="qd-dim">No tasks yet.</div>}
+        {visibleTasks.length === 0 && <div className="qd-dim">No active tasks this week.</div>}
       </div>
 
       {showAdd ? (
         <div className="qd-add-task" ref={addFormRef}>
-          <input
-            type="text"
-            placeholder="Task name"
-                aria-label="Task name"
-            value={name}
-            onChange={(e) => {
-              const nextName = e.target.value;
-              setName(nextName);
-              if (!estimateTouched) {
-                setEstimatedMinutes(
-                  getLearnedEstimate(domain, nextName) ?? ""
-                );
-              }
-            }}
-            onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
-          />
+          {showTaskErrors && taskFormHasErrors && (
+            <div className="qd-task-form-alert" role="alert" aria-live="assertive">
+              <span className="qd-task-error-light" aria-hidden="true">!</span>
+              <span>Complete the highlighted field{[taskNameMissing, taskEstimateInvalid, taskTimeInvalid].filter(Boolean).length > 1 ? "s" : ""} before adding this task.</span>
+            </div>
+          )}
 
-          <EffortXP
-            estimatedMinutes={estimatedMinutes}
-            onEstimatedMinutesChange={(value) => { setEstimatedMinutes(value); setEstimateTouched(true); }}
-            effort={effort}
-            onEffortChange={setEffort}
-            learnedEstimate={learnedEstimate}
-            learnedSamples={learnedSamples}
-          />
+          <div className={"qd-task-required-wrap qd-task-name-wrap" + (showTaskErrors && taskNameMissing ? " is-missing" : "")}>
+            <input
+              type="text"
+              placeholder="Task name"
+              aria-label="Task name"
+              aria-invalid={showTaskErrors && taskNameMissing ? "true" : undefined}
+              value={name}
+              onChange={(e) => {
+                const nextName = e.target.value;
+                setName(nextName);
+                if (!estimateTouched) {
+                  setEstimatedMinutes(
+                    getLearnedEstimate(domain, nextName) ?? ""
+                  );
+                }
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
+            />
+            {showTaskErrors && taskNameMissing && <small className="qd-task-field-error">Add a task name.</small>}
+          </div>
+
+          <div className={"qd-task-required-wrap qd-task-estimate-wrap" + (showTaskErrors && taskEstimateInvalid ? " is-missing" : "")}>
+            <EffortXP
+              estimatedMinutes={estimatedMinutes}
+              onEstimatedMinutesChange={(value) => { setEstimatedMinutes(value); setEstimateTouched(true); }}
+              effort={effort}
+              onEffortChange={setEffort}
+              learnedEstimate={learnedEstimate}
+              learnedSamples={learnedSamples}
+            />
+            {showTaskErrors && taskEstimateInvalid && (
+              <small className="qd-task-field-error">
+                {!estimatedMinutes && !learnedEstimate ? "Add an estimated time." : "Estimated time must be between 1 and 1440 minutes."}
+              </small>
+            )}
+          </div>
 
           <select
             aria-label="Task flexibility"
@@ -2393,19 +2461,22 @@ function QuestCard({
           {!day && <TaskWeekField value={plannedWeek} onChange={setPlannedWeek} todayStr={todayStr} />}
           <input type="date" aria-label="Task date" value={day} onChange={(e) => { setDay(e.target.value); if (!e.target.value) setHour(""); }} />
 
-          <TimeInput value={hour} onChange={setHour} disabled={!day} />
+          <div className={"qd-task-required-wrap qd-task-time-wrap" + (showTaskErrors && taskTimeInvalid ? " is-missing" : "")}>
+            <TimeInput value={hour} onChange={setHour} disabled={!day} required={!!day} />
+            {showTaskErrors && taskTimeInvalid && <small className="qd-task-field-error">Choose a valid time for this date.</small>}
+          </div>
 
           <button type="button" className="qd-today-btn" onClick={() => setDay(todayStr)}>
             Today
           </button>
-          <button type="button" onClick={submitTask} disabled={!Number(estimatedMinutes || learnedEstimate) || Number(estimatedMinutes || learnedEstimate) > 1440 || (!!day && !isTimeInputValid(hour))}>Add</button>
-          <button type="button" className="qd-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
+          <button type="button" onClick={submitTask}>Add</button>
+          <button type="button" className="qd-cancel" onClick={() => { setShowTaskErrors(false); setShowAdd(false); }}>Cancel</button>
         </div>
       ) : !artLayout && (
         <button
           type="button"
           className="qd-add-btn"
-          onClick={() => { playSFX("click"); setShowAdd(true); }}
+          onClick={() => { playSFX("click"); setShowTaskErrors(false); setShowAdd(true); }}
         >
           + Add task
         </button>
@@ -2509,9 +2580,10 @@ function QuestArtTaskRow({ task, todayStr, safeActive, onToggle, onStart, onPaus
 function QuestShellCard({
   domain, today, todayStr, onToggleTask, onAddTask, onUpdateTask,
   onDeleteTask, onTargetChange, onDeleteDomain, todayAdjustment,
-  onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0,
+  onStartTask, onPauseTask, onAddGoal, onEditGoal, resetHour = 0, guideTask = false,
 }) {
   const [expanded, setExpanded] = useState(false);
+  useEffect(() => { if (guideTask) setExpanded(true); }, [guideTask]);
   const [showQuestMenu, setShowQuestMenu] = useState(false);
   const cardRef = useRef(null);
   const questMenuRef = useRef(null);
@@ -2599,7 +2671,7 @@ function QuestShellCard({
       <div id={detailsId} className="qd-rpg-quest-details" hidden={!expanded}>
         <div className="qd-rpg-task-frame"><div className="qd-rpg-task-frame-art" aria-hidden="true" />
           <div className="qd-rpg-existing-quest-content">
-            <QuestCard artLayout domain={domain} today={today} todayStr={todayStr}
+            <QuestCard artLayout guideTask={guideTask} domain={domain} today={today} todayStr={todayStr}
               onToggleTask={onToggleTask} onAddTask={onAddTask} onUpdateTask={onUpdateTask}
               onDeleteTask={onDeleteTask} onTargetChange={onTargetChange}
               onDeleteDomain={onDeleteDomain} todayAdjustment={todayAdjustment}
@@ -3384,7 +3456,7 @@ function QuestFilterBar({
       <button
         type="button"
         className="qd-quest-filter-hit qd-quest-filter-hit-completed"
-        aria-label="Show completed quests"
+        aria-label="Show tasks completed this week"
         aria-pressed={activeFilter === "completed"}
         onClick={() => onFilterChange("completed")}
       />
@@ -3392,7 +3464,7 @@ function QuestFilterBar({
       <button
         type="button"
         className="qd-quest-filter-hit qd-quest-filter-hit-archived"
-        aria-label="Show archived quests"
+        aria-label="Show completed tasks from previous weeks"
         aria-pressed={activeFilter === "archived"}
         onClick={() => onFilterChange("archived")}
       />
@@ -3425,6 +3497,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const [showAddDomain, setShowAddDomain] = useState(false);
   const [questFilter, setQuestFilter] = useState("all");
+  const [weeklyCleanupSnoozedWeek, setWeeklyCleanupSnoozedWeek] = useState(null);
   const [newDomainName, setNewDomainName] = useState("");
   const [newDomainEmoji, setNewDomainEmoji] = useState("⭐");
   const [newDomainTarget, setNewDomainTarget] = useState(5);
@@ -3432,6 +3505,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [goalEditor, setGoalEditor] = useState(null);
 
   const [showAddAnchor, setShowAddAnchor] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const [clockNow, setClockNow] = useState(new Date());
 
@@ -3486,7 +3560,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     setViewOffset(0);
     setCelebrationQueue([]); setCelebration(null);
     setCompletionSummary(null); setShowVoyageAdjustment(false);
-    setShowAddDomain(false); setShowAddAnchor(false); setQuestFilter("all");
+    setShowAddDomain(false); setShowAddAnchor(false); setQuestFilter("all"); setWeeklyCleanupSnoozedWeek(null);
     setNewDomainName(""); setNewDomainEmoji("⭐"); setNewDomainTarget(5);
   }), [session?.user?.id]);
 
@@ -3628,7 +3702,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       } else if (data) {
         setState(data.data);
       } else {
-        const initialState = clone(DEFAULT_STATE);
+        const initialState = createFreshQuestState();
 
         setState(initialState);
 
@@ -3756,6 +3830,8 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const wDates = weekDates(questDateObject);
   const weekKeyStr = wDates[0];
+  const taskCleanupWeek = state?.settings?.taskLifecycle?.cleanupWeek || null;
+  const pastUnfinishedTasks = state ? getPastUnfinishedTasks(state.domains || [], weekKeyStr) : [];
 
   const viewDate = addDays(
     today,
@@ -3845,6 +3921,29 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     const award = state?.settings?.progression?.taskAwards?.[`${task.domainId}:${task.id}`];
     return award ? Math.max(0, Number(award.creditedXp) || 0) : Math.max(0, Number(task.xp) || 0);
   };
+
+  const allCompletedTasks = state
+    ? getCompletedTasks(state.domains || []).map((task) => ({
+        ...task,
+        creditedXP: creditedTaskXP(task),
+      }))
+    : [];
+
+  const completedThisWeek = allCompletedTasks.filter(
+    (task) => getTaskCompletionWeek(task, resetHour) === weekKeyStr
+  );
+
+  const archivedCompletedTasks = allCompletedTasks.filter(
+    (task) => getTaskCompletionWeek(task, resetHour) !== weekKeyStr
+  );
+
+  const displayedQuestDomains = state
+    ? state.domains.filter((domain) =>
+        questFilter === "active"
+          ? (domain.tasks || []).some((task) => !task.done)
+          : true
+      )
+    : [];
 
   const dayTaskXP = (ds) =>
     allTasks().reduce(
@@ -4205,6 +4304,57 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     celebrationQueue,
   ]);
 
+  // Initialize task cleanup without surprising existing users. Once initialized,
+  // a new week with unfinished older work opens the cleanup review.
+  useEffect(() => {
+    if (!loaded || !state || !session?.user?.id) return;
+
+    if (!taskCleanupWeek) {
+      setState((previous) => {
+        if (!previous || previous.settings?.taskLifecycle?.cleanupWeek) return previous;
+        const next = clone(previous);
+        next.settings ||= {};
+        next.settings.taskLifecycle = {
+          ...(next.settings.taskLifecycle || {}),
+          cleanupWeek: weekKeyStr,
+        };
+        return next;
+      });
+      return;
+    }
+
+    if (taskCleanupWeek !== weekKeyStr && pastUnfinishedTasks.length === 0) {
+      setState((previous) => {
+        if (!previous || previous.settings?.taskLifecycle?.cleanupWeek === weekKeyStr) return previous;
+        const next = clone(previous);
+        next.settings ||= {};
+        next.settings.taskLifecycle = {
+          ...(next.settings.taskLifecycle || {}),
+          cleanupWeek: weekKeyStr,
+        };
+        return next;
+      });
+      setWeeklyCleanupSnoozedWeek(null);
+    }
+  }, [loaded, state, session?.user?.id, taskCleanupWeek, weekKeyStr, pastUnfinishedTasks.length]);
+
+  const finishFirstRun = useCallback(({ skipped = false } = {}) => {
+    setState(previous => ({ ...previous, settings: { ...previous.settings, onboarding: {
+      version: 2, completed: true, active: false, skipped,
+      completedAt: new Date().toISOString(),
+    } } }));
+    setShowGuide(false);
+  }, []);
+  const advanceGuide = useCallback(step => {
+    setState(previous => ({ ...previous, settings: { ...previous.settings, onboarding: {
+      ...previous.settings?.onboarding, version: 2, completed: false, active: true, step,
+    } } }));
+  }, []);
+  const isFreshQuestAccount = !!state && !state.settings?.onboarding?.completed &&
+    ((state.domains?.length || 0) === 0 && (state.anchors?.length || 0) === 0 || state.settings?.onboarding?.active);
+  const guideVisible = showGuide || isFreshQuestAccount;
+  const guideTask = guideVisible && state?.settings?.onboarding?.step === 'task';
+
   // ====================================================
   // SAFE RETURNS
   // ====================================================
@@ -4239,6 +4389,55 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       return next;
     });
   }
+
+  const carryOldTaskIntoThisWeek = (domainId, taskId) => {
+    updateState((next) => {
+      const task = next.domains
+        .find((domain) => domain.id === domainId)
+        ?.tasks.find((item) => item.id === taskId);
+      if (!task || task.done) return;
+      task.plannedWeek = weekKeyStr;
+      task.day = null;
+      task.hour = null;
+    });
+    playSFX("click");
+  };
+
+  const removeOldUnfinishedTask = (domainId, taskId) => {
+    updateState((next) => {
+      const domain = next.domains.find((item) => item.id === domainId);
+      if (!domain) return;
+      domain.tasks = (domain.tasks || []).filter((task) => task.done || task.id !== taskId);
+    });
+    playSFX("delete");
+  };
+
+  const carryAllOldTasksIntoThisWeek = () => {
+    const keys = new Set(pastUnfinishedTasks.map((task) => `${task.domainId}:${task.id}`));
+    updateState((next) => {
+      for (const domain of next.domains || []) {
+        for (const task of domain.tasks || []) {
+          if (!keys.has(`${domain.id}:${task.id}`) || task.done) continue;
+          task.plannedWeek = weekKeyStr;
+          task.day = null;
+          task.hour = null;
+        }
+      }
+    });
+    playSFX("click");
+  };
+
+  const removeAllOldUnfinishedTasks = () => {
+    const keys = new Set(pastUnfinishedTasks.map((task) => `${task.domainId}:${task.id}`));
+    updateState((next) => {
+      for (const domain of next.domains || []) {
+        domain.tasks = (domain.tasks || []).filter(
+          (task) => task.done || !keys.has(`${domain.id}:${task.id}`)
+        );
+      }
+    });
+    playSFX("delete");
+  };
 
   // ====================================================
   // ANCHORS
@@ -5112,7 +5311,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
             </div>
 
             <div className="qd-quest-grid">
-              {state.domains.map((domain) => (
+              {displayedQuestDomains.map((domain) => (
                 <QuestCard
                   key={domain.id}
                   domain={{ ...domain, tasks: domain.tasks.map(task => ({ ...task, creditedXP: task.done ? creditedTaskXP({ ...task, domainId: domain.id }) : task.xp })) }}
@@ -5167,6 +5366,19 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       {designPreview && <SectionNavigation page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
 
       <div className="qd-legacy-overlays">
+      {taskCleanupWeek &&
+        taskCleanupWeek !== weekKeyStr &&
+        pastUnfinishedTasks.length > 0 &&
+        weeklyCleanupSnoozedWeek !== weekKeyStr && (
+          <WeeklyCleanupModal
+            tasks={pastUnfinishedTasks}
+            onCarry={carryOldTaskIntoThisWeek}
+            onRemove={removeOldUnfinishedTask}
+            onCarryAll={carryAllOldTasksIntoThisWeek}
+            onRemoveAll={removeAllOldUnfinishedTasks}
+            onLater={() => setWeeklyCleanupSnoozedWeek(weekKeyStr)}
+          />
+      )}
       {celebration && (
         <CelebrationModal
           kind={celebration}
@@ -5239,7 +5451,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
         <main className={"qd-main" + (anchorPageVisible ? " qd-main-anchors" : showTodayQuestsPage ? " qd-main-today-quests" : showStatsPage ? " qd-main-stats" : showGoalsPage ? " qd-main-goals" : showRewardsPage ? " qd-main-rewards" : showStudyPage ? " qd-main-study" : showFarmPage ? " qd-main-page qd-main-farm" : previewSubPage ? ` qd-main-page qd-main-${page}` : " qd-main-home")} id={anchorPageVisible ? "anchors" : showTodayQuestsPage ? "today-quests" : showStatsPage ? "stats" : showGoalsPage ? "goals" : showRewardsPage ? "rewards" : showStudyPage ? "study" : showFarmPage ? "farm" : previewSubPage ? page : "home"}>
           {anchorPageVisible ? (
-            <DailyAnchorsPage progression={progressionState}
+            <DailyAnchorsPage guide={guideVisible && state.settings?.onboarding?.step === "anchor"} guideLook={studyTogether.lookId} progression={progressionState}
               anchors={state.anchors}
               todayStr={todayStr}
               now={clockNow}
@@ -5281,6 +5493,28 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   }}
 />
 
+{questFilter === "completed" ? (
+  <QuestHistoryPanel
+    tasks={completedThisWeek}
+    resetHour={resetHour}
+    kicker="THIS WEEK"
+    title="Completed"
+    description="Everything you finished during the current week. On Monday, these move into Archive."
+    emptyTitle="Nothing completed this week yet."
+    emptyDescription="Finish a task and it will appear here."
+  />
+) : questFilter === "archived" ? (
+  <QuestHistoryPanel
+    tasks={archivedCompletedTasks}
+    resetHour={resetHour}
+    kicker="PAST WEEKS"
+    title="Archive"
+    description="Your completed tasks from previous weeks, kept as a permanent record of progress."
+    emptyTitle="Your Archive is empty."
+    emptyDescription="Completed tasks move here automatically when a new week begins."
+  />
+) : (
+<>
 <WeeklyPlanner state={state} todayStr={todayStr} onApply={plan => {
   const planned = applyWeeklyPlan(state, plan);
   setState(previous => previous === state ? planned : applyWeeklyPlan(previous, plan));
@@ -5339,9 +5573,10 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 )}
               <div className="qd-quest-redesign-canvas">
   <div className="qd-redesign-quest-list">
-    {state.domains.map((domain) => (
+    {displayedQuestDomains.map((domain) => (
       <QuestShellCard
         key={domain.id}
+        guideTask={guideTask && domain.id === state.domains[0]?.id}
         domain={{ ...domain, tasks: domain.tasks.map(task => ({ ...task, creditedXP: task.done ? creditedTaskXP({ ...task, domainId: domain.id }) : task.xp })) }}
         today={today}
         todayStr={todayStr}
@@ -5366,8 +5601,15 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         todayAdjustment={todayAdjustment}
       />
     ))}
+    {displayedQuestDomains.length === 0 && (
+      <div className="qd-dim" style={{ padding: "28px 12px", textAlign: "center" }}>
+        No active quests right now.
+      </div>
+    )}
   </div>
 </div>
+</>
+)}
             </div>
           ) : showStudyPage ? (
             <StudyRoom studyTogether={studyTogether} domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
@@ -5395,7 +5637,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           ) : page === "profile" ? (
             <ProfilePage studyTogether={studyTogether} name={competitionName} username={questProfile?.username} farm={farmController.farm} level={level} xp={lifetimeXP} streak={streak} readyRewards={readyRewards} />
           ) : page === "settings" ? (
-            <SettingsPage user={session.user} name={competitionName} username={questProfile?.username} resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} />
+            <SettingsPage user={session.user} name={competitionName} username={questProfile?.username} resetHour={resetHour} onResetHour={setResetHour} onResetAccount={restartAccount} notifications={notifications} onOpenGuide={() => setShowGuide(true)} />
           ) : (
           <>
           <header className="qd-scene">
@@ -5751,6 +5993,9 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       {showLevelDetails && <LevelDetails progression={progression} week={thisWeekLevel} onClose={() => setShowLevelDetails(false)} />}
       {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation studyInvites={studyTogether.invites.length} page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
       <NotificationToasts notifications={notifications} />
+      {guideVisible && <FirstRunOnboarding key={session.user.id} state={state} lookId={studyTogether.lookId}
+        replay={showGuide && !isFreshQuestAccount} onFinish={finishFirstRun} onAdvance={advanceGuide}
+        onNewQuest={() => { setQuestFilter("all"); setShowAddDomain(true); window.location.hash = "quests"; }} /> }
     </div>
   );
 }

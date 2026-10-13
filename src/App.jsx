@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import QuestDashboard from './quest-dashboard';
 import './design-preview.css';
+import './desktop-layout.css';
 import {
   flushQuestSync,
   getQuestSyncSnapshot,

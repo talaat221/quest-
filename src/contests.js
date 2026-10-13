@@ -6,7 +6,13 @@ export const friendLimit = mode => mode === 'league' ? MAX_LEAGUE_PEOPLE - 1 : M
 
 async function call(name, args) {
   const { data, error } = await supabase.rpc(name, args);
-  if (error) throw new Error(error.message || 'Competition could not connect. Try again.');
+  if (error) {
+    const message = String(error.message || '');
+    if (message.includes('QUEST_RATE_LIMIT:social_invite_')) {
+      throw new Error('You’ve sent a lot of competition invitations. Wait a little before inviting more people.');
+    }
+    throw new Error(message || 'Competition could not connect. Try again.');
+  }
   return data;
 }
 export async function loadContests() {

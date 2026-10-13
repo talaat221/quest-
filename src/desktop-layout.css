@@ -1,0 +1,88 @@
+@font-face{font-family:'VT323';src:url('/anchors-page/vt323.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Press Start 2P';src:url('/anchors-page/press-start-2p.woff2') format('woff2');font-display:swap}
+/* The same pixel artwork at an intentional desk-sized scale. Phone and
+   short landscape study views keep their existing layouts. */
+@media (min-width: 1100px) and (min-height: 651px) {
+  .qd-design-preview .qd-root.qd-organized {
+    padding: 24px 28px 70px 210px !important;
+    box-sizing: border-box;
+  }
+  .qd-design-preview .qd-root.qd-organized .qd-shell {
+    display: block; width: 100% !important; max-width: 1120px !important;
+    padding: 0 !important; margin: 0 auto !important; background: transparent;
+  }
+  .qd-design-preview .qd-root.qd-organized .qd-main {
+    width: 100% !important; max-width: 1120px !important;
+    margin: 0 auto !important; padding: 0 !important; min-height: 0;
+  }
+  .qd-root.qd-organized .qa-shell-header { max-width: 960px; padding: 0 0 20px; }
+  .qd-root.qd-organized .qa-section-tabs { justify-content: flex-start; padding: 0; }
+  .qd-root.qd-organized .qa-section-tabs a { flex: 0 1 160px; font-size: 20px; }
+  .qd-root.qd-organized .qa-dock {
+    inset: 24px auto auto 22px; width: 158px; padding: 0; background: none;
+  }
+  .qd-root.qd-organized .qa-dock .qd-bottom-navigation {
+    display: flex; flex-direction: column; width: 100%; height: auto;
+    padding: 14px 8px; border: 9px solid transparent;
+    border-image: url('/anchors-page/panel-blue.webp') 60 fill / 9px;
+  }
+  .qa-dock .qd-bottom-navigation::before {
+    content: 'QUEST'; color: #dfd5a0; font: 24px/1.4 'VT323', monospace;
+    letter-spacing: .16em; padding: 8px 0 20px; text-align: center;
+  }
+  .qa-dock .qd-bottom-navigation > .qd-home-art, .qa-dock-selector-track { display: none; }
+  .qd-root.qd-organized .qa-dock .qd-bottom-navigation a {
+    flex-direction: row; justify-content: flex-start; gap: 12px;
+    padding: 16px 13px; min-height: 58px; border-left: 2px solid transparent;
+    transition: background 180ms, border-color 180ms, color 180ms;
+  }
+  .qd-root.qd-organized .qa-dock .qd-bottom-navigation a.is-active { background: #87b57a1b; border-left-color: #c5da93; }
+  .qd-root.qd-organized .qa-dock .qa-dock-label { font-size: 20px; }
+  .qd-root.qd-organized .qd-main-home { display: grid; grid-template-columns: minmax(330px, .96fr) minmax(390px, 1.04fr); gap: 22px !important; align-items: start; }
+  .qd-root.qd-organized .qd-main-home > .qd-scene {
+    position: sticky; top: 24px; width: 100%; min-height: 0; height: auto; aspect-ratio: 960 / 804;
+    margin: 0; border: 0; outline: 0; box-shadow: none; background: #041e40; container-type: inline-size;
+  }
+  .qd-root.qd-organized .qd-scene .qd-garden-scene { display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .qd-root.qd-organized .qd-scene::after { box-shadow: none; background: linear-gradient(transparent 88%, #0a2833); }
+  .qd-root.qd-organized .qd-scene .qd-topbar { position: absolute; inset: 0; display: block; margin: 0; padding: 0; }
+  .qd-root.qd-organized .qd-scene-copy { position: absolute; z-index: 3; left: 7%; top: 9%; width: 44%; padding: 0; background: none; }
+  .qd-root.qd-organized .qd-scene .qd-greeting-kicker { font-size: 2cqw; line-height: 1.5; }
+  .qd-root.qd-organized .qd-scene .qd-greeting { font-size: 5cqw; margin-top: 4px; line-height: 1.3; }
+  .qd-root.qd-organized .qd-scene .qd-greeting span { font-size: 3.5cqw; }
+  .qd-root.qd-organized .qd-scene .qd-greeting-sub { font-size: 3.9cqw; line-height: 1; max-width: 80%; margin-top: 5px; }
+  .qd-root.qd-organized .qd-scene .qd-topmeta { position: absolute; z-index: 3; right: 3%; top: 9%; width: 30%; }
+  .qd-root.qd-organized .qd-scene .qd-meta-pill { width: 100%; padding: 9px 5px; font-size: 1.6cqw; min-width: 0; }
+  .qd-root.qd-organized .qd-scene .qd-journey-day { font-size: 3.5cqw; }
+  .qd-root.qd-organized .qd-scene .qd-level-card { left: 7%; right: 7%; bottom: 2%; height: auto; aspect-ratio: 1043/126; padding: 3% 4%; grid-template-columns: 44px minmax(0,1fr) 88px; gap: 9px; background: url('/xp-frame-mobile.png') center / 100% 100% no-repeat; border: 0; box-shadow: none; }
+  .qd-root.qd-organized .qd-scene .qd-level-card::before { display: none; }
+  .qd-root.qd-organized .qd-scene .qd-level-badge { height: 24px; padding: 0; display: grid; place-items: center; font-size: 8px; line-height: 1; }
+  .qd-root.qd-organized .qd-scene .qd-level-track { height: 13px; }
+  .qd-root.qd-organized .qd-scene .qd-level-value { font-size: 8px; white-space: nowrap; padding: 0; }
+  .qd-root.qd-organized .qd-design-canvas { padding-top: 0; }
+  .qd-root.qd-organized .qd-home-lower-grid { margin-top: 14px; }
+  .qd-root.qd-organized .qd-main-quests .qd-quest-redesign-page { max-width: 820px; margin: auto; min-height: 0; }
+  .qd-root.qd-organized.qd-quests-active .qd-quest-image-hero { max-width: 570px; margin: 0 auto; }
+  .qd-root.qd-organized.qd-quests-active .qd-quest-live-date { font-size: 10px; }
+  .qd-root.qd-organized.qd-quests-active .qd-quest-summary-art { margin-top: -112px; }
+  .qd-root.qd-organized.qd-quests-active .qd-quest-redesign-canvas { min-height: 0; }
+  .qd-root.qd-organized .dap-hero { max-width: 580px; margin: auto; }
+  .qd-root.qd-organized .dap-body { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0,1.05fr); gap: 18px; width: 100%; max-width: 1000px; align-items: start; }
+  .dap-body > .dap-clock { position: sticky; top: 24px; }
+  .dap-body > .dap-quote, .dap-body > .dap-harbor-note { grid-column: 1 / -1; }
+  .qd-root.qd-organized .dap-clock-face { max-width: 360px; }
+  .qd-root.qd-organized .dap-page { font-size: 20px; }
+  .qd-root.qd-organized .dap-routine-name h3 { font-size: 22px; }
+  .qd-root.qd-organized .qsp-page { max-width: 960px; margin: auto; font-size: 21px; }
+  .qsp-page .qsp-hero { min-height: 0; height: 220px; aspect-ratio: auto; }
+  .qsp-page .qsp-summary { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .qsp-page .qsp-stat { padding: 14px 12px; gap: 9px; min-height: 96px; }
+  .qsp-page .qsp-stat .qsp-sprite { width: 38px; height: 44px; }
+  .qsp-page .qsp-stat dt { font-size: 21px; }.qsp-page .qsp-stat dd { font-size: 30px; }.qsp-page .qsp-stat small { font-size: 16px; }
+  .qd-root.qd-organized .sr-page:not(.is-room-view) { max-width: 1120px; margin: auto; }
+  .qd-root.qd-organized .sr-page:not(.is-room-view) .sr-workspace { padding-inline: 12px; grid-template-columns: minmax(0,1fr) 265px; gap: 14px; }
+  .qd-root.qd-organized .qa-profile, .qd-root.qd-organized .qa-settings { max-width: 650px; }
+  .qd-root.qd-organized .gg-page, .qd-root.qd-organized .rw-page, .qd-root.qd-organized .cg-page { max-width: 960px; margin-inline: auto; }
+  .qd-root.qd-organized .qt-focus-bar { left: 210px; bottom: 14px; max-width: 700px; margin: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .qd-root.qd-organized .qa-dock .qd-bottom-navigation a { transition: none; } }

@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { playLoginError, playLoginSuccess, playLoginTap } from "./loginSfx";
+import { isValidFriendUsername, normalizeFriendUsername } from "./friends-core.js";
 import "./Login.css";
 import "./LoginRecovery.css";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const recoveryRedirectUrl = () => {
-  const url = new URL(window.location.href);
-  url.search = "";
-  url.hash = "";
-  url.searchParams.set("mode", "recovery");
-  return url.toString();
-};
+const recoveryRedirectUrl = () => `${window.location.origin}/reset-password`;
 
 const isEmailRateLimitError = (error) =>
   /email rate limit exceeded|rate limit.*email|email.*rate limit/i.test(error?.message || "");
@@ -28,6 +23,11 @@ const friendlyAuthError = (error) => {
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState("idle");
+  const [crossBorderConsent, setCrossBorderConsent] = useState(false);
+  const [age18Confirmed, setAge18Confirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -81,6 +81,48 @@ export default function Login({ onLogin }) {
     return () => window.clearInterval(timer);
   }, [resetCooldown]);
 
+  useEffect(() => {
+    if (!isSignUp) {
+      setUsernameStatus("idle");
+      return undefined;
+    }
+
+    const cleanUsername = normalizeFriendUsername(username);
+    if (!cleanUsername) {
+      setUsernameStatus("idle");
+      return undefined;
+    }
+    if (!isValidFriendUsername(cleanUsername)) {
+      setUsernameStatus("invalid");
+      return undefined;
+    }
+
+    let cancelled = false;
+    setUsernameStatus("checking");
+    const timer = window.setTimeout(() => {
+      void supabase
+        .rpc("is_quest_username_available", { username_input: cleanUsername })
+        .then(({ data, error }) => {
+          if (cancelled) return;
+          if (error) {
+            console.warn("Username availability check failed:", error);
+            setUsernameStatus(
+              String(error?.message || "").includes("QUEST_RATE_LIMIT:username_check_")
+                ? "limited"
+                : "idle"
+            );
+            return;
+          }
+          setUsernameStatus(data ? "available" : "taken");
+        });
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isSignUp, username]);
+
   const showError = async (text) => {
     setMessageKind("error");
     setMessage(text);
@@ -133,8 +175,66 @@ export default function Login({ onLogin }) {
         return;
       }
 
+      const cleanUsername = normalizeFriendUsername(username);
+
+      if (isSignUp) {
+        if (!age18Confirmed) {
+          await showError("Quest is currently for people aged 18 or older. Please confirm your age to create an account.");
+          return;
+        }
+
+        if (!termsAccepted) {
+          await showError("Please agree to the Quest Terms of Service to create your account.");
+          return;
+        }
+
+        if (!crossBorderConsent) {
+          await showError("Please confirm the international data transfer consent to create your Quest account.");
+          return;
+        }
+
+        if (!isValidFriendUsername(cleanUsername)) {
+          await showError("Username must be 3–20 characters using letters, numbers, or _.");
+          return;
+        }
+
+        const { data: available, error: usernameError } = await supabase
+          .rpc("is_quest_username_available", { username_input: cleanUsername });
+
+        if (usernameError) {
+          const usernameMessage = String(usernameError?.message || "");
+          await showError(
+            usernameMessage.includes("QUEST_RATE_LIMIT:username_check_")
+              ? "Too many username checks from this connection. Wait a minute and try again."
+              : "Quest could not check that username. Please try again."
+          );
+          return;
+        }
+        if (!available) {
+          setUsernameStatus("taken");
+          await showError("That username is already taken.");
+          return;
+        }
+      }
+
       const result = isSignUp
-        ? await supabase.auth.signUp({ email: email.trim(), password })
+        ? await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              data: {
+                username: cleanUsername,
+                display_name: cleanUsername,
+                age_18_confirmed: true,
+                age_18_confirmed_at: new Date().toISOString(),
+                terms_version: "2026-10-06",
+                terms_accepted_at: new Date().toISOString(),
+                cross_border_transfer_consent: true,
+                cross_border_transfer_consent_at: new Date().toISOString(),
+                privacy_notice_version: "2026-10-06",
+              },
+            },
+          })
         : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
       if (result.error) {
@@ -146,7 +246,7 @@ export default function Login({ onLogin }) {
         onLogin(result.data.session);
       } else if (isSignUp) {
         setMessageKind("info");
-        setMessage("Your little farm is ready. Check your email to confirm your account.");
+        setMessage(`Your little farm is ready as @${cleanUsername}. Check your email to confirm your account.`);
       }
     } catch (err) {
       await showError(friendlyAuthError(err));
@@ -160,6 +260,9 @@ export default function Login({ onLogin }) {
     setIsSignUp((value) => !value);
     setIsResetRequest(false);
     setPassword("");
+    setCrossBorderConsent(false);
+    setAge18Confirmed(false);
+    setTermsAccepted(false);
     setMessage("");
     setFeedback("");
   }
@@ -235,6 +338,41 @@ export default function Login({ onLogin }) {
             </div>
           </label>
 
+          {isSignUp && !isResetRequest && (
+            <label className="login-field">
+              <span>Username</span>
+              <div className="login-input-shell">
+                <span className="login-input-icon" aria-hidden="true">@</span>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  placeholder="your_username"
+                  value={username}
+                  onChange={(e) => setUsername(normalizeFriendUsername(e.target.value))}
+                  minLength={3}
+                  maxLength={20}
+                  required
+                />
+              </div>
+              {usernameStatus !== "idle" && (
+                <small className={`login-username-status is-${usernameStatus}`}>
+                  {usernameStatus === "checking"
+                    ? "Checking username…"
+                    : usernameStatus === "available"
+                      ? "Username available ✓"
+                      : usernameStatus === "taken"
+                        ? "That username is already taken."
+                        : usernameStatus === "limited"
+                          ? "Too many checks. Wait a minute and try again."
+                          : "Use 3–20 letters, numbers, or _."}
+                </small>
+              )}
+            </label>
+          )}
+
           {!isResetRequest && (
             <label className="login-field">
               <span className="login-field-heading">
@@ -301,6 +439,58 @@ export default function Login({ onLogin }) {
             <button className="login-secondary" type="button" onClick={toggleMode}>
               {isSignUp ? "Already have a farm? Log in" : "New here? Start your farm"}
             </button>
+          )}
+
+          {isSignUp && !isResetRequest && (
+            <>
+              <label className="login-consent">
+                <input
+                  type="checkbox"
+                  checked={age18Confirmed}
+                  onChange={(e) => setAge18Confirmed(e.target.checked)}
+                  required
+                />
+                <span>
+                  I confirm that I am 18 years old or older.
+                </span>
+              </label>
+              <label className="login-consent">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  required
+                />
+                <span>
+                  I agree to the{" "}
+                  <a href="/terms?lang=en" target="_blank" rel="noreferrer">Quest Terms of Service</a>.
+                </span>
+              </label>
+              <label className="login-consent">
+                <input
+                  type="checkbox"
+                  checked={crossBorderConsent}
+                  onChange={(e) => setCrossBorderConsent(e.target.checked)}
+                  required
+                />
+                <span>
+                  I consent to Quest transferring and processing my personal data outside Egypt,
+                  including in Ireland and the United States, as described in the{" "}
+                  <a href="/privacy?lang=en" target="_blank" rel="noreferrer">Privacy Notice</a>.
+                </span>
+              </label>
+              <p className="login-legal">
+                By creating an account, you also acknowledge that you have read the{" "}
+                <a href="/privacy?lang=en" target="_blank" rel="noreferrer">Privacy Notice</a>.
+              </p>
+            </>
+          )}
+          {!isSignUp && !isResetRequest && (
+            <p className="login-legal login-legal--single">
+              <a href="/privacy?lang=en">Privacy Notice</a>
+              {" · "}
+              <a href="/terms?lang=en">Terms of Service</a>
+            </p>
           )}
         </form>
 

@@ -54,7 +54,8 @@ test('finishing saves exact time, learns once in the correct quest and undo remo
   const domain=makeDomain(); startTaskTimer([domain],'film','edit',start);
   const result=completeTimedTask(domain,domain.tasks[0],start+125000);
   assert.equal(result.elapsedMs,125000); assert.equal(domain.tasks[0].actualMinutes,2);
-  assert.equal(isTaskWorking(domain.tasks[0]),false); assert.equal(getLearnedEstimate(domain,'Edit a reel'),2);
+  // The recorded time stays exact; the existing planner uses a 5-minute minimum slot.
+  assert.equal(isTaskWorking(domain.tasks[0]),false); assert.equal(getLearnedEstimate(domain,'Edit a reel'),5);
   assert.equal(getLearnedEstimate(makeDomain(),'Edit a reel'),null);
   assert.equal(completeTimedTask(domain,domain.tasks[0],start+250000),null);
   assert.equal(domain.timingProfiles['edit a reel'].samples.length,1);

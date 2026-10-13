@@ -24,8 +24,13 @@ async function api(action, fields = {}) {
   return data;
 }
 const registration = async () => {
-  await navigator.serviceWorker.register('/sw.js');
-  return Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => setTimeout(() => reject(new Error('Quest is still updating. Reopen it and try again.')), 12000))]);
+  let timer;
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(() => navigator.serviceWorker.ready),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Quest’s notification worker could not start. Check your connection and try again.')), 12000); }),
+    ]);
+  } finally { clearTimeout(timer); }
 };
 export async function disconnectNotifications() {
   if (!('serviceWorker' in navigator)) return;
@@ -52,6 +57,7 @@ export function useQuestNotifications({ state, userId }) {
   const [key, setKey] = useState('');
   const [permission, setPermission] = useState(() => typeof Notification === 'undefined' ? 'default' : Notification.permission);
   const [toasts, setToasts] = useState([]);
+  const [lastDelivery, setLastDelivery] = useState(null);
   const stateRef = useRef(state);
   const prefsRef = useRef(preferences);
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -69,8 +75,10 @@ export function useQuestNotifications({ state, userId }) {
     setPermission(Notification.permission);
     const previous = read('quest-push-owner', null);
     if (previous && previous !== userId) await disconnectNotifications();
-    const config = await api('config'); setKey(config.publicKey);
-    const reg = await navigator.serviceWorker.getRegistration();
+    const config = await api('config');
+    if (account.current !== userId) return;
+    setKey(config.publicKey);
+    const reg = await registration();
     const sub = await reg?.pushManager.getSubscription(); subRef.current = sub;
     if (sub && Notification.permission === 'granted') {
       let result = await api('status', { endpoint: sub.endpoint });
@@ -81,12 +89,13 @@ export function useQuestNotifications({ state, userId }) {
       }
       if (account.current !== userId) return;
       setEnabled(!!result.enabled);
+      setLastDelivery(result.lastDelivery || null);
       if (result.enabled) {
         const next = { ...prefsRef.current, ...normalizeReminders(result.preferences) };
         prefsRef.current = next; setPreferences(next); write(`quest-reminders:${userId}`, next);
         write('quest-push-owner', userId);
       }
-    } else setEnabled(false);
+    } else { setEnabled(false); setLastDelivery(null); }
   }, [userId, canPush, needsInstall]);
   useEffect(() => {
     if (!userId) { setEnabled(false); setToasts([]); return; }
@@ -95,14 +104,18 @@ export function useQuestNotifications({ state, userId }) {
     seen.current = read(`quest-reminders-seen:${userId}`, {});
     mountedAt.current = Date.now();
     competitionCursor.current = Math.max(mountedAt.current - 86400000, Number(read(`quest-friend-cursor:${userId}`, mountedAt.current - 1000)));
+    let refreshing = false;
     const onRefresh = () => {
+      if (document.visibilityState === 'hidden' || refreshing) return;
+      refreshing = true;
       setChecking(true);
       void refresh().then(() => { if (account.current === userId) setConnectionError(''); })
         .catch(problem => { if (account.current === userId) setConnectionError(problem.message); })
-        .finally(() => { if (account.current === userId) setChecking(false); });
+        .finally(() => { refreshing = false; if (account.current === userId) setChecking(false); });
     };
     onRefresh(); window.addEventListener('focus', onRefresh); window.addEventListener('online', onRefresh);
-    return () => { window.removeEventListener('focus', onRefresh); window.removeEventListener('online', onRefresh); };
+    document.addEventListener('visibilitychange', onRefresh);
+    return () => { window.removeEventListener('focus', onRefresh); window.removeEventListener('online', onRefresh); document.removeEventListener('visibilitychange', onRefresh); };
   }, [userId, refresh]);
   useEffect(() => {
     if (!userId) return;
@@ -115,7 +128,8 @@ export function useQuestNotifications({ state, userId }) {
     };
     const tick = () => {
       if (document.visibilityState === 'hidden') return;
-      for (const event of dueReminders(stateRef.current, { timezone: zone(), preferences: prefsRef.current, enabledAt: mountedAt.current - 1000 })) remember(event);
+      // Recover a reminder due while the app was loading or waking from sleep.
+      for (const event of dueReminders(stateRef.current, { timezone: zone(), preferences: prefsRef.current, enabledAt: mountedAt.current - 120000 })) remember(event);
     };
     let polling = false;
     const competitionTick = async () => {
@@ -179,10 +193,14 @@ export function useQuestNotifications({ state, userId }) {
       const publicKey = key || (await api('config')).publicKey;
       const reg = await registration();
       let subscription = await reg.pushManager.getSubscription();
+      const existingKey = subscription?.options?.applicationServerKey;
+      if (existingKey && String(new Uint8Array(existingKey)) !== String(bytes(publicKey))) {
+        await subscription.unsubscribe(); subscription = null;
+      }
       if (!subscription) subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(publicKey) });
       await api('subscribe', { subscription: subscription.toJSON(), preferences: prefsRef.current });
       subRef.current = subscription; setEnabled(true); write('quest-push-owner', userId);
-      setMessage('Reminders are enabled on this device. Try a test notification.');
+      setConnectionError(''); setMessage('Reminders are enabled on this device. Try a test notification.');
     });
   };
   const disable = () => void run(async () => { await disconnectNotifications(); subRef.current = null; setEnabled(false); setMessage('Phone notifications are off on this device.'); });
@@ -196,8 +214,14 @@ export function useQuestNotifications({ state, userId }) {
   const test = () => void run(async () => {
     if (!subRef.current) throw new Error('Enable notifications on this device first.');
     await api('test', { endpoint: subRef.current.endpoint });
-    setMessage('Test sent. Check your notification center.');
+    setMessage('The push service accepted your test. Check your notification center. If nothing appears, try the browser test below.');
+  });
+  const testBrowser = () => void run(async () => {
+    if (Notification.permission !== 'granted') throw new Error('Allow notifications on this device first.');
+    const reg = await registration();
+    await reg.showNotification('Quest browser test', { body: 'Your browser can display Quest alerts.', icon: '/icon-192.png', tag: 'quest-local-test', data: { url: `${window.location.origin}/#settings/notifications` } });
+    setMessage('Browser test requested. If you cannot see it, check your computer/phone notification settings and Focus or Do Not Disturb.');
   });
   const reconnect = () => void run(async () => { await refresh(); setConnectionError(''); setMessage('Device connection checked.'); });
-  return { preferences, enabled, busy, checking, message, error: error || connectionError, feedError, reconnect, permission, needsInstall, canPush, enable, disable, update, test, timezone: zone(), toasts, dismiss: id => setToasts(list => list.filter(item => item.key !== id)) };
+  return { preferences, enabled, busy, checking, message, error: error || connectionError, feedError, reconnect, permission, needsInstall, canPush, enable, disable, update, test, testBrowser, lastDelivery, timezone: zone(), toasts, dismiss: id => setToasts(list => list.filter(item => item.key !== id)) };
 }

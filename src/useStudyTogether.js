@@ -2,6 +2,16 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { supabase } from './supabaseClient';
 import { normalizeLook } from './study-together.js';
 
+// Abort the actual request as well as releasing the UI queue after a lost connection.
+function studyRequest(args) {
+  const query = supabase.rpc('quest_study', args);
+  const controller = new AbortController();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { controller.abort(); reject(new Error('Room connection timed out. Reconnect and try again.')); }, 12000);
+    Promise.resolve(query.abortSignal ? query.abortSignal(controller.signal) : query).then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 const EMPTY = { lookId: 0, room: null, invites: [] };
 
 export default function useStudyTogether(userId) {
@@ -22,7 +32,7 @@ export default function useStudyTogether(userId) {
     const ticket = ++version.current;
     const promise = (async () => {
       try {
-        const { data, error: problem } = await supabase.rpc('quest_study');
+        const { data, error: problem } = await studyRequest();
         if (problem) throw problem;
         if (ticket === version.current) commit(data, userId);
       } catch (e) { if (active.current === userId && ticket === version.current) { setError(e.message || 'The shared room could not connect. Try again.'); setLoading(false); } }
@@ -59,7 +69,7 @@ export default function useStudyTogether(userId) {
     const job = queue.current.catch(() => {}).then(async () => {
       if (active.current !== account) return null;
       try {
-        const { data: next, error: problem } = await supabase.rpc('quest_study', { p_action: action, p_room: roomId, p_target: targetId, p_data: data });
+        const { data: next, error: problem } = await studyRequest({ p_action: action, p_room: roomId, p_target: targetId, p_data: data });
         if (problem) throw problem;
         if (active.current === account) { version.current++; commit(next, account); }
         return next;

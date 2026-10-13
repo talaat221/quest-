@@ -69,3 +69,7 @@ app: character selection, profile rendering, invitation acceptance, both poses,
 privacy payloads, pause/leave time preservation, error recovery and invite badge.
 Layouts were checked at 320, 393, 430, 852-landscape and 1366 pixels. A real
 two-phone invitation is still the final device-level acceptance check.
+
+## Leaving and starting again
+
+Use the visible **Leave room** or **New room** buttons in Focus. Both preserve your personal task timer. Hosting passes to a remaining member when you leave; outstanding invitations close so the new host can invite their own friends. The last joined member leaving closes the room. Starting a new room is atomic and rejects stale requests from older tabs. **End session for everyone** remains a separate, confirmed host control.

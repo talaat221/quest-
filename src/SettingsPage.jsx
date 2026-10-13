@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase, flushQuestSync, getQuestSyncSnapshot, subscribeQuestSync, resolveQuestConflict } from './supabaseClient';
 import { disconnectNotifications } from './notifications.js';
+import AccountDeleteCard from './AccountDeleteCard.jsx';
 import AccountResetCard from './AccountResetCard.jsx';
 import NotificationSettings from './NotificationSettings.jsx';
 import { NavigationRow } from './AppNavigation.jsx';
 import { SETTINGS_SECTIONS, settingsSection } from './app-navigation.js';
 
-export default function SettingsPage({user, name, username, resetHour, onResetHour, onResetAccount, notifications}) {
+export default function SettingsPage({user, name, username, resetHour, onResetHour, onResetAccount, notifications, onOpenGuide}) {
   const [section,setSection] = useState(()=>settingsSection(window.location.hash));
   const [sync,setSync] = useState(getQuestSyncSnapshot);
-  const [busy,setBusy] = useState(false), [resetting,setResetting] = useState(false);
+  const [busy,setBusy] = useState(false), [resetting,setResetting] = useState(false), [deleting,setDeleting] = useState(false);
   const [error,setError] = useState(''), [message,setMessage] = useState('');
   const running = useRef(false), heading = useRef(null);
-  const locked = busy || resetting;
+  const locked = busy || resetting || deleting;
   useEffect(()=>subscribeQuestSync(setSync),[]);
   useEffect(()=>{
     const change=()=>{setSection(settingsSection(window.location.hash));setError('');setMessage('');};
@@ -20,7 +21,7 @@ export default function SettingsPage({user, name, username, resetHour, onResetHo
   },[]);
   useEffect(()=>{window.scrollTo({top:0,behavior:'instant'});heading.current?.focus({preventScroll:true});},[section]);
   const run=async(action,success='')=>{
-    if(running.current||resetting)return;
+    if(running.current||resetting||deleting)return;
     running.current=true;setBusy(true);setError('');setMessage('');
     try{await action();setMessage(success);}catch(e){setError(e?.message||'That didn’t finish. Please try again.');}
     finally{running.current=false;setBusy(false);}
@@ -40,7 +41,7 @@ export default function SettingsPage({user, name, username, resetHour, onResetHo
     {!section&&<>
       <section className="qa-list-group" aria-label="Preferences"><h2>Preferences</h2>{row('notifications')}{row('routine')}</section>
       <section className="qa-list-group" aria-label="Account and data"><h2>Account & data</h2>{row('account')}{row('sync')}{row('data')}</section>
-      <p className="qa-save-note" role="status">{sync.state==='synced'&&!sync.pending?'Your changes are saved.':sync.message}</p>
+      <section className="qa-list-group" aria-label="Help and information"><h2>Help & information</h2><button type="button" className="qa-guide-replay" onClick={onOpenGuide}>Meet your Quest companion <span>Take a tiny adventure through the app ›</span></button><NavigationRow href="/privacy?lang=en" icon="you" title="Privacy Notice" detail="Your data and your choices"/><NavigationRow href="/terms?lang=en" icon="plan" title="Terms of Service" detail="The rules for using Quest"/></section><p className="qa-save-note" role="status">{sync.state==='synced'&&!sync.pending?'Your changes are saved.':sync.message}</p>
     </>}
     {section==='account'&&<>
       <section className="qd-home-settings-card qa-account-card"><h2>Signed in as</h2><dl><div><dt>Name</dt><dd>{name}</dd></div>{username&&<div><dt>Username</dt><dd>@{username}</dd></div>}<div><dt>Email</dt><dd>{user?.email || 'Not available'}</dd></div></dl><a className="qa-inline-link" href="#profile">View your profile ›</a></section>
@@ -52,7 +53,7 @@ export default function SettingsPage({user, name, username, resetHour, onResetHo
       <section className="qa-list-group" aria-label="Planning preferences"><h2>Plan your time</h2><NavigationRow href="#quests/planner" icon="plan" title="Weekly capacity" detail="Available hours, work window and flexible tasks"/><NavigationRow href="#rewards" icon="rewards" title="Reward rules" detail="Choose treats and completion targets"/></section>
     </>}
     {section==='sync'&&<section className="qd-home-settings-card"><h2>Your progress</h2><p role="status">{sync.message}</p>{sync.state==='conflict'?<><p>This device and the cloud have different saved changes. Choose the copy you want to keep.</p><div className="qa-button-group"><button type="button" disabled={locked} onClick={()=>resolve('cloud')}>Use cloud copy</button><button type="button" disabled={locked} onClick={()=>resolve('local')}>Keep this device</button></div></>:<button type="button" disabled={locked||sync.state==='syncing'} onClick={()=>void run(flushQuestSync,'Sync checked.')}>{busy?'Checking…':'Sync now'}</button>}<p className="qa-sync-help">Offline changes stay on this device until they sync. Keep Quest open while reconnecting.</p></section>}
-    {section==='data'&&<AccountResetCard onReset={onResetAccount} disabled={busy} onBusyChange={setResetting}/>}
+    {section==='data'&&<><AccountResetCard onReset={onResetAccount} disabled={busy || deleting} onBusyChange={setResetting}/><AccountDeleteCard disabled={busy || resetting} onBusyChange={setDeleting}/></>}
     {message&&<p className="qa-feedback" role="status">{message}</p>}{error&&<p className="qa-feedback is-error" role="alert">{error}</p>}
     {section==='account'&&error&&<a href="#settings/sync" className="qa-inline-link">Open Sync & storage ›</a>}
   </div>;

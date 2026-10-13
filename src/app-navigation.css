@@ -58,3 +58,5 @@
   .qa-dock-selector, .qa-dock-icon, .qd-root .qa-dock .qd-bottom-navigation a { transition: none; }
   .qa-dock .qd-bottom-navigation a .qa-dock-icon { animation: none; transform: none; }
 }
+
+.qd-root .qa-guide-replay{display:block;width:100%;min-height:74px;border:0;background:transparent;text-align:left;color:#e4ddbf;font:22px/1.2 'VT323',monospace;padding:12px 2px}.qa-guide-replay span{display:block;font-size:17px;color:#9cb8c3;margin-top:5px}
