@@ -14,6 +14,7 @@ const isEmailRateLimitError = (error) =>
 
 const friendlyAuthError = (error) => {
   const message = error?.message || "Something went wrong. Please try again.";
+  if (error?.code === "email_not_confirmed") return "Confirm your email to sign in. You can request a new confirmation below.";
   if (/invalid login credentials/i.test(message)) return "Email or password is incorrect.";
   if (isEmailRateLimitError(error)) {
     return "Quest’s email service is temporarily at its sending limit. Please wait a little and try again. Your account is safe.";
@@ -32,6 +33,7 @@ export default function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isResetRequest, setIsResetRequest] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [resetCooldown, setResetCooldown] = useState(0);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState("error");
@@ -160,6 +162,28 @@ export default function Login({ onLogin }) {
     setMessage("If that email belongs to a Quest account, a recovery link is on its way. Check your inbox and spam folder.");
   }
 
+  async function resendConfirmation() {
+    if (loading || resetCooldown > 0) return;
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      await showError("Enter a valid email address first.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup", email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) throw error;
+      setResetCooldown(60);
+      setMessageKind("info");
+      setMessage("If your account is awaiting confirmation, a new link is on its way. Check your inbox and spam folder, and use the newest email.");
+    } catch (error) {
+      if (isEmailRateLimitError(error) || error?.status === 429) setResetCooldown(60);
+      await showError(friendlyAuthError(error));
+    } finally { setLoading(false); }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (loading) return;
@@ -222,6 +246,7 @@ export default function Login({ onLogin }) {
             email: email.trim(),
             password,
             options: {
+              emailRedirectTo: `${window.location.origin}/`,
               data: {
                 username: cleanUsername,
                 display_name: cleanUsername,
@@ -238,6 +263,7 @@ export default function Login({ onLogin }) {
         : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
       if (result.error) {
+        if (result.error.code === "email_not_confirmed") setNeedsConfirmation(true);
         await showError(friendlyAuthError(result.error));
       } else if (result.data.session) {
         setFeedback("success");
@@ -245,6 +271,8 @@ export default function Login({ onLogin }) {
         await wait(560);
         onLogin(result.data.session);
       } else if (isSignUp) {
+        setNeedsConfirmation(true);
+        setResetCooldown(60);
         setMessageKind("info");
         setMessage(`Your little farm is ready as @${cleanUsername}. Check your email to confirm your account.`);
       }
@@ -431,6 +459,11 @@ export default function Login({ onLogin }) {
             {!loading && !(isResetRequest && resetCooldown > 0) && <b aria-hidden="true">›</b>}
           </button>
 
+          {!isResetRequest && (needsConfirmation || !isSignUp) && (
+            <button className="login-secondary" type="button" onClick={resendConfirmation} disabled={loading || resetCooldown > 0}>
+              {resetCooldown > 0 ? `Resend confirmation in ${resetCooldown}s` : "Resend confirmation email"}
+            </button>
+          )}
           {isResetRequest ? (
             <button className="login-secondary" type="button" onClick={closeResetRequest}>
               Back to login

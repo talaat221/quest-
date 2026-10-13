@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v40-desktop-layout';
+const CACHE_NAME = 'quest-shell-v41-account-emails';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
