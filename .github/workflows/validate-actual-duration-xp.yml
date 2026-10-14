@@ -1,0 +1,27 @@
+name: Validate actual-duration XP
+
+on:
+  push:
+    branches:
+      - feature/actual-duration-xp
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run existing and actual-time XP tests
+        run: node --test tests/*.test.mjs
+      - name: Compile production Quest
+        run: npm run build
