@@ -9,7 +9,8 @@ import RewardWheel from "./RewardWheel.jsx";
 import { prepareRewardSpins } from "./reward-wheel.js";
 import { rewardProgress, rewardThreshold, rewardTaskDay, saveRewardItem, removeRewardItem, recordRewardClaim } from "./rewards.js";
 import { TaskTimerControls, FocusTimerBar, TaskFinishedDialog } from "./TaskTimer.jsx";
-import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, formatMinutes, formatElapsed, isTaskWorking, isTaskTimerRunning, startTaskTimer, pauseTaskTimer, configureTaskPomodoro, completeTimedTask, undoTimedTask } from "./task-timer.js";
+import { normalizeTaskTimingKey, getLearnedEstimate, getTimingSampleCount, elapsedTaskMs, formatMinutes, formatElapsed, isTaskWorking, isTaskTimerRunning, startTaskTimer, pauseTaskTimer, configureTaskPomodoro, completeTimedTask, undoTimedTask } from "./task-timer.js";
+import TaskDurationDialog from "./TaskDurationDialog.jsx";
 import GardenScene from "./GardenScene";
 import DailyAnchors from "./DailyAnchors";
 import DailyAnchorsPage from "./DailyAnchorsPage.jsx";
@@ -39,7 +40,7 @@ import { QuestHistoryPanel, WeeklyCleanupModal } from "./TaskLifecycleUI.jsx";
 import { getCompletedTasks, getPastUnfinishedTasks, getTaskCompletionWeek, sortQuestTasksForCurrentWeek } from "./task-lifecycle.js";
 import { ensureQuestProfile } from "./friends.js";
 import { observeQuestSession, questGreeting } from "./auth-session.js";
-import { PROGRESSION_VERSION, recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, upgradeProgression, recordAnchorAward, removeAnchorAward, anchorAwardXP, recordTaskAward, removeTaskAward, progressionTotals, currentWeekProgress } from "./progression.js";
+import { PROGRESSION_VERSION, recommendTaskXP, inferEffortForTask, standardizeLegacyTaskXP, initializeProgression, upgradeProgression, recordAnchorAward, removeAnchorAward, anchorAwardXP, recordTaskAward, removeTaskAward, taskCompletionRecommendation, progressionTotals, currentWeekProgress } from "./progression.js";
 
 // ======================================================
 // HELPERS
@@ -3515,6 +3516,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [handledRewardEvent, setHandledRewardEvent] = useState(0);
   const [rewardSpins, setRewardSpins] = useState([]);
   const [completionSummary, setCompletionSummary] = useState(null);
+  const [pendingTaskDuration, setPendingTaskDuration] = useState(null);
   const [showLevelDetails, setShowLevelDetails] = useState(false);
   const [showVoyageAdjustment, setShowVoyageAdjustment] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
@@ -4613,7 +4615,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       if (task && !task.done) pauseTaskTimer(task, now);
     });
   };
-  const toggleTask = (domainId, taskId) => {
+  const toggleTask = (domainId, taskId, manualMinutes = null) => {
     const domain = state.domains.find(d => d.id === domainId);
     const task = domain?.tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -4624,19 +4626,45 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           next.settings.progression = removeTaskAward(next.settings.progression, domainId, taskId, task);
         }
         const d = next.domains.find(item => item.id === domainId);
-        undoTimedTask(d, d?.tasks.find(item => item.id === taskId));
+        const undone = d?.tasks.find(item => item.id === taskId);
+        if (!undone) return;
+        undoTimedTask(d, undone);
+        // Undo also restores the original estimated reward for an unfinished task.
+        const planned = recommendTaskXP({
+          estimatedMinutes: undone.estimatedMinutes,
+          effort: inferEffortForTask(undone),
+        });
+        undone.xp = planned.xp;
+        undone.effort = planned.effort;
+        undone.effortTier = planned.key;
+        undone.xpSource = planned.source;
       });
       playSFX("undo");
       return;
     }
-    const now = Date.now(), previewDomain = clone(domain);
-    const summary = completeTimedTask(previewDomain, previewDomain.tasks.find(t => t.id === taskId), now);
+
+    const now = Date.now();
+    const trackedMs = elapsedTaskMs(task, now);
+    if (trackedMs <= 0 && manualMinutes === null) {
+      setPendingTaskDuration({ domainId, taskId, task: {
+        name: task.name, estimatedMinutes: task.estimatedMinutes,
+        xp: task.xp, effort: inferEffortForTask(task),
+      } });
+      return;
+    }
+    if (trackedMs <= 0 && (!Number.isInteger(manualMinutes) || manualMinutes < 1 || manualMinutes > 1440)) return;
+
+    const previewDomain = clone(domain);
+    const previewTask = previewDomain.tasks.find(t => t.id === taskId);
+    const summary = completeTimedTask(previewDomain, previewTask, now, manualMinutes);
+    if (!summary) return;
     const before = upgradeProgression(state.settings?.progression, state.domains, state.anchors, now, resetHour);
-    const previewReward = recordTaskAward(before, { domainId, task, completedAt: now, resetHour });
+    const previewReward = recordTaskAward(before, { domainId, task: previewTask, completedAt: now, resetHour });
     const after = progressionTotals(previewReward.progression);
     Object.assign(summary, { earnedXP: previewReward.award?.creditedXp || 0,
       nominalXP: previewReward.award?.nominalXp || 0, level: after.level,
       levelledUp: after.level > progressionTotals(before).level, remainingXP: after.remainingXP });
+
     updateState(next => {
       next.settings ||= {};
       next.settings.progression = initializeProgression(
@@ -4644,12 +4672,22 @@ export default function QuestDashboard({ designPreview = false } = {}) {
       );
       const d = next.domains.find(item => item.id === domainId);
       const completedTask = d?.tasks.find(item => item.id === taskId);
-      completeTimedTask(d, completedTask, now);
+      if (!completedTask || completedTask.done) return;
+      const finished = completeTimedTask(d, completedTask, now, manualMinutes);
+      if (!finished) return;
+      // All task views, daily/weekly reward targets and future summaries must
+      // show the earned value, while keeping estimatedMinutes for planning.
+      const actualReward = taskCompletionRecommendation(completedTask);
+      completedTask.xp = actualReward.xp;
+      completedTask.effort = actualReward.effort;
+      completedTask.effortTier = actualReward.key;
+      completedTask.xpSource = actualReward.source;
       const recorded = recordTaskAward(next.settings.progression, {
-        domainId, task: completedTask, completedAt: completedTask?.doneAt || now, resetHour
+        domainId, task: completedTask, completedAt: completedTask.doneAt || now, resetHour
       });
       next.settings.progression = recorded.progression;
     });
+    setPendingTaskDuration(null);
     setCompletionSummary(summary);
     setClockNow(new Date(now));
     setRewardCompletionEvent(event => event + 1);
@@ -5405,6 +5443,11 @@ export default function QuestDashboard({ designPreview = false } = {}) {
         spin={activeRewardSpin} completion={activeRewardSpin.completion} moreRewards={rewardSpins.length > 1}
         onClose={closeRewardWheel} onReveal={() => playSFX("reward")}
         returnLabel={showStudyPage ? "Back to Study Room" : showRewardsPage ? "Lovely, thank you" : "Back to my garden"} />}
+      {pendingTaskDuration && <TaskDurationDialog
+        task={pendingTaskDuration.task}
+        onConfirm={minutes => toggleTask(pendingTaskDuration.domainId, pendingTaskDuration.taskId, minutes)}
+        onCancel={() => setPendingTaskDuration(null)}
+      />}
       {completionSummary && !activeRewardSpin && !pendingAutomaticReward && <TaskFinishedDialog result={completionSummary} onClose={() => setCompletionSummary(null)} returnLabel={showStudyPage ? "Back to Study Room" : undefined} />}
       {goalEditor && <GoalEditor key={`${goalEditor.questId || "any"}:${goalEditor.goal?.id || "new"}`}
         domains={goalEditor.questId === "__new_quest__" ? [draftQuest] : state.domains}
