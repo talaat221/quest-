@@ -62,10 +62,15 @@ test('finishing saves exact time, learns once in the correct quest and undo remo
   undoTimedTask(domain,domain.tasks[0]); assert.equal(getLearnedEstimate(domain,'Edit a reel'),null);
   assert.equal(elapsedTaskMs(domain.tasks[0],start+500000),0); assert.equal(domain.tasks[0].done,false);
 });
-test('completing without a timer records completion without inventing a learning sample', () => {
-  const domain=makeDomain(), result=completeTimedTask(domain,domain.tasks[0],start);
-  assert.equal(result.elapsedMs,0); assert.equal(domain.tasks[0].done,true);
-  assert.equal(domain.tasks[0].actualMinutes,null); assert.equal(getLearnedEstimate(domain,'Edit a reel'),null);
+test('untimed tasks wait for actual minutes before completing, then learn from the entry', () => {
+  const domain=makeDomain(), task=domain.tasks[0];
+  assert.equal(completeTimedTask(domain,task,start),null);
+  assert.equal(task.done,false);
+  assert.equal(getLearnedEstimate(domain,'Edit a reel'),null);
+  const result=completeTimedTask(domain,task,start,45);
+  assert.equal(result.elapsedMs,0); assert.equal(result.timeSource,'manual');
+  assert.equal(task.done,true); assert.equal(task.actualMinutes,45);
+  assert.equal(getLearnedEstimate(domain,'Edit a reel'),45);
 });
 test('timer cannot produce negative time and preserves long sessions', () => {
   const domains=[makeDomain()]; startTaskTimer(domains,'film','edit',start);
