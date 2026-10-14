@@ -72,14 +72,16 @@ export function startTaskTimer(domains, domainId, taskId, now = Date.now()) {
   } else task.workTimer.startedAt = stamp;
   return true;
 }
-export function completeTimedTask(domain, task, now = Date.now()) {
+export function completeTimedTask(domain, task, now = Date.now(), manualMinutes = null) {
   if (!domain || !task || task.done) return null;
   const elapsedMs = elapsedTaskMs(task, now);
+  const manual = manualMinutes === null ? null : Number(manualMinutes);
+  if (elapsedMs <= 0 && (!Number.isInteger(manual) || manual < 1 || manual > 1440)) return null;
   pauseTaskTimer(task, now);
   task.done = true; task.doneAt = new Date(now).toISOString();
-  task.actualMinutes = elapsedMs > 0 ? Math.max(1, Math.round(elapsedMs / 60000)) : null;
+  task.actualMinutes = elapsedMs > 0 ? Math.min(1440, Math.max(1, Math.round(elapsedMs / 60000))) : manual;
   const key = normalizeTaskTimingKey(task.name);
-  task.timingProfileKey = elapsedMs > 0 && key ? key : null;
+  task.timingProfileKey = task.actualMinutes > 0 && key ? key : null;
   if (task.timingProfileKey) {
     domain.timingProfiles ||= {};
     const samples = (domain.timingProfiles[key]?.samples || []).filter(s => s.taskId !== task.id);
@@ -92,6 +94,8 @@ export function completeTimedTask(domain, task, now = Date.now()) {
     taskName: task.name,
     domainName: domain.name,
     elapsedMs,
+    actualMinutes: task.actualMinutes,
+    timeSource: elapsedMs > 0 ? 'timer' : 'manual',
     estimatedMinutes: task.estimatedMinutes,
     nextEstimate: prediction?.minutes || null,
     learnedPattern: prediction?.patternLabel || null,
