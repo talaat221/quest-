@@ -31,9 +31,17 @@ begin
   assert not has_table_privilege('authenticated','public.quest_reminder_snoozes','select'),'Snoozes cannot be enumerated by clients';
   assert not has_table_privilege('anon','public.quest_reminder_snoozes','insert'),'Anonymous snoozes denied';
   assert not has_function_privilege('authenticated','public.claim_quest_push(uuid,text)','execute'),'Clients cannot forge delivery claims';
+  assert not has_column_privilege('authenticated','public.quest_push_subscriptions','popup_active_until','update'),'Clients cannot suppress native delivery with a forged popup lease';
+  assert not has_column_privilege('anon','public.quest_push_subscriptions','popup_owner','update'),'Anonymous clients cannot release another popup window';
   execute 'reset role';
   insert into public.quest_push_subscriptions(user_id,endpoint,subscription,origin) values(a,'https://example.invalid/test-'||a,'{}','https://myquests.me') returning id into sub;
   execute 'set local role service_role';
+  update public.quest_push_subscriptions set popup_owner=a,popup_active_until=now()+interval '30 seconds' where id=sub;
+  assert (select popup_owner=a and popup_active_until>now() from public.quest_push_subscriptions where id=sub),'Server can renew a short popup lease';
+  update public.quest_push_subscriptions set popup_owner=null,popup_active_until=null where id=sub and popup_owner=b;
+  assert (select popup_owner=a from public.quest_push_subscriptions where id=sub),'Stale window cannot release newer lease';
+  update public.quest_push_subscriptions set popup_owner=null,popup_active_until=null where id=sub and popup_owner=a;
+  assert (select popup_active_until is null from public.quest_push_subscriptions where id=sub),'Closing the owning popup releases native delivery';
   assert public.claim_quest_push(sub,'task:test'),'First delivery claims the event';
   assert not public.claim_quest_push(sub,'task:test'),'Concurrent foreground/native duplicate is rejected';
   update public.quest_push_deliveries set state='sent',event_payload='{"kind":"task","title":"Fixture"}' where subscription_id=sub and event_key='task:test';
@@ -44,5 +52,5 @@ begin
   assert (select count(*)=0 from public.quest_reminder_snoozes where subscription_id=sub),'Unsubscribe removes pending snoozes';
   execute 'reset role';
 end $$;
-select 'PASS: presence lease, stale connection, task privacy, server-only snoozes, atomic delivery claims, unsubscribe cleanup' as result;
+select 'PASS: presence, privacy, server-only snoozes, popup lease permissions and release, atomic claims, unsubscribe cleanup' as result;
 rollback;

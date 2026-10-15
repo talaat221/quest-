@@ -3492,6 +3492,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [session, setSession] = useState(null);
   const studyTogether = useStudyTogether(session?.user?.id);
   const companionRef = useRef(null);
+  const [popupWindow, setPopupWindow] = useState(null);
   const [studySelectionKey, setStudySelectionKey] = useState('');
   useEffect(() => {
     const readTarget = () => { if (window.location.hash.startsWith('#study/')) { try { const value = decodeURIComponent(window.location.hash.slice(7)); const ids = JSON.parse(value); if (Array.isArray(ids) && ids.length === 2 && ids.every(id => typeof id === 'string')) setStudySelectionKey(value); } catch { /* Ignore invalid link. */ } } };
@@ -3522,7 +3523,15 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     document.addEventListener('visibilitychange', wake);
     return () => { gone = true; clearInterval(timer); window.removeEventListener('focus', wake); window.removeEventListener('online', wake); window.removeEventListener('storage', wake); document.removeEventListener('visibilitychange', wake); };
   }, [loaded, session?.user?.id]);
-  const notifications = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id });
+  const notificationState = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id, popupWindow });
+  const notifications = {
+    ...notificationState,
+    openPopup: () => companionRef.current?.open({ notificationsOnly: true }),
+    update: values => {
+      notificationState.update(values);
+      if (values.inApp === false || values.desktopPopups === false) companionRef.current?.closeNotifications();
+    },
+  };
 
   const [viewOffset, setViewOffset] = useState(0);
 
@@ -6061,7 +6070,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           )}
         </main>
       </div>
-      <StudyCompanion key={session.user.id} ref={companionRef} controller={studyTogether} task={companionSelection?.task} domain={companionSelection?.domain} name={competitionName} onStart={startWorking} onPause={pauseWorking} />
+      <StudyCompanion key={session.user.id} ref={companionRef} controller={studyTogether} task={companionSelection?.task} domain={companionSelection?.domain} name={competitionName} onStart={startWorking} onPause={pauseWorking} notifications={notifications} onWindowChange={setPopupWindow} />
       {workingTask && !showStudyPage && <FocusTimerBar onOpenCompanion={() => companionRef.current?.open()} task={workingTask} domain={workingDomain}
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}

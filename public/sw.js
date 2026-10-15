@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v42-study-companion';
+const CACHE_NAME = 'quest-shell-v43-floating-notifications';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
