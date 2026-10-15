@@ -1,7 +1,7 @@
 console.log("🔥 NEW QUEST DASHBOARD CODE LOADED 🔥");
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { supabase, resetQuestAccount, subscribeQuestAccountReset } from "./supabaseClient";
+import { supabase, resetQuestAccount, subscribeQuestAccountReset, refreshQuestSnapshot } from "./supabaseClient";
 import Login from "./Login";
 import GoalsPage, { GoalEditor, QuestGoalsSummary } from "./GoalsPage.jsx";
 import RewardsPage from "./RewardsPage.jsx";
@@ -18,6 +18,9 @@ import TimeInput from "./TimeInput.jsx";
 import { formatScheduleTime, isTimeInputValid, parseTimeInput } from "./schedule-time.js";
 import StatsPage from "./StatsPage.jsx";
 import StudyRoom from "./StudyRoom.jsx";
+import TaskbarBadge from "./TaskbarBadge.jsx";
+import StudyCompanion from "./StudyCompanion.jsx";
+import { getStudySelection, getStudyTasks } from "./study-room.js";
 import { useQuestNotifications, disconnectNotifications } from "./notifications.js";
 import { NotificationToasts } from "./NotificationSettings.jsx";
 import TodayQuests from "./TodayQuests";
@@ -3488,11 +3491,47 @@ export default function QuestDashboard({ designPreview = false } = {}) {
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState(null);
   const studyTogether = useStudyTogether(session?.user?.id);
+  const companionRef = useRef(null);
+  const [popupWindow, setPopupWindow] = useState(null);
+  const [studySelectionKey, setStudySelectionKey] = useState('');
+  useEffect(() => {
+    const readTarget = () => { if (window.location.hash.startsWith('#study/')) { try { const value = decodeURIComponent(window.location.hash.slice(7)); const ids = JSON.parse(value); if (Array.isArray(ids) && ids.length === 2 && ids.every(id => typeof id === 'string')) setStudySelectionKey(value); } catch { /* Ignore invalid link. */ } } };
+    readTarget(); window.addEventListener('hashchange',readTarget); return () => window.removeEventListener('hashchange',readTarget);
+  }, []);
   const farmController = useFarm(session?.user?.id, loaded && state?.settings?.progression?.version >= 4, state);
   const [farmVisit, setFarmVisit] = useState(() => typeof window !== "undefined" && window.location.hash.startsWith("#farm/") ? window.location.hash.split("/")[1] || null : null);
   const [questProfile, setQuestProfile] = useState(null);
   const currentUserId = useRef(null);
-  const notifications = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id });
+  const latestCompanionState = useRef(state);
+  latestCompanionState.current = state;
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!loaded || !userId) return;
+    let gone = false, fetching = false;
+    const refresh = async () => {
+      if (fetching || (document.visibilityState === 'hidden' && !window.documentPictureInPicture?.window)) return;
+      fetching = true;
+      const expected = latestCompanionState.current;
+      try {
+        const next = await refreshQuestSnapshot(userId, () => latestCompanionState.current);
+        if (!gone && next && latestCompanionState.current === expected) setState(next);
+      } finally { fetching = false; }
+    };
+    const wake = () => { void refresh().catch(() => {}); };
+    const timer = setInterval(wake, 30000);
+    window.addEventListener('focus', wake); window.addEventListener('online', wake); window.addEventListener('storage', wake);
+    document.addEventListener('visibilitychange', wake);
+    return () => { gone = true; clearInterval(timer); window.removeEventListener('focus', wake); window.removeEventListener('online', wake); window.removeEventListener('storage', wake); document.removeEventListener('visibilitychange', wake); };
+  }, [loaded, session?.user?.id]);
+  const notificationState = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id, popupWindow });
+  const notifications = {
+    ...notificationState,
+    openPopup: () => companionRef.current?.open({ notificationsOnly: true }),
+    update: values => {
+      notificationState.update(values);
+      if (values.inApp === false || values.desktopPopups === false) companionRef.current?.closeNotifications();
+    },
+  };
 
   const [viewOffset, setViewOffset] = useState(0);
 
@@ -5337,6 +5376,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 
   const streak = getCurrentStreak({ anchors: state.anchors, tasks: allTasks(), todayStr, resetHour });
   const draftQuest = { id: "__new_quest__", name: newDomainName.trim() || "New quest", tasks: [], goals: newDomainGoals };
+  const companionSelection = getStudySelection(getStudyTasks(state.domains, todayStr), studySelectionKey);
   const workingDomain = state.domains.find(domain => domain.tasks.some(isTaskWorking));
   const workingTask = workingDomain?.tasks.find(isTaskWorking);
   const questLogSection = (
@@ -5655,7 +5695,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
 )}
             </div>
           ) : showStudyPage ? (
-            <StudyRoom studyTogether={studyTogether} domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
+            <StudyRoom selectedKey={studySelectionKey} onSelect={setStudySelectionKey} onOpenCompanion={() => companionRef.current?.open()} studyTogether={studyTogether} domains={state.domains} todayStr={todayStr} onStart={startWorking} onPause={pauseWorking} onFinish={toggleTask} onConfigureTimer={configureTimer}
               onCreate={({ domainId, name, startNow, pomodoro }) => addTask(domainId, {
                 name, effort: "normal", day: todayStr, hour: null,
                 estimatedMinutes: getLearnedEstimate(state.domains.find(domain => domain.id === domainId), name) || 20, flexibility: "flexible",
@@ -6030,11 +6070,13 @@ export default function QuestDashboard({ designPreview = false } = {}) {
           )}
         </main>
       </div>
-      {workingTask && !showStudyPage && <FocusTimerBar task={workingTask} domain={workingDomain}
+      <StudyCompanion key={session.user.id} ref={companionRef} controller={studyTogether} task={companionSelection?.task} domain={companionSelection?.domain} name={competitionName} onStart={startWorking} onPause={pauseWorking} notifications={notifications} onWindowChange={setPopupWindow} />
+      {workingTask && !showStudyPage && <FocusTimerBar onOpenCompanion={() => companionRef.current?.open()} task={workingTask} domain={workingDomain}
         safeActive={isSafeHarborTask(workingTask, workingDomain.id, todayAdjustment, todayStr)}
         onPause={() => pauseWorking(workingDomain.id, workingTask.id)} onFinish={() => toggleTask(workingDomain.id, workingTask.id)} />}
       {showLevelDetails && <LevelDetails progression={progression} week={thisWeekLevel} onClose={() => setShowLevelDetails(false)} />}
       {(designPreview || anchorPageVisible || showStatsPage || showGoalsPage || showStudyPage || showRewardsPage || showFarmPage) && <BottomNavigation studyInvites={studyTogether.invites.length} page={page} visitingFarm={!!farmVisit && farmVisit !== session?.user?.id} />}
+      <TaskbarBadge items={homeQuestItems} userId={session.user.id} includeAnchors={notifications.preferences.badgeAnchors} />
       <NotificationToasts notifications={notifications} />
       {guideVisible && <FirstRunOnboarding key={session.user.id} state={state} lookId={studyTogether.lookId}
         replay={showGuide && !isFreshQuestAccount} onFinish={finishFirstRun} onAdvance={advanceGuide}

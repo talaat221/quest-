@@ -1,5 +1,5 @@
 export const STUDY_CAPACITY = 6;
-export const PRESENCE_TTL_MS = 65000;
+export const PRESENCE_TTL_MS = 180000;
 export const CHARACTER_LOOKS = [
   { id: 0, name: 'Moss', detail: 'Wavy hair · sage sweater', color: '#a5b782' },
   { id: 1, name: 'Maple', detail: 'Soft bob · terracotta cardigan', color: '#d39778' },
@@ -44,4 +44,9 @@ export function studyTime(seconds) {
 export function sharedTaskLabel(member, now) {
   if (memberActivity(member, now) === 'away') return 'Away from the room';
   return member.shareTask && member.taskName ? member.taskName : 'Task kept private';
+}
+
+export function memberConnection(member, now = Date.now()) {
+  const age = now - Date.parse(member.lastSeenAt);
+  return !Number.isFinite(age) || age > PRESENCE_TTL_MS || member.activity === 'away' ? 'offline' : age > 75000 ? 'reconnecting' : 'connected';
 }

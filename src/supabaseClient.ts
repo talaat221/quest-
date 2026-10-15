@@ -986,6 +986,27 @@ const createQuestTable = () => ({
   upsert: async (payload: any, _options?: any) => saveQuestRow(payload),
 });
 
+// Refresh only a clean, unchanged local copy. Never overwrite an edit being
+// typed, an offline queue, a reset, or a conflict while a cloud read is in flight.
+export const refreshQuestSnapshot = async (userId: string, current: () => any) => {
+  if (!userId || activeQuestUserId !== userId || !isOnline() || resettingUsers.has(userId)) return null;
+  const before = readCache(userId), expected = stateHash(current());
+  if (!before || before.dirty || before.conflict || stateHash(before.data) !== expected || syncLocks.has(userId)) return null;
+  const cloud = await fetchCloudState(userId);
+  const latest = readCache(userId);
+  if (activeQuestUserId !== userId || resettingUsers.has(userId) || syncLocks.has(userId) || !latest || latest.dirty || latest.conflict || latest.localRevision !== before.localRevision || latest.baseRevision !== before.baseRevision || stateHash(current()) !== expected) return null;
+  if (cloud.error || !cloud.data) {
+    emitSync({state:'pending', message:'Could not check other devices. Showing your saved copy.'}); return null;
+  }
+  if (cloud.resetRevision > (before.baseRevision ?? -1)) { adoptResetSnapshot(userId, cloud); return null; }
+  if (cloud.revision < (latest.baseRevision ?? -1)) return null;
+  const changed = stateHash(cloud.data) !== expected;
+  writeCache(userId, { ...latest, data:cloud.data, baseData:cloud.data, baseHash:stateHash(cloud.data), baseUpdatedAt:cloud.updatedAt,
+    baseRevision:cloud.revision, lastSyncedAt:cloud.updatedAt || nowISO(), cachedAt:nowISO() });
+  emitSync({state:'synced', pending:pendingCount(), message:'Quest is synced.'});
+  return changed ? cloud.data : null;
+};
+
 export const flushQuestSync = async () => {
   const {
     data: { session },

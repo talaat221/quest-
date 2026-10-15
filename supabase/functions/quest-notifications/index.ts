@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 import webpush from 'npm:web-push@3.6.7';
-import { dueReminders, normalizeReminders, validTimezone } from '../_shared/reminders.js';
+import { dueReminders, normalizeReminders, validTimezone, remainingToday, reminderStillRelevant } from '../_shared/reminders.js';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
 const allowedOrigin = (value: string) => value === 'https://myquests.me' || value === 'https://www.myquests.me' || value === 'https://quest-alpha-fawn.vercel.app' || /^https:\/\/quest(?:-[a-z0-9-]+)?-quest18\.vercel\.app$/.test(value) || value === 'http://localhost:5173';
@@ -29,7 +29,7 @@ async function hash(value: string) {
 async function send(sub: any, event: any, keys: any) {
   const tag = `quest-${await hash(event.key)}`;
   const payload = JSON.stringify({ title: event.title, body: event.body, tag,
-    data: { url: `${sub.origin}/${event.page}`, eventKey: event.key, userId: sub.user_id, due: event.due }, icon: '/icon-192.png?v=quest-cottage-v1' });
+    data: { url: `${sub.origin}/${event.page}`, eventKey: event.key, userId: sub.user_id, due: event.due, kind: event.kind, target: event.target, remaining: event.remaining, sound: normalizeReminders(sub.preferences).sound }, icon: '/icon-192.png?v=quest-cottage-v1' });
   const request = webpush.generateRequestDetails(sub.subscription, payload, {
     TTL: event.ttl || 120, urgency: 'high', topic: tag.slice(0, 32),
     vapidDetails: { subject: 'https://myquests.me', ...keys },
@@ -45,6 +45,7 @@ async function send(sub: any, event: any, keys: any) {
 async function deliver(sub: any, event: any, keys: any) {
   const claimed = await checked(admin.rpc('claim_quest_push', { p_subscription: sub.id, p_key: event.key }));
   if (!claimed) return false;
+  await checked(admin.from('quest_push_deliveries').update({event_payload:event}).eq('subscription_id',sub.id).eq('event_key',event.key));
   try {
     const sent = await send(sub, event, keys);
     if (sent) await checked(admin.from('quest_push_deliveries').update({ state: 'sent', touched_at: new Date().toISOString() }).eq('subscription_id', sub.id).eq('event_key', event.key));
@@ -59,12 +60,23 @@ function challengeNotification(item: any) {
   const actor = String(item?.actor_display_name || 'Your challenger').slice(0, 40);
   return {
     key: `competition:${item?.event_id}`,
-    title: 'Challenge update',
+    kind: 'competition', title: 'Challenge update',
     body: `${actor} just completed a task for ${xp} XP.`,
     page: '#competition',
     due: Date.parse(item?.created_at) || Date.now(),
     ttl: 3600,
   };
+}
+async function scheduledSnoozes(sub: any, state: any) {
+  const rows = await checked(admin.from('quest_reminder_snoozes').select('*').eq('subscription_id',sub.id).lte('due_at',new Date().toISOString()));
+  const events = [];
+  for (const row of rows) {
+    if (Date.parse(row.due_at) < Date.now()-120000 || !reminderStillRelevant(state,row.event_payload,{timezone:sub.timezone})) {
+      await checked(admin.from('quest_reminder_snoozes').delete().eq('subscription_id',sub.id).eq('original_key',row.original_key)); continue;
+    }
+    events.push({...row.event_payload, key:`${row.original_key}:snooze:${Date.parse(row.due_at)}`, due:Date.parse(row.due_at)});
+  }
+  return events;
 }
 async function dispatch(keys: any) {
   let inspected = 0, sent = 0, failed = 0;
@@ -75,18 +87,23 @@ async function dispatch(keys: any) {
     const rows = await checked(admin.from('quest_push_subscriptions').select('*').gt('last_seen_at', new Date(Date.now()-30*86400000).toISOString()).order('id').range(offset,offset+99));
     for (const sub of rows) {
       inspected++;
+      // A page or Document PiP window polls while it can actually show a popup.
+      // This short lease expires even if the browser is killed without cleanup.
+      if (Date.parse(sub.popup_active_until || '') > Date.now()) continue;
       if (!states.has(sub.user_id)) states.set(sub.user_id, await checked(admin.rpc('get_quest_push_state', { p_user_id: sub.user_id })));
       const friendAlerts = normalizeReminders(sub.preferences).friends;
       if (friendAlerts && !challengeEvents.has(sub.user_id)) {
         challengeEvents.set(sub.user_id, await checked(admin.rpc('get_quest_competition_push_events', { p_user_id: sub.user_id, p_since: oneDayAgo })));
       }
       const events = dueReminders(states.get(sub.user_id), { timezone: sub.timezone, preferences: sub.preferences, enabledAt: Date.parse(sub.enabled_at) });
+      events.push(...await scheduledSnoozes(sub,states.get(sub.user_id)));
+      const remaining = remainingToday(states.get(sub.user_id), {timezone:sub.timezone, includeAnchors:normalizeReminders(sub.preferences).badgeAnchors});
       const enabledAt = Date.parse(sub.enabled_at) || 0;
       const competition = (friendAlerts ? challengeEvents.get(sub.user_id) || [] : [])
         .filter((item: any) => (Date.parse(item?.created_at) || 0) >= enabledAt)
         .map(challengeNotification);
       // Separate devices are intentional. The per-device ledger suppresses retries.
-      for (const event of [...events, ...competition]) { if (await deliver(sub, event, keys)) sent++; else failed++; }
+      for (const event of [...events, ...competition]) { if (await deliver(sub, { ...event, remaining }, keys)) sent++; else failed++; }
     }
     if (rows.length < 100) break;
   }
@@ -134,11 +151,46 @@ Deno.serve(async req => {
       return reply(origin, { enabled: true, preferences: saved.preferences });
     }
     if (!sub) return reply(origin,{enabled:false});
+    const popupId = typeof body.popupId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.popupId) ? body.popupId : null;
+    if (body.action === 'foreground-release') {
+      if (popupId) await checked(admin.from('quest_push_subscriptions').update({popup_active_until:null,popup_owner:null}).eq('id',sub.id).eq('user_id',user.id).eq('popup_owner',popupId));
+      return reply(origin,{released:true});
+    }
     if (body.action === 'status' || body.action === 'preferences') {
       const preferences = body.action === 'preferences' ? normalizeReminders(body.preferences) : sub.preferences;
       await checked(admin.from('quest_push_subscriptions').update({ preferences, timezone: validTimezone(body.timezone || sub.timezone), last_seen_at: new Date().toISOString() }).eq('id',sub.id).eq('user_id',user.id));
       const last = await checked(admin.from('quest_push_deliveries').select('state,touched_at').eq('subscription_id',sub.id).order('touched_at',{ascending:false}).limit(1));
       return reply(origin,{enabled:true,preferences,lastDelivery:last[0] ? {state:last[0].state,at:last[0].touched_at} : null});
+    }
+    if (body.action === 'foreground') {
+      const popup = body.popup === true && !!popupId;
+      if (popup) await checked(admin.from('quest_push_subscriptions').update({popup_active_until:new Date(Date.now()+30000).toISOString(),popup_owner:popupId}).eq('id',sub.id).eq('user_id',user.id));
+      const state = await checked(admin.rpc('get_quest_push_state',{p_user_id:user.id}));
+      const keys = new Set((Array.isArray(body.keys) ? body.keys : []).slice(0,10).filter((key: unknown) => typeof key === 'string' && key.length < 500));
+      const events = [...dueReminders(state,{timezone:sub.timezone,preferences:sub.preferences,enabledAt:Date.parse(sub.enabled_at)}), ...await scheduledSnoozes(sub,state)];
+      if (normalizeReminders(sub.preferences).friends && (popup || [...keys].some(key => String(key).startsWith('competition:')))) {
+        const competition = await checked(admin.rpc('get_quest_competition_push_events',{p_user_id:user.id,p_since:new Date(Date.now()-86400000).toISOString()}));
+        events.push(...(competition || []).filter((item: any) => Date.parse(item.created_at) >= Date.parse(sub.enabled_at)).map(challengeNotification));
+      }
+      const claimed = [];
+      for (const event of events) {
+        if (!popup && !keys.has(event.key) && !event.key.includes(':snooze:')) continue;
+        const acquired = await checked(admin.rpc('claim_quest_push',{p_subscription:sub.id,p_key:event.key}));
+        if (!acquired) continue;
+        await checked(admin.from('quest_push_deliveries').update({state:'sent',touched_at:new Date().toISOString(),event_payload:event}).eq('subscription_id',sub.id).eq('event_key',event.key));
+        claimed.push(event);
+      }
+      return reply(origin,{events:claimed});
+    }
+    if (body.action === 'snooze') {
+      const key = String(body.eventKey || '').slice(0,500);
+      const delivered = await checked(admin.from('quest_push_deliveries').select('event_payload,touched_at').eq('subscription_id',sub.id).eq('event_key',key).eq('state','sent').maybeSingle());
+      if (!delivered?.event_payload || Date.parse(delivered.touched_at) < Date.now()-86400000 || !['anchor','task','review','study','timer','pomodoro'].includes(delivered.event_payload.kind)) return reply(origin,{error:'This reminder can no longer be postponed.'},400);
+      const state = await checked(admin.rpc('get_quest_push_state',{p_user_id:user.id}));
+      if (!reminderStillRelevant(state,delivered.event_payload,{timezone:sub.timezone})) return reply(origin,{error:'This task has already changed or finished.'},409);
+      const original = key.split(':snooze:')[0], due = new Date(Date.now()+300000).toISOString();
+      await checked(admin.from('quest_reminder_snoozes').upsert({subscription_id:sub.id,original_key:original,due_at:due,event_payload:delivered.event_payload},{onConflict:'subscription_id,original_key'}));
+      return reply(origin,{due});
     }
     if (body.action === 'test') {
       const config = await secrets();

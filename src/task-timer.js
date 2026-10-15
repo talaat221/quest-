@@ -36,7 +36,7 @@ export function formatElapsed(ms) {
 }
 export function pauseTaskTimer(task, now = Date.now()) {
   const pomodoro = getPomodoro(task, now);
-  task.workTimer = { ...task.workTimer, elapsedMs: elapsedTaskMs(task, now), startedAt: null };
+  task.workTimer = { ...task.workTimer, elapsedMs: elapsedTaskMs(task, now), startedAt: null, pausedAt: new Date(now).toISOString() };
   if (pomodoro) task.workTimer.pomodoro = { ...task.workTimer.pomodoro, remainingMs: pomodoro.remainingMs, runningSince: null };
 }
 export function configureTaskPomodoro(task, settings, now = Date.now()) {
@@ -58,6 +58,7 @@ export function startTaskTimer(domains, domainId, taskId, now = Date.now()) {
   }
   pauseTaskTimer(task, now);
   const stamp = new Date(now).toISOString();
+  task.workTimer.pausedAt = null;
   const pomodoro = task.workTimer.pomodoro;
   if (pomodoro) {
     if (pomodoro.remainingMs === 0) {

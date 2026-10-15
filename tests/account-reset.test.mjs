@@ -25,7 +25,7 @@ async function harness({ online = true, cache = record(), uid = userId } = {}) {
     auth: { getSession: async () => ({ data: { session: cloud.uid ? { user: { id: cloud.uid } } : null }, error: null }) },
     from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { data: copy(cloud.data), updated_at: snapshot().updatedAt }, error: null }) }) }) }),
     rpc: async (name, args) => {
-      if (name === 'get_my_quest_snapshot') return { data: snapshot(), error: null };
+      if (name === 'get_my_quest_snapshot') { await cloud.beforeRead?.(); return { data: snapshot(), error: null }; }
       assert.equal(name, 'apply_my_quest_changes');
       await cloud.beforeCommit?.(args);
       if (cloud.fail) return { data: null, error: cloud.fail };
@@ -146,4 +146,25 @@ test('new quests can be saved normally after restarting', async () => {
   await h.client.supabase.from('quest_data').upsert({ user_id: userId, data: next });
   assert.equal(h.cloud.data.domains[0].id, 'new');
   assert.equal(h.cached().resetRevision, 2); assert.equal(h.cached().dirty, false);
+});
+
+
+test('background cloud refresh adopts newer data only while the local copy remains clean', async () => {
+  const h = await harness();
+  await h.client.supabase.from('quest_data').select('*').eq('user_id',userId).maybeSingle();
+  let current = copy(h.cached().data);
+  h.cloud.data.domains[0].tasks[0].done = false; h.cloud.revision++;
+  const remote = await h.client.refreshQuestSnapshot(userId, () => current);
+  assert.equal(remote.domains[0].tasks[0].done, false);
+  assert.equal(h.cached().baseRevision, h.cloud.revision);
+  current = copy(remote);
+  const entered = deferred(), gate = deferred();
+  h.cloud.beforeRead = async () => { entered.resolve(); await gate.promise; };
+  const reading = h.client.refreshQuestSnapshot(userId, () => current);
+  await entered.promise;
+  current.domains[0].tasks[0].name = 'Unsaved edit';
+  gate.resolve(); assert.equal(await reading, null);
+  assert.equal(current.domains[0].tasks[0].name, 'Unsaved edit');
+  const cached = h.cached(); cached.dirty = true; h.values.set(key,JSON.stringify(cached));
+  assert.equal(await h.client.refreshQuestSnapshot(userId, () => current), null);
 });

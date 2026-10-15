@@ -16,9 +16,10 @@ test('peers tick while studying but stop extrapolating when paused, on break or 
   assert.equal(memberElapsed(member,now),120);
   assert.equal(memberElapsed({...member,activity:'break'},now),90);
   assert.equal(memberElapsed({...member,activity:'idle'},now),90);
-  assert.equal(memberActivity(member,now+36000),'away');
-  assert.equal(memberElapsed(member,now+36000),90);
-  assert.equal(sharedTaskLabel(member,now+36000),'Away from the room');
+  assert.equal(memberActivity(member,now+60000),'studying','one delayed background heartbeat is tolerated');
+  assert.equal(memberActivity(member,now+181000),'away');
+  assert.equal(memberElapsed(member,now+181000),90);
+  assert.equal(sharedTaskLabel(member,now+181000),'Away from the room');
   assert.equal(sharedTaskLabel({...member,shareTask:false},now),'Task kept private');
   assert.equal(memberActivity({...member,lastSeenAt:null},now),'away');
   assert.equal(memberActivity({...member,status:'invited'},now),'invited');
