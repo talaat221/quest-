@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-shell-v41-account-emails';
+const CACHE_NAME = 'quest-shell-v42-study-companion';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest?v=quest-cottage-v1',
@@ -109,9 +109,13 @@ self.addEventListener('push', event => {
     badge: '/favicon-32x32.png?v=quest-cottage-v1',
     tag: String(payload?.tag || 'quest-reminder').slice(0, 80),
     data: payload?.data || { url: self.location.origin + '/#home' },
+    silent: payload?.data?.sound !== true,
+    actions: [{action:'open',title:'Open Quest'}, ...(['task','anchor','study','review','timer','pomodoro'].includes(payload?.data?.kind) ? [{action:'snooze',title:'In 5 min'}] : [])],
   };
   event.waitUntil((async () => {
     await self.registration.showNotification(title, options);
+    const remaining = payload?.data?.remaining;
+    if (Number.isInteger(remaining) && remaining >= 0) { try { if (remaining) await self.navigator?.setAppBadge?.(remaining); else await self.navigator?.clearAppBadge?.(); } catch { /* Optional OS support. */ } }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of windows) client.postMessage({ type: 'QUEST_REMINDER', payload: { ...payload, title, body: options.body, data: options.data } });
   })());
@@ -121,6 +125,7 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil((async () => {
     let target = new URL('/#home', self.location.origin);
     try { const candidate = new URL(event.notification.data?.url, self.location.origin); if (candidate.origin === self.location.origin) target = candidate; } catch { /* Use Home. */ }
+    if (event.action === 'snooze' && event.notification.data?.eventKey) { target.searchParams.set('questSnooze',event.notification.data.eventKey); target.hash = '#settings/notifications'; }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of windows) {
       if (new URL(client.url).origin !== target.origin) continue;

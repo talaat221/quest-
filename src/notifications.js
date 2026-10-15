@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabaseClient';
-import { DEFAULT_REMINDERS, normalizeReminders, dueReminders } from '../supabase/functions/_shared/reminders.js';
+import { DEFAULT_REMINDERS, normalizeReminders, dueReminders, reminderStillRelevant } from '../supabase/functions/_shared/reminders.js';
+
+import { reminderChime, unlockReminderSound } from './reminder-sound.js';
 
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -63,7 +65,7 @@ export function useQuestNotifications({ state, userId }) {
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { prefsRef.current = preferences; }, [preferences]);
   const mountedAt = useRef(0);
-  const seen = useRef({});
+  const seen = useRef({}), snoozes = useRef([]);
   const subRef = useRef(null);
   const competitionCursor = useRef(0);
   const account = useRef(userId);
@@ -79,7 +81,7 @@ export function useQuestNotifications({ state, userId }) {
     if (account.current !== userId) return;
     setKey(config.publicKey);
     const reg = await registration();
-    const sub = await reg?.pushManager.getSubscription(); subRef.current = sub;
+    const sub = await reg?.pushManager.getSubscription();
     if (sub && Notification.permission === 'granted') {
       let result = await api('status', { endpoint: sub.endpoint });
       // A saved opt-in with a valid provider subscription can be repaired after
@@ -88,6 +90,7 @@ export function useQuestNotifications({ state, userId }) {
         result = await api('subscribe', { subscription: sub.toJSON(), preferences: prefsRef.current });
       }
       if (account.current !== userId) return;
+      subRef.current = result.enabled ? sub : null;
       setEnabled(!!result.enabled);
       setLastDelivery(result.lastDelivery || null);
       if (result.enabled) {
@@ -95,13 +98,15 @@ export function useQuestNotifications({ state, userId }) {
         prefsRef.current = next; setPreferences(next); write(`quest-reminders:${userId}`, next);
         write('quest-push-owner', userId);
       }
-    } else { setEnabled(false); setLastDelivery(null); }
+    } else { subRef.current = null; setEnabled(false); setLastDelivery(null); }
   }, [userId, canPush, needsInstall]);
   useEffect(() => {
     if (!userId) { setEnabled(false); setToasts([]); return; }
     const saved = { ...DEFAULT_REMINDERS, inApp: true, ...read(`quest-reminders:${userId}`, {}) };
     prefsRef.current = saved; setPreferences(saved); setEnabled(false); setError(''); setToasts([]);
     seen.current = read(`quest-reminders-seen:${userId}`, {});
+    snoozes.current = read(`quest-reminder-snoozes:${userId}`, []);
+    subRef.current = null;
     mountedAt.current = Date.now();
     competitionCursor.current = Math.max(mountedAt.current - 86400000, Number(read(`quest-friend-cursor:${userId}`, mountedAt.current - 1000)));
     let refreshing = false;
@@ -119,17 +124,52 @@ export function useQuestNotifications({ state, userId }) {
   }, [userId, refresh]);
   useEffect(() => {
     if (!userId) return;
-    const remember = event => {
-      if (seen.current[event.key]) return;
-      seen.current[event.key] = Date.now();
-      seen.current = Object.fromEntries(Object.entries(seen.current).filter(([,stamp]) => Number(stamp) > Date.now() - 7*86400000));
-      write(`quest-reminders-seen:${userId}`, seen.current);
-      if (prefsRef.current.inApp) setToasts(list => [...list, event].slice(-4));
+    const remember = async (event, display = true) => {
+      const action = async () => {
+        if (account.current !== userId) return;
+        seen.current = { ...seen.current, ...read(`quest-reminders-seen:${userId}`, {}) };
+        if (seen.current[event.key]) return;
+        seen.current[event.key] = Date.now();
+        seen.current = Object.fromEntries(Object.entries(seen.current).filter(([,stamp]) => Number(stamp) > Date.now() - 7*86400000));
+        write(`quest-reminders-seen:${userId}`, seen.current);
+        if (display && prefsRef.current.inApp && document.visibilityState !== 'hidden') {
+          setToasts(list => [...list, { ...event, createdAt: Date.now(), durationMs: prefsRef.current.bannerSeconds * 1000 }].slice(-3));
+          if (prefsRef.current.sound) reminderChime();
+        }
+      };
+      if (navigator.locks?.request) return navigator.locks.request(`quest-reminder:${userId}`, action);
+      return action();
     };
-    const tick = () => {
-      if (document.visibilityState === 'hidden') return;
-      // Recover a reminder due while the app was loading or waking from sleep.
-      for (const event of dueReminders(stateRef.current, { timezone: zone(), preferences: prefsRef.current, enabledAt: mountedAt.current - 120000 })) remember(event);
+    let ticking = false, snoozeCheck = 0, claimCheck = 0;
+    const tick = async () => {
+      if (document.visibilityState === 'hidden' || ticking || !prefsRef.current.inApp) return;
+      ticking = true;
+      try {
+        const events = dueReminders(stateRef.current, { timezone: zone(), preferences: prefsRef.current, enabledAt: mountedAt.current - 120000 });
+        const unseen = events.filter(event => !seen.current[event.key]);
+        if (subRef.current) {
+          // A single server ledger chooses in-app OR native push for this device.
+          if ((unseen.length && Date.now() - claimCheck >= 5000) || Date.now() - snoozeCheck > 30000) {
+            claimCheck = Date.now();
+            snoozeCheck = Date.now();
+            const result = await api('foreground', {endpoint:subRef.current.endpoint,keys:unseen.map(event=>event.key)});
+            if (account.current !== userId) return;
+            if (result.enabled === false) { subRef.current = null; setEnabled(false); }
+            for (const event of result.events || []) {
+              if (document.visibilityState === 'hidden' && Notification.permission === 'granted') {
+                const reg = await registration();
+                await reg.showNotification(event.title,{body:event.body,icon:'/icon-192.png',tag:event.key,data:{url:`${window.location.origin}/${event.page}`},silent:!prefsRef.current.sound});
+                await remember(event,false);
+              } else await remember({...event,remote:true});
+            }
+          }
+        } else for (const event of unseen) await remember(event);
+        const local = snoozes.current.filter(event => event.due <= Date.now());
+        snoozes.current = snoozes.current.filter(event => event.due > Date.now());
+        write(`quest-reminder-snoozes:${userId}`,snoozes.current);
+        for (const event of local) if (Date.now()-event.due<120000 && reminderStillRelevant(stateRef.current,event,{timezone:zone()})) await remember(event);
+      } catch { /* Native push remains the fallback when foreground claiming fails. */ }
+      finally { ticking = false; }
     };
     let polling = false;
     const competitionTick = async () => {
@@ -146,15 +186,16 @@ export function useQuestNotifications({ state, userId }) {
       if (competitionError) { setFeedError('Friend updates cannot connect. They will retry when you are online.'); return; }
       setFeedError('');
       if (!prefsRef.current.friends) return;
+      const events = [];
       for (const item of data || []) {
         const created = Date.parse(item.created_at) || Date.now();
         competitionCursor.current = Math.max(competitionCursor.current, created + 1);
-        remember({
-          key: `competition:${item.event_id}`,
-          title: 'Challenge update',
-          body: `${item.actor_display_name || 'Your challenger'} just completed a task for ${Math.max(0, Math.round(Number(item.xp) || 0))} XP.`,
-          page: '#competition',
-        });
+        events.push({key:`competition:${item.event_id}`,title:'Challenge update',body:`${item.actor_display_name || 'Your challenger'} just completed a task for ${Math.max(0,Math.round(Number(item.xp)||0))} XP.`,page:'#competition',kind:'competition'});
+      }
+      if (prefsRef.current.inApp) {
+        if (subRef.current && events.length) {
+          try { const claimed = await api('foreground',{endpoint:subRef.current.endpoint,keys:events.map(e=>e.key)}); for (const event of claimed.events || []) await remember({...event,remote:true}); } catch { /* Native delivery remains available. */ }
+        } else for (const event of events) await remember(event);
       }
       write(`quest-friend-cursor:${userId}`, competitionCursor.current);
     };
@@ -162,11 +203,11 @@ export function useQuestNotifications({ state, userId }) {
       if (event.data?.type !== 'QUEST_REMINDER' || event.data?.payload?.data?.userId !== userId) return;
       const payload = event.data.payload;
       if (String(payload.data.eventKey).startsWith('competition:') && !prefsRef.current.friends) return;
-      remember({ key: payload.data.eventKey, title: payload.title, body: payload.body, page: new URL(payload.data.url).hash });
+      void remember({ key: payload.data.eventKey }, false);
     };
-    const id = setInterval(tick, 1000);
+    const id = setInterval(() => { void tick(); }, 1000);
     const competitionId = setInterval(() => { void competitionTick(); }, 5000);
-    const onVisible = () => { tick(); void competitionTick(); };
+    const onVisible = () => { void tick(); void competitionTick(); };
     document.addEventListener('visibilitychange', onVisible);
     navigator.serviceWorker?.addEventListener('message', pushed);
     void competitionTick();
@@ -204,13 +245,13 @@ export function useQuestNotifications({ state, userId }) {
     });
   };
   const disable = () => void run(async () => { await disconnectNotifications(); subRef.current = null; setEnabled(false); setMessage('Phone notifications are off on this device.'); });
-  const update = values => void run(async () => {
+  const update = values => { if (values.sound) unlockReminderSound(); return void run(async () => {
     const next = { ...prefsRef.current, ...values };
     if (enabled && subRef.current) await api('preferences', { endpoint: subRef.current.endpoint, preferences: next });
     if (Object.hasOwn(values, 'friends')) { competitionCursor.current = Date.now(); write(`quest-friend-cursor:${userId}`, competitionCursor.current); }
     prefsRef.current = next;
     setPreferences(next); write(`quest-reminders:${userId}`, next);
-  });
+  }); };
   const test = () => void run(async () => {
     if (!subRef.current) throw new Error('Enable notifications on this device first.');
     await api('test', { endpoint: subRef.current.endpoint });
@@ -222,6 +263,30 @@ export function useQuestNotifications({ state, userId }) {
     await reg.showNotification('Quest browser test', { body: 'Your browser can display Quest alerts.', icon: '/icon-192.png', tag: 'quest-local-test', data: { url: `${window.location.origin}/#settings/notifications` } });
     setMessage('Browser test requested. If you cannot see it, check your computer/phone notification settings and Focus or Do Not Disturb.');
   });
+  const snooze = async event => {
+    try {
+      if (event.remote && subRef.current) await api('snooze',{endpoint:subRef.current.endpoint,eventKey:event.key});
+      else {
+        const due = Date.now()+300000;
+        const base = event.key.split(':snooze:')[0];
+        snoozes.current = [...snoozes.current.filter(e => e.key.split(':snooze:')[0] !== base), {...event,key:`${base}:snooze:${due}`,due}];
+        write(`quest-reminder-snoozes:${userId}`,snoozes.current);
+      }
+      setToasts(list => list.filter(item => item.key !== event.key));
+    } catch (problem) { setToasts(list => list.map(item => item.key === event.key ? {...item,actionError:problem.message} : item)); }
+  };
+  useEffect(() => {
+    if (!enabled || !subRef.current) return;
+    const url = new URL(window.location.href), eventKey = url.searchParams.get('questSnooze');
+    if (!eventKey) return;
+    url.searchParams.delete('questSnooze'); window.history.replaceState({},'',url);
+    void api('snooze',{endpoint:subRef.current.endpoint,eventKey}).then(() => setMessage('Reminder postponed for 5 minutes.')).catch(problem => setError(problem.message));
+  }, [enabled, userId]);
+  const dismiss = useCallback(id => setToasts(list => list.filter(item => item.key !== id)), []);
+  const preview = () => {
+    if (prefsRef.current.sound) { unlockReminderSound(); reminderChime(); }
+    setToasts(list => [...list,{key:`preview:${Date.now()}`,title:'One small step for today',body:'Your next quest is waiting. This is a reminder preview.',page:'#today-quests',kind:'preview',createdAt:Date.now(),durationMs:prefsRef.current.bannerSeconds*1000}].slice(-3));
+  };
   const reconnect = () => void run(async () => { await refresh(); setConnectionError(''); setMessage('Device connection checked.'); });
-  return { preferences, enabled, busy, checking, message, error: error || connectionError, feedError, reconnect, permission, needsInstall, canPush, enable, disable, update, test, testBrowser, lastDelivery, timezone: zone(), toasts, dismiss: id => setToasts(list => list.filter(item => item.key !== id)) };
+  return { preferences, enabled, busy, checking, message, error: error || connectionError, feedError, reconnect, permission, needsInstall, canPush, enable, disable, update, test, testBrowser, lastDelivery, timezone: zone(), toasts, snooze, preview, dismiss };
 }

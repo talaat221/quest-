@@ -15,8 +15,8 @@ Each participant keeps their own existing task timer and Pomodoro controls.
 Starting work changes that character to a writing pose; pauses and breaks
 restore the resting pose. Leaving a shared room never pauses or finishes a
 task. The same timer continues to work when the social connection is offline.
-When a participant switches away from Focus or hides the app, they appear away.
-Abrupt disconnects become away after 65 seconds rather than extrapolating time
+Switching away from Focus or hiding the app preserves the actual study activity.
+Abrupt disconnects become away after three minutes rather than extrapolating time
 forever. On returning, saved task timestamps recover the actual elapsed time.
 
 **Share my task name** starts off for every new room membership. Only study
@@ -73,3 +73,7 @@ two-phone invitation is still the final device-level acceptance check.
 ## Leaving and starting again
 
 Use the visible **Leave room** or **New room** buttons in Focus. Both preserve your personal task timer. Hosting passes to a remaining member when you leave; outstanding invitations close so the new host can invite their own friends. The last joined member leaving closes the room. Starting a new room is atomic and rejects stale requests from older tabs. **End session for everyone** remains a separate, confirmed host control.
+
+## Floating companion and background presence
+
+See [Floating companion](study-companion.md). Presence now stays active when switching tabs or navigating away from Focus; a three-minute heartbeat lease still expires genuine stale connections. The companion shares the original timer and joined-room members.

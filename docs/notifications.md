@@ -1,6 +1,6 @@
 # Quest reminders
 
-Enable under **More → Notifications** on each browser/device. iPhone users must
+Enable under **You → Settings → Notifications** on each browser/device. iPhone users must
 first add Quest to the Home Screen, launch that icon, then tap Enable and Allow.
 No permission dialog appears automatically. “Send test” exercises the push path;
 it is limited to once per minute per device.
@@ -95,3 +95,5 @@ saves, subscription setup and competition polling can all acquire the auth lock.
 ## Device checks (October 2026)
 
 Notification settings now live at **You → Settings → Notifications**. `Check connection` checks the saved registration, `Send test` exercises background push, and `Test browser display` asks the installed worker to display a local alert. A provider accepting a message is not a device-read receipt. Also check operating-system notifications and Focus/Do Not Disturb if the browser test is silent. The service worker tolerates unavailable optional artwork during installation, and subscriptions are checked again when the app becomes visible.
+
+See [Floating companion and interactive reminders](study-companion.md) for countdown banners, snoozes, badge behavior and the foreground/native delivery ledger.

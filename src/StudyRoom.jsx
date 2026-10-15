@@ -6,16 +6,14 @@ import { getPomodoro, normalizePomodoro, formatCountdown, pomodoroActionLabel, p
 import { elapsedTaskMs, isTaskWorking } from './task-timer.js';
 import { getStudySelection, getStudyTasks, studyTaskKey } from './study-room.js';
 import './study-room.css';
-import useStudyPresence from './useStudyPresence.js';
 import { SharedRoomArtwork, StudySocialBar, StudyCompanions } from './StudyTogether.jsx';
 
 // Auto room view is for a phone turned sideways. A short laptop window
 // should keep its navigation and only enter room view when requested.
 const LANDSCAPE_ROOM = '(orientation: landscape) and (min-width: 640px) and (max-height: 650px) and (pointer: coarse)';
 
-export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate, onConfigureTimer, studyTogether }) {
+export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinish, onCreate, onConfigureTimer, studyTogether, selectedKey, onSelect, onOpenCompanion }) {
   const id = useId(), pageRef = useRef(null), taskInput = useRef(null), immersiveButton = useRef(null), newTaskDialog = useRef(null);
-  const [selectedKey, setSelectedKey] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
   const [newName, setNewName] = useState('');
   const [newQuestId, setNewQuestId] = useState('');
@@ -36,7 +34,6 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
   const selectedQuestId = domains.some(item => item.id === newQuestId) ? newQuestId : domain?.id || domains[0]?.id || '';
   const roomView = immersive || landscape;
   const activity = pomodoro?.running && pomodoro.phase !== 'focus' ? 'break' : working ? 'studying' : 'idle';
-  useStudyPresence(studyTogether, task, activity);
   const [roomNow, setRoomNow] = useState(Date.now);
   useEffect(() => {
     if (!studyTogether.room?.id) return;
@@ -86,12 +83,12 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
     if (!domains.some(item => item.id === selectedQuestId)) { setError('Choose a quest for this task.'); return; }
     const taskId = onCreate({ domainId: selectedQuestId, name, startNow: event.nativeEvent.submitter?.value === 'start', pomodoro: pomodoro ? normalizePomodoro(pomodoro) : null });
     if (!taskId) { setError('This quest is no longer available. Choose another one.'); return; }
-    setSelectedKey(studyTaskKey(selectedQuestId, taskId));
+    onSelect(studyTaskKey(selectedQuestId, taskId));
     setNewName(''); setError(''); setShowNewTask(false);
   };
 
   return <section ref={pageRef} className={`sr-page${roomView ? ' is-room-view' : ''}${immersive ? ' is-immersive' : ''}${landscape ? ' is-landscape' : ''}${pomodoro ? ' is-pomodoro' : ''}`} aria-labelledby={`${id}-title`}>
-    <header className="sr-page-header"><a href="#quests" className="sr-back">‹ Quests</a><div><span className="sr-eyebrow">INSIDE THE COTTAGE</span><h1 id={`${id}-title`}>Study with me</h1></div><button type="button" className="sr-room-mode" ref={immersiveButton} onClick={() => setImmersive(value => !value)} aria-pressed={immersive}>{immersive ? 'Exit room view' : 'Room view'}</button></header>
+    <header className="sr-page-header"><a href="#quests" className="sr-back">‹ Quests</a><div><span className="sr-eyebrow">INSIDE THE COTTAGE</span><h1 id={`${id}-title`}>Study with me</h1></div><div className="sr-header-actions"><button type="button" onClick={onOpenCompanion}>Float timer ↗</button><button type="button" className="sr-room-mode" ref={immersiveButton} onClick={() => setImmersive(value => !value)} aria-pressed={immersive}>{immersive ? 'Exit room view' : 'Room view'}</button></div></header>
     <StudySocialBar controller={studyTogether} taskName={task?.name}/>
     <div className="sr-workspace"><div className="sr-stage-wrap"><div className="sr-stage">
       <SharedRoomArtwork controller={studyTogether} working={working} activity={activity} motion={motionEnabled && visible} now={sharedNow} />
@@ -105,7 +102,7 @@ export default function StudyRoom({ domains, todayStr, onStart, onPause, onFinis
     <div className="sr-work-panel">
       <div className="sr-panel-heading"><span aria-hidden="true">✦</span><div><span className="sr-eyebrow">A LITTLE EVERY DAY</span><h2>Settle in.</h2></div></div>
       <PomodoroOptions key={selection?.key || 'empty'} pomodoro={pomodoro} hasTask={!!task} disabled={timerRunning} onConfigure={settings => task && onConfigureTimer(domain.id, task.id, settings)} />
-      <div className="sr-task-controls"><div className="sr-task-picker"><div className="sr-task-label"><label htmlFor={`${id}-task`}>Your task</label>{pomodoro && <span className="sr-pomo-round">{pomodoro.completedRounds} {pomodoro.completedRounds === 1 ? 'round' : 'rounds'}</span>}</div><select id={`${id}-task`} value={selection?.key || ''} disabled={timerRunning || !items.length} onChange={event => { setSelectedKey(event.target.value); setShowNewTask(false); }}>
+      <div className="sr-task-controls"><div className="sr-task-picker"><div className="sr-task-label"><label htmlFor={`${id}-task`}>Your task</label>{pomodoro && <span className="sr-pomo-round">{pomodoro.completedRounds} {pomodoro.completedRounds === 1 ? 'round' : 'rounds'}</span>}</div><select id={`${id}-task`} value={selection?.key || ''} disabled={timerRunning || !items.length} onChange={event => { onSelect(event.target.value); setShowNewTask(false); }}>
         {!items.length && <option value="">No unfinished tasks yet</option>}
         {domains.map(item => <optgroup key={item.id} label={item.name}>{items.filter(entry => entry.domain.id === item.id).map(entry => <option key={entry.key} value={entry.key}>{entry.task.name}{entry.task.day === todayStr ? ' · Today' : ''}</option>)}</optgroup>)}
       </select></div>

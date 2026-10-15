@@ -19,8 +19,8 @@ export function TaskTimerControls({ task, onStart, onPause, onFinish }) {
     {(active || started) && <button type="button" className="qt-finish" onClick={onFinish}>Finish task</button>}
   </div>;
 }
-export function FocusTimerBar({ task, domain, onPause, onFinish, safeActive = false }) {
-  return <aside className={`qt-focus-bar${safeActive ? ' is-safe-active' : ''}`} aria-label="Current task timer"><div className="qt-focus-copy"><a href="#quests"><span className="qt-focus-label">WORKING ON · {domain.name}</span><strong>{task.name}</strong></a><TaskClock task={task} /></div><div className="qt-focus-actions"><button type="button" onClick={onPause} aria-label={`Pause ${task.name}`}>Pause</button><button type="button" onClick={onFinish}>Finish</button></div></aside>;
+export function FocusTimerBar({ task, domain, onPause, onFinish, onOpenCompanion, safeActive = false }) {
+  return <aside className={`qt-focus-bar${safeActive ? ' is-safe-active' : ''}`} aria-label="Current task timer"><div className="qt-focus-copy"><a href="#quests"><span className="qt-focus-label">WORKING ON · {domain.name}</span><strong>{task.name}</strong></a><TaskClock task={task} /></div><div className="qt-focus-actions">{onOpenCompanion && <button type="button" onClick={onOpenCompanion}>Float ↗</button>}<button type="button" onClick={onPause} aria-label={`Pause ${task.name}`}>Pause</button><button type="button" onClick={onFinish}>Finish</button></div></aside>;
 }
 export function TaskFinishedDialog({ result, onClose, returnLabel = 'Back to my garden' }) {
   const dialog = useRef(null), title = useId();
