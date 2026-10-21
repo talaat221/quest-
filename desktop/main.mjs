@@ -67,7 +67,7 @@ function armExpiry(ms) {
   expireTimer = setTimeout(() => { clearActive(); next(); },ms);
 }
 function handleAction(key, action) {
-  if (!active || active.event.key !== key || active.busy) return;
+  if (!active || active.event.key !== key || active.busy || (active.completed && action !== 'dismiss')) return;
   const allowed = ['open','dismiss',...(primaryAction(active.event).id === 'start' ? ['start'] : []),...(snoozable.has(active.event.kind) ? ['snooze'] : [])];
   if (!allowed.includes(action)) return;
   if (action === 'dismiss') { clearActive(); next(); return; }
@@ -158,6 +158,7 @@ if (single) app.whenReady().then(async () => {
   notice = new BrowserWindow({width:540,height:158,show:false,frame:false,transparent:true,resizable:false,movable:false,minimizable:false,maximizable:false,fullscreenable:false,skipTaskbar:true,alwaysOnTop:true,hasShadow:false,
     webPreferences:{preload:path.join(here,'notice-preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,backgroundThrottling:false,autoplayPolicy:'no-user-gesture-required'}});
   protect(notice,'notice'); notice.setAlwaysOnTop(true,'floating');
+  notice.on('hide',() => { if (!notice.isDestroyed()) notice.webContents.send('notice:hidden'); });
   notice.on('close', event => { if (!quitting) { event.preventDefault(); clearActive(); next(); } });
   notice.webContents.on('render-process-gone', () => { noticeReady = false; clearActive(); notice.reload(); });
   Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Quest',submenu:[{label:'Open Quest',click:showMain},{label:'Hide to tray',click:()=>main.hide()},{type:'separator'},{label:'Quit Quest',click:()=>{quitting=true;app.quit();}}]},{label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},{label:'View',submenu:[{role:'reload'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'},...(!app.isPackaged?[{role:'toggleDevTools'}]:[])]}]));
@@ -194,12 +195,13 @@ if (single) app.whenReady().then(async () => {
     const keys = new Set(value.keys);
     queue = queue.filter(item => { if (keys.has(item.event.key)) { removed(item.event.key); return false; } return true; });
     for (const key of keys) { const item = nativeNotices.get(key); if (item) { clearTimeout(item.timer); item.notification.close(); nativeNotices.delete(key); removed(key); } }
-    if (active && !active.busy && keys.has(active.event.key)) { clearActive(); next(); }
+    if (active && !active.busy && !active.completed && keys.has(active.event.key)) { clearActive(); next(); }
   });
   ipcMain.handle('quest:action-result',(event,value) => {
     requireMain(event); if (value?.userId !== account || !active || active.event.key !== value?.key || !active.busy) return;
     clearTimeout(actionTimer); active.busy = false;
     const ok = value.ok === true;
+    active.completed = ok;
     const message = typeof value.message === 'string' ? value.message.slice(0,120) : (ok ? 'Done.' : 'Open Quest and try again.');
     notice.webContents.send('notice:result',{key:active.event.key,ok,message}); armExpiry(ok ? 2400 : 12000);
   });

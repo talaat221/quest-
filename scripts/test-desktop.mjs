@@ -85,7 +85,7 @@ try {
   console.log(`\n${checks} desktop checks passed.`);
 } catch(error) {
   await fs.mkdir(path.join(root,'release'),{recursive:true});
-  for(const [name,win] of [['main',page],['popup',popup]]) {try{await win?.screenshot({path:path.join(root,`release/test-failed-${name}.png`)});}catch{}}
+  for(const [name,win] of [['main',page],['popup',popup]]) {try{await win?.screenshot({path:path.join(root,`release/test-failed-${name}.png`),timeout:3000});}catch{}}
   console.error(error);
   try { console.log("Fixture:",await page.evaluate(()=>({error:window.fixture?.notifications.error,body:document.body.innerText.slice(0,600)}))); console.log("Reminder:",await popup?.locator("body").innerText()); } catch {}
   process.exitCode=1;

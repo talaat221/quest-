@@ -2,7 +2,10 @@ const bridge = window.questNotice;
 const el = id => document.getElementById(id);
 let current = null, deadline = 0, remaining = 0, held = false, busy = false, hover = false, focus = false;
 bridge.onShow(event => {
-  current = event; busy = false; held = false; remaining = event.remainingMs; deadline = Date.now() + remaining;
+  // A reused native window retains its last focused button after hide(). Do
+  // not let that stale focus hold the next, untouched reminder on screen.
+  document.activeElement?.blur();
+  current = event; busy = false; held = false; hover = false; focus = false; remaining = event.remainingMs; deadline = Date.now() + remaining;
   el('title').textContent = event.title; el('body').textContent = event.body;
   el('category').textContent = {pomodoro:'A MOMENT TO RESET',timer:'TIME CHECK',competition:'FROM YOUR FRIENDS',review:'YOUR DAILY CHECK-IN'}[event.kind] || 'YOUR NEXT SMALL STEP';
   el('primary').textContent = event.primary.label;
@@ -11,7 +14,6 @@ bridge.onShow(event => {
   // Reuse one small native window without leaving an empty bubble behind.
   el('notice').getAnimations().forEach(animation => animation.cancel());
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) el('notice').animate([{opacity:0,transform:'translateY(-8px)'},{opacity:1,transform:'none'}],{duration:220});
-  requestAnimationFrame(hold);
   if (event.sound) {
     try {
       const audio = new AudioContext(), gain = audio.createGain(), oscillator = audio.createOscillator();
@@ -20,6 +22,7 @@ bridge.onShow(event => {
     } catch { /* Reminders remain usable without audio. */ }
   }
 });
+bridge.onHidden(() => { current = null; busy = false; held = false; hover = false; focus = false; document.activeElement?.blur(); });
 bridge.onResult(result => {
   if (current?.key !== result.key) return;
   busy = false; el('feedback').textContent = result.message;
@@ -39,6 +42,7 @@ function hold() {
 el('notice').addEventListener('mouseenter', () => { hover = true; hold(); });
 el('notice').addEventListener('mouseleave', () => { hover = false; hold(); });
 document.addEventListener('focusin', () => { focus = true; hold(); });
+document.addEventListener('focusout', event => { if (!el('notice').contains(event.relatedTarget)) { focus = false; hold(); } });
 window.addEventListener('blur', () => { focus = false; hold(); });
 setInterval(() => { if (!current) return; const left = held || busy ? remaining : Math.max(0, deadline - Date.now()); el('progress').style.transform = `scaleX(${Math.min(1,left/current.durationMs)})`; },100);
 bridge.ready();
