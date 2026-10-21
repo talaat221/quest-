@@ -1,0 +1,59 @@
+name: Build Quest for Windows
+
+on:
+  push:
+    branches: [feature/desktop-reminders]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quest-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check timers, privacy and reminder behavior
+        run: npm test
+      - name: Compile Quest
+        run: npm run build
+      - name: Exercise the real desktop app
+        run: npm run test:desktop
+      - name: Build personal-testing Windows installer
+        run: npx electron-builder --config desktop/builder.json --win nsis --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Record installer checksum
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/Quest-Setup-*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($installer.Name)" | Set-Content -Encoding utf8 release/SHA256SUMS.txt
+          Copy-Item docs/desktop-testing.md release/START-HERE.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quest-Windows-Setup
+          path: |
+            release/Quest-Setup-*.exe
+            release/SHA256SUMS.txt
+            release/START-HERE.md
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Quest-desktop-test-debug
+          path: release/test-*.png
+          if-no-files-found: ignore
+          retention-days: 7
