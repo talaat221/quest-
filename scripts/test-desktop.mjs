@@ -13,7 +13,7 @@ const fixtureOutput=path.join(root,'dist','desktop-test');
 let app, page, popup, checks=0;
 const check=(value,message)=>{assert.ok(value,message);checks++;console.log(`PASS ${message}`);};
 const poll=async(fn,message,timeout=12000)=>{const end=Date.now()+timeout;while(Date.now()<end){if(await fn()){checks++;console.log(`PASS ${message}`);return;}await new Promise(r=>setTimeout(r,100));}throw new Error(message);};
-const visibility=()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().map(w=>({url:w.webContents.getURL(),visible:w.isVisible(),focused:w.isFocused(),top:w.isAlwaysOnTop(),prefs:w.webContents.getLastWebPreferences()})));
+const visibility=()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().map(w=>({url:w.webContents.getURL(),visible:w.isVisible(),focused:w.isFocused(),top:w.isAlwaysOnTop(),prefs:w.webContents.getLastWebPreferences(),throttled:w.webContents.getBackgroundThrottling()})));
 async function direct(kind,key=kind) {
  return page.evaluate(async({kind,key})=>window.questDesktop.notify({userId:'desktop-test-user',event:{key:`direct:${key}`,kind,title:`${kind} reminder`,body:'A small step in your day',page:'#home',createdAt:Date.now(),durationMs:8000}}),{kind,key});
 }
@@ -31,7 +31,7 @@ try {
   check(await popup.evaluate(()=>!window.questDesktop && !!window.questNotice),'Reminder renderer cannot use app settings or arbitrary IPC');
   const security=(await visibility()).find(w=>w.url.includes('desktop-fixture'));
   check(security.prefs.contextIsolation && security.prefs.sandbox && !security.prefs.nodeIntegration && security.prefs.webSecurity,'Isolation and renderer sandbox enabled');
-  check(security.prefs.backgroundThrottling===false,'Reminder clocks run when the main window is hidden');
+  check(security.throttled===false,'Reminder clocks run when the main window is hidden');
   check((await page.evaluate(async()=>[await fetch('quest://notice/main.mjs').then(r=>r.status).catch(()=>404),await fetch('quest://app/..%2fpackage.json').then(r=>r.status).catch(()=>404)] )).every(s=>s===404),'Protocol refuses main-process files and path traversal');
   await page.evaluate(async()=>{const s=await window.questDesktop.getSettings();if(s.launchAtLogin)throw new Error('Startup was silently enabled');await window.questDesktop.updateSettings({closeToTray:true});});
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('desktop-fixture')).close());
@@ -86,7 +86,9 @@ try {
 } catch(error) {
   await fs.mkdir(path.join(root,'release'),{recursive:true});
   for(const [name,win] of [['main',page],['popup',popup]]) {try{await win?.screenshot({path:path.join(root,`release/test-failed-${name}.png`)});}catch{}}
-  console.error(error);process.exitCode=1;
+  console.error(error);
+  try { console.log("Fixture:",await page.evaluate(()=>({error:window.fixture?.notifications.error,body:document.body.innerText.slice(0,600)}))); console.log("Reminder:",await popup?.locator("body").innerText()); } catch {}
+  process.exitCode=1;
 } finally {
   if(app)await app.close();
   await fs.rm(fixtureOutput,{recursive:true,force:true});await fs.rm(data,{recursive:true,force:true,maxRetries:5,retryDelay:300});

@@ -51,9 +51,9 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
-          name: Quest-desktop-test-debug
+          name: Quest-desktop-preview
           path: release/test-*.png
           if-no-files-found: ignore
           retention-days: 7
