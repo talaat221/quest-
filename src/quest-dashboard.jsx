@@ -23,6 +23,7 @@ import StudyCompanion from "./StudyCompanion.jsx";
 import { getStudySelection, getStudyTasks } from "./study-room.js";
 import { useQuestNotifications, disconnectNotifications } from "./notifications.js";
 import { NotificationToasts } from "./NotificationSettings.jsx";
+import { desktopBridge } from "./desktop-bridge.js";
 import TodayQuests from "./TodayQuests";
 import { getTodayQuestItems } from "./today-quests.js";
 import { FarmAndStreak, StopDay, DayPauseNotice, BottomNavigation, HomePageHeading } from "./HomeFinish";
@@ -3509,7 +3510,7 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     if (!loaded || !userId) return;
     let gone = false, fetching = false;
     const refresh = async () => {
-      if (fetching || (document.visibilityState === 'hidden' && !window.documentPictureInPicture?.window)) return;
+      if (fetching || (document.visibilityState === 'hidden' && !desktopBridge && !window.documentPictureInPicture?.window)) return;
       fetching = true;
       const expected = latestCompanionState.current;
       try {
@@ -3521,9 +3522,17 @@ export default function QuestDashboard({ designPreview = false } = {}) {
     const timer = setInterval(wake, 30000);
     window.addEventListener('focus', wake); window.addEventListener('online', wake); window.addEventListener('storage', wake);
     document.addEventListener('visibilitychange', wake);
-    return () => { gone = true; clearInterval(timer); window.removeEventListener('focus', wake); window.removeEventListener('online', wake); window.removeEventListener('storage', wake); document.removeEventListener('visibilitychange', wake); };
+    const stopDesktopWake = desktopBridge?.onWake(wake);
+    return () => { gone = true; clearInterval(timer); stopDesktopWake?.(); window.removeEventListener('focus', wake); window.removeEventListener('online', wake); window.removeEventListener('storage', wake); document.removeEventListener('visibilitychange', wake); };
   }, [loaded, session?.user?.id]);
-  const notificationState = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id, popupWindow });
+  const notificationState = useQuestNotifications({ state: loaded ? state : null, userId: session?.user?.id, popupWindow, onStartReminder: event => {
+    const {domainId,taskId} = event.target;
+    const task = latestCompanionState.current?.domains?.find(domain=>domain.id===domainId)?.tasks.find(item=>item.id===taskId);
+    if (!task || task.done || isTaskTimerRunning(task)) return false;
+    startWorking(domainId,taskId);
+    setStudySelectionKey(JSON.stringify([domainId,taskId]));
+    return true;
+  } });
   const notifications = {
     ...notificationState,
     openPopup: () => companionRef.current?.open({ notificationsOnly: true }),

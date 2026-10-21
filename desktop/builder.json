@@ -1,0 +1,13 @@
+{
+  "appId": "me.myquests.desktop",
+  "productName": "Quest",
+  "copyright": "Copyright © 2026 Quest",
+  "asar": true,
+  "directories": {"output":"release"},
+  "files": ["dist/**/*", "desktop/**/*", "package.json", "!node_modules/**/*", "!desktop/builder.json"],
+  "extraMetadata": {"name":"quest-desktop", "version":"0.1.0", "main":"desktop/main.mjs"},
+  "electronFuses": {"runAsNode":false,"enableCookieEncryption":true,"enableNodeOptionsEnvironmentVariable":false,"enableNodeCliInspectArguments":false,"enableEmbeddedAsarIntegrityValidation":true,"onlyLoadAppFromAsar":true},
+  "win": {"target":[{"target":"nsis","arch":["x64"]}],"icon":"public/icon-512.png","artifactName":"Quest-Setup-${version}.${ext}"},
+  "nsis": {"oneClick":false,"perMachine":false,"allowElevation":false,"allowToChangeInstallationDirectory":true,"createDesktopShortcut":true,"createStartMenuShortcut":true,"shortcutName":"Quest","deleteAppDataOnUninstall":false},
+  "publish": null
+}

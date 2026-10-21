@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { accountWebOrigin } from "./desktop-bridge.js";
 import { playLoginError, playLoginSuccess, playLoginTap } from "./loginSfx";
 import { isValidFriendUsername, normalizeFriendUsername } from "./friends-core.js";
 import "./Login.css";
@@ -7,7 +8,7 @@ import "./LoginRecovery.css";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const recoveryRedirectUrl = () => `${window.location.origin}/reset-password`;
+const recoveryRedirectUrl = () => `${accountWebOrigin()}/reset-password`;
 
 const isEmailRateLimitError = (error) =>
   /email rate limit exceeded|rate limit.*email|email.*rate limit/i.test(error?.message || "");
@@ -172,7 +173,7 @@ export default function Login({ onLogin }) {
     try {
       const { error } = await supabase.auth.resend({
         type: "signup", email: email.trim(),
-        options: { emailRedirectTo: `${window.location.origin}/` },
+        options: { emailRedirectTo: `${accountWebOrigin()}/` },
       });
       if (error) throw error;
       setResetCooldown(60);
@@ -246,7 +247,7 @@ export default function Login({ onLogin }) {
             email: email.trim(),
             password,
             options: {
-              emailRedirectTo: `${window.location.origin}/`,
+              emailRedirectTo: `${accountWebOrigin()}/`,
               data: {
                 username: cleanUsername,
                 display_name: cleanUsername,

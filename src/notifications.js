@@ -4,6 +4,8 @@ import { DEFAULT_REMINDERS, normalizeReminders, dueReminders, reminderStillRelev
 
 import { reminderChime, unlockReminderSound } from './reminder-sound.js';
 import { notificationSetupMessage, popupCanDisplay, withNotificationDeadline } from './notification-support.js';
+import { desktopBridge } from './desktop-bridge.js';
+import { useDesktopReminders } from './desktop-notifications.js';
 
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -36,6 +38,7 @@ const registration = async () => {
   } finally { clearTimeout(timer); }
 };
 export async function disconnectNotifications() {
+  if (desktopBridge) { await desktopBridge.configure({userId:null,enabled:false}); return; }
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.getRegistration();
   const subscription = await reg?.pushManager?.getSubscription();
@@ -48,7 +51,7 @@ export async function disconnectNotifications() {
   const open = await reg?.getNotifications?.(); open?.forEach(item => item.close());
   try { localStorage.removeItem('quest-push-owner'); } catch { /* No local storage. */ }
 }
-export function useQuestNotifications({ state, userId, popupWindow }) {
+function useBrowserNotifications({ state, userId, popupWindow }) {
   const [preferences, setPreferences] = useState({ ...DEFAULT_REMINDERS, inApp: true, desktopPopups: false });
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -338,3 +341,7 @@ export function useQuestNotifications({ state, userId, popupWindow }) {
   const reconnect = () => void run(async () => { await refresh(); setConnectionError(''); setMessage('Device connection checked.'); });
   return { preferences, enabled, busy, checking, setupStage, isBrave, popupSupported, popupActive, message, error: error || connectionError, feedError, reconnect, permission, needsInstall, canPush, enable, disable, update, test, testBrowser, lastDelivery, timezone: zone(), toasts, snooze, preview, dismiss };
 }
+
+// Platform is fixed for the lifetime of this renderer; each hook has its own
+// transport, while both use the same due dates, categories and task semantics.
+export const useQuestNotifications = desktopBridge ? useDesktopReminders : useBrowserNotifications;

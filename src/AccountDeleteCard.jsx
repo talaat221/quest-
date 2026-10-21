@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { desktopBridge } from "./desktop-bridge.js";
 import "./account-delete.css";
 
 const REASONS = [
@@ -30,7 +31,11 @@ function clearDeletedAccountLocalData() {
   }
 }
 
-export default function AccountDeleteCard({ disabled = false, onBusyChange }) {
+export default function AccountDeleteCard(props) {
+  if (desktopBridge) return <section className="qd-home-settings-card qd-account-delete-card"><h2>Delete account</h2><p>Open the secure Quest website to review and confirm permanent account deletion. You may need to sign in there.</p><a className="qa-inline-link" href="https://myquests.me/#settings/delete-account" target="_blank" rel="noreferrer">Open account deletion ›</a></section>;
+  return <BrowserAccountDeleteCard {...props}/>;
+}
+function BrowserAccountDeleteCard({ disabled = false, onBusyChange }) {
   const dialogRef = useRef(null);
   const running = useRef(false);
   const [open, setOpen] = useState(false);
