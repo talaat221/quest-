@@ -21,7 +21,11 @@ try {
   await build({configFile:false,root,plugins:[react()],base:'/desktop-test/',resolve:{alias:[{find:/^\.\/supabaseClient$/,replacement:path.join(root,'scripts/desktop-fixture-client.js')}]},build:{outDir:fixtureOutput,emptyOutDir:true,rolldownOptions:{input:path.join(root,'scripts/desktop-fixture.html')}},logLevel:'warn'});
   const env={...process.env,QUEST_DESKTOP_TEST_DATA:data,TZ:'UTC'};delete env.ELECTRON_RUN_AS_NODE;
   app=await electron.launch({cwd:root,args:['.',...(process.platform==='linux' && process.getuid?.()===0?['--no-sandbox']:[])],env,timeout:30000});
-  page=await app.firstWindow();
+  // The hidden notice can finish loading before the application. Select by
+  // its observed origin instead of treating the first loaded window as Quest.
+  await poll(async()=>app.windows().some(w=>w.url()==='quest://app/'),'Quest application window loaded',30000);
+  page=app.windows().find(w=>w.url()==='quest://app/');
+  page.on('pageerror',error=>console.error('App page error:',error.message));
   await page.goto('quest://app/desktop-test/scripts/desktop-fixture.html');
   await page.waitForFunction(()=>window.fixture?.notifications.desktopSettings);
   await poll(async()=>app.windows().some(w=>w.url()==='quest://notice/'),'Transient reminder window initialized, hidden');
@@ -87,7 +91,7 @@ try {
   await fs.mkdir(path.join(root,'release'),{recursive:true});
   for(const [name,win] of [['main',page],['popup',popup]]) {try{await win?.screenshot({path:path.join(root,`release/test-failed-${name}.png`),timeout:3000});}catch{}}
   console.error(error);
-  try { console.log("Fixture:",await page.evaluate(()=>({error:window.fixture?.notifications.error,body:document.body.innerText.slice(0,600)}))); console.log("Reminder:",await popup?.locator("body").innerText()); } catch {}
+  try { console.log('Windows:',await visibility()); console.log("Fixture:",await page.evaluate(()=>({error:window.fixture?.notifications.error,body:document.body.innerText.slice(0,600)}))); console.log("Reminder:",await popup?.locator("body").innerText()); } catch {}
   process.exitCode=1;
 } finally {
   if(app)await app.close();
